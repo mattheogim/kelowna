@@ -244,6 +244,54 @@ const DEMO_ITINERARY = [
 const DEMO_WISHES = ["Kalala Organic Estate|와이너리", "Off the Grid Organic Winery|와이너리", "다운타운에서 점심|음식", "늦잠 + 호수 (카약·패들보드)|액티비티", "체리 · 과일 U-pick|액티비티", "저녁 캠프파이어 (파이어밴 확인)|액티비티"]
   .map((s, i) => { const p = s.split("|"); return { id: -1 - i, member: null, title: p[0], category: p[1], created_at: new Date().toISOString() }; });
 
+/* ---------------- 푸시 알림 ---------------- */
+const VAPID_PUBLIC = "BLOZAjhNhQZ6pgfmjHWxNjGkK-7605WHrMgIGmjkgsmTGbJ5cws-oZKSgAwd6J26ahK6QAZ05Z4lsGUcfx-gyKo";
+function b64ToU8(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+function pushState() {
+  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
+  if (!isStandalone() && /iphone|ipad|ipod/i.test(navigator.userAgent)) return "need-install";
+  return Notification.permission; // default | granted | denied
+}
+async function enablePush() {
+  const st = pushState();
+  if (st === "unsupported") return toast("이 브라우저는 푸시를 지원 안 해");
+  if (st === "need-install") { fillInstallGuide(); $("#install-modal").hidden = false; return toast("먼저 홈 화면에 설치해야 푸시가 돼"); }
+  if (needSb()) return;
+  if (!me) return openWho();
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") return toast("알림이 차단됐어 (설정에서 허용 가능)");
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUBLIC) });
+    const { error } = await sb.from("push_subs").upsert({ member: me, sub: sub.toJSON() }, { onConflict: "member" });
+    if (error) throw error;
+    localStorage.setItem("kel_push", "1");
+    toast("🔔 알림 켜졌어 — 앱 꺼져 있어도 무전이 와");
+    renderInfo();
+  } catch (e) {
+    console.error(e);
+    toast("알림 등록 실패 — 다시 시도해봐");
+  }
+}
+/* 보낸 사람이 나머지에게 푸시를 쏜다 (서버 트리거 없이 동작) */
+function sendPush(title, body, tag) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  try {
+    fetch(SUPABASE_URL + "/functions/v1/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
+      body: JSON.stringify({ title: title, body: body, tag: tag || "kel", exclude: me }),
+    }).catch(() => {});
+  } catch (e) {}
+}
+
 /* ---------------- 설치 유도 ---------------- */
 let deferredPrompt = null;
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredPrompt = e; showInstall(); });
@@ -734,7 +782,7 @@ function setDestFromTitle(title) {
     by: me, ts: Date.now(),
   };
   return setDest(d).then((ok) => {
-    if (ok) { toast("🧭 전원 홈에 띄웠어: " + d.n); switchTab("home"); }
+    if (ok) { toast("🧭 전원 홈에 띄웠어: " + d.n); sendPush("🧭 다음 목적지", nameOf(me) + ": 우리 다 같이 → " + d.n, "dest"); switchTab("home"); }
   });
 }
 function goCardHtml() {
@@ -1355,7 +1403,7 @@ function renderStamp() {
     const row = { member: me, place: q, note: null, lat: null, lng: null };
     if (q.indexOf("위치를 보내라") >= 0) row.target = "all";
     const r = await qInsert("checkins", row);
-    if (r === true) { toast("📻 전송: " + q); loadAll(); }
+    if (r === true) { toast("📻 전송: " + q); sendPush(nameOf(me), q, "radio"); loadAll(); }
   });
 
   $$(".board-card", el).forEach((bc) => bc.onclick = async (ev) => {
@@ -1365,7 +1413,7 @@ function renderStamp() {
     if (!me) return openWho();
     if (!confirm(nameOf(mid) + "에게 위치 요청 보낼까?")) return;
     const r = await qInsert("checkins", { member: me, place: "📍 위치 요청 → " + nameOf(mid), note: null, target: mid, lat: null, lng: null });
-    if (r === true) { toast("요청 보냄 — 응답 오면 알려줄게"); loadAll(); }
+    if (r === true) { toast("요청 보냄 — 응답 오면 알려줄게"); sendPush(nameOf(me), "📍 " + nameOf(mid) + ", 위치를 보내라!", "req"); loadAll(); }
   });
 
   $$(".rx", el).forEach((b) => b.onclick = async () => {
@@ -1395,7 +1443,7 @@ function renderStamp() {
     if (!v) return;
     const res = await qInsert("checkins", { member: me, place: "💬", note: v, lat: null, lng: null });
     rt.value = "";
-    if (res === true) loadAll();
+    if (res === true) { sendPush(nameOf(me), v, "radio"); loadAll(); }
   }
   if (rs) rs.onclick = sendRadioText;
   if (rt) rt.addEventListener("keydown", (e) => { if (e.key === "Enter") sendRadioText(); });
@@ -1434,6 +1482,7 @@ function wireSiren(sel) {
     if (needSb()) return;
     localStorage.setItem("kel_siren", String(Date.now()));
     emergency();
+    sendPush("🚨 화장실 긴급", "누군가 한계에 도달했다. 길을 비켜라", "siren");
     await sb.from("sirens").insert({});
   };
 }
@@ -1560,6 +1609,7 @@ async function sendVoice(blob, mime) {
     });
     if (ins.error) throw ins.error;
     beep(); stampFx("📻 음성 교신");
+    sendPush(nameOf(me), "🎙️ 음성 무전이 도착했어", "voice");
     loadAll();
   } catch (err) {
     console.error(err);
@@ -1858,6 +1908,13 @@ function renderInfo() {
     '<div class="kv"><b>공유 앨범</b><span class="code-line">' + (s.album_url ? '<a href="' + esc(s.album_url) + '" target="_blank" rel="noopener">열기</a>' : '<span class="muted">iCloud 공유 앨범 만들어서 링크 넣기</span>') + ' <button class="btn ghost small" id="edit-album">링크</button></span></div>' +
     '<div class="kv"><b>숙소 좌표</b><span class="code-line"><span class="muted">' + esc(String(cabinLat())) + ", " + esc(String(cabinLng())) + '</span><button class="btn ghost small" id="edit-coord">수정</button></span></div>' +
     '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me, "mini") + " " : "") + '<b style="color:' + (me ? colorOf(me) : "inherit") + '">' + esc(myName) + '</b><button class="btn ghost small" id="edit-me">변경</button></span></div>' +
+    '<div class="kv"><b>알림</b><span class="code-line">' +
+    (pushState() === "granted" && localStorage.getItem("kel_push")
+      ? '<b style="color:var(--pine)">켜짐 — 앱 꺼져도 옴</b>'
+      : pushState() === "need-install" ? '<span class="muted">홈 화면에 설치해야 켤 수 있어</span>'
+      : pushState() === "denied" ? '<span class="muted">차단됨 — 아이폰 설정 → 알림에서 허용</span>'
+      : '<span class="muted">꺼짐</span>') +
+    '<button class="btn ghost small" id="push-on">' + (localStorage.getItem("kel_push") ? "다시 등록" : "알림 켜기") + "</button></span></div>" +
     '<div class="kv"><b>튜토리얼</b><span><button class="btn ghost small" id="tut-again">다시 보기</button></span></div>' +
     '<div class="kv"><b>홈 미리보기</b><span class="chip-row" style="margin:0" id="preview-row">' +
     [["", "자동"], ["drive", "🚗 이동"], ["winery", "🍷 와이너리"], ["costco", "🛒 코스트코"], ["arrival", "🏠 도착"], ["cabin", "🗺️ 지도"]].map((pv) =>
@@ -1878,6 +1935,7 @@ function renderInfo() {
   $("#edit-coord").onclick = editCoord;
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
+  const pon = $("#push-on"); if (pon) pon.onclick = enablePush;
   $$("#preview-row .chip").forEach((c) => c.onclick = () => {
     modeOverride = c.dataset.pv;
     switchTab("home");
@@ -1965,6 +2023,7 @@ function fillInstallGuide() {
 const TUT = [
   { ic: "🏕️", t: "홈 — 지금 뭐 할 차례?", d: "일정 따라 '지금' 카드가 자동으로 바뀌어. 급한 결정은 투표 걸면 실시간 집계." },
   { ic: "📻", t: "무전 — 진짜 무전기임", d: "큰 버튼 꾹 누르고 말하면 음성 전송, 짧게 탭하면 위치만. \"어디십니까\" 같은 빠른 무전도 원탭. 친구 카드 탭하면 위치 요청이 날아가." },
+  { ic: "🔔", t: "알림 켜기", d: "홈 화면에 설치하고 정보 탭에서 '알림 켜기'를 누르면, 앱이 꺼져 있어도 무전·사이렌이 알림으로 와." },
   { ic: "🚽", t: "긴급 버튼", d: "화장실 위기엔 무전 탭 맨 아래 빨간 버튼. 익명이고, 전원 폰에 사이렌이 울려. 10분에 한 번만." },
   { ic: "🧾", t: "장부 — 정산은 자동", d: "산 사람이 그 자리에서 한 줄만 적으면 끝. 마지막에 누가 누구한테 얼마 보낼지 자동 계산." },
   { ic: "🎒", t: "준비 끝!", d: "Wi-Fi·도어코드·숙소 규칙은 정보 탭. 금요일에 뭐 할지는 일정 탭 → 제안 보드에서 골라." },

@@ -1,5 +1,5 @@
 /* 켈로나 여행수첩 — service worker */
-const CACHE = "kel-v2";
+const CACHE = "kel-v3";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.json", "icon-180.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -40,6 +40,32 @@ self.addEventListener("fetch", (e) => {
         }
         return res;
       });
+    })
+  );
+});
+
+
+/* ---------- 푸시 알림 ---------- */
+self.addEventListener("push", (e) => {
+  let d = { title: "켈로나 여행수첩", body: "새 교신", tag: "kel" };
+  try { if (e.data) d = Object.assign(d, e.data.json()); } catch (err) { try { d.body = e.data.text(); } catch (e2) {} }
+  e.waitUntil(self.registration.showNotification(d.title, {
+    body: d.body,
+    tag: d.tag,
+    icon: "icon-180.png",
+    badge: "icon-180.png",
+    vibrate: [60, 40, 60],
+    renotify: true,
+    data: { url: "./" },
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) { if ("focus" in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow("./");
     })
   );
 });
