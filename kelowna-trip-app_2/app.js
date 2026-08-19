@@ -109,6 +109,7 @@ let currentTab = "home";
 let planDay = null;
 const maps = {};
 let lastPos = null;
+let modeOverride = "";
 let alertLog = JSON.parse(localStorage.getItem("kel_alerts") || "[]");
 let lastSend = 0;
 function inkDrying() {
@@ -155,8 +156,12 @@ function showInstall() {
     inner = '📲 카톡 브라우저에선 앱 설치가 안 돼 — <button class="btn small" id="open-safari">Safari로 열기</button>';
   } else if (deferredPrompt) {
     inner = '📲 홈 화면에 앱으로 설치 가능 — <button class="btn small" id="do-install">설치</button>';
+  } else if (isIOS && /CriOS|FxiOS|EdgiOS/i.test(ua)) {
+    inner = '📲 앱으로 설치 가능 — <button class="btn small" id="ig-open">크롬에서 하는 법</button>';
   } else if (isIOS) {
     inner = '📲 앱처럼 설치하면 전체화면 + 아이콘 생김 — <button class="btn small" id="ig-open">방법 보기</button>';
+  } else if (/Chrome|Edg/i.test(ua)) {
+    inner = '📲 주소창 오른쪽 <b>설치 아이콘</b>(⊕)을 누르면 앱으로 설치돼 — <button class="btn small" id="ig-open">자세히</button>';
   } else return;
   b.innerHTML = inner + '<button class="ib-x" id="ib-close" aria-label="닫기">✕</button>';
   b.hidden = false;
@@ -166,7 +171,7 @@ function showInstall() {
   const di = $("#do-install");
   if (di) di.onclick = () => { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt = null; b.hidden = true; };
   const ig = $("#ig-open");
-  if (ig) ig.onclick = () => { $("#install-modal").hidden = false; };
+  if (ig) ig.onclick = () => { fillInstallGuide(); $("#install-modal").hidden = false; };
 }
 
 /* ---------------- 여행 단계 ---------------- */
@@ -289,7 +294,7 @@ function restoreMirror(silent) {
 function subscribe() {
   if (!sb) return;
   const ch = sb.channel("kel-live");
-  ["checkins", "expenses", "polls", "votes", "itinerary", "wishes", "wish_likes", "shopping", "wine_ratings", "reactions", "sirens"].forEach((t) => {
+  ["checkins", "expenses", "polls", "votes", "itinerary", "wishes", "wish_likes", "shopping", "wine_ratings", "reactions", "sirens", "settings"].forEach((t) => {
     ch.on("postgres_changes", { event: "*", schema: "public", table: t }, (p) => onLive(t, p));
   });
   ch.subscribe();
@@ -301,6 +306,20 @@ function onLive(table, payload) {
   const r = payload.new || {};
   if (table === "sirens") { emergency(); return; }
   if (table === "reactions") return;
+  if (table === "settings") {
+    const r2 = payload.new || {};
+    if (r2.key === "current_dest" && r2.value) {
+      try {
+        const d = JSON.parse(r2.value);
+        if (d && d.n && d.by !== me) {
+          toast("🧭 다음 목적지: " + d.n + (d.by ? " (" + nameOf(d.by) + ")" : ""));
+          pushAlert("🧭 다음 목적지: " + d.n);
+          if (currentTab !== "home") badge("home", true);
+        }
+      } catch (e) {}
+    }
+    return;
+  }
   const actor = r.member || r.payer || r.added_by || r.created_by || "";
   if (actor === me) return;
   let msg = "", tab = "";
@@ -339,15 +358,25 @@ function switchTab(tab) {
 }
 
 /* ---------------- 홈 ---------------- */
+function timeKey(r) {
+  const t = (r.t || "").trim();
+  if (!t) return 5 + (r.sort || 0) / 1000;
+  const m = t.match(/^(\d{1,2}):(\d{2})/);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  const fuzzy = { "새벽": 300, "아침": 480, "오전": 540, "점심": 720, "낮": 730, "오후": 840, "저녁": 1080, "밤": 1260 };
+  for (const k in fuzzy) if (t.indexOf(k) >= 0) return fuzzy[k];
+  return 720 + (r.sort || 0) / 1000;
+}
 function itemsFor(day) {
-  return store.itinerary.filter((r) => r.day === day).slice().sort((a, b) => (a.sort || 0) - (b.sort || 0));
+  return store.itinerary.filter((r) => r.day === day).slice()
+    .sort((a, b) => timeKey(a) - timeKey(b) || (a.sort || 0) - (b.sort || 0));
 }
 function nowAndNext() {
   const items = itemsFor(todayStr());
-  const timed = items.filter((r) => /^\d{1,2}:\d{2}$/.test(r.t || ""));
-  const now = hm(new Date());
+  const timed = items.filter((r) => /^\d{1,2}:\d{2}/.test((r.t || "").trim()));
+  const nowK = new Date().getHours() * 60 + new Date().getMinutes();
   let cur = null, next = null;
-  for (const r of timed) { if (r.t <= now) cur = r; else { next = r; break; } }
+  for (const r of timed) { if (timeKey(r) <= nowK) cur = r; else { next = r; break; } }
   if (!cur && timed.length) next = timed[0];
   return { cur, next };
 }
@@ -357,18 +386,36 @@ function ddayStampHtml() {
   return '<div class="stamp dday-stamp" style="--c:var(--wine);--rot:8deg"><span class="s-place">D-' + d + '</span><span class="s-when">8/20 목 8:00</span></div>';
 }
 function heroBeforeHtml() {
-  return '<div class="hero card" style="padding:0;overflow:hidden;position:relative">' +
+  return '<div class="hero card" style="position:relative">' +
     '<div id="home-map" class="hero-map map-paper"></div>' + ddayStampHtml() +
-    '<button class="hero-cap" id="hero-go">여정 — 포트무디 → West Kelowna → Hydraulic Lake</button></div>';
+    '<button class="hero-cap" id="hero-go">포트무디 → West Kelowna → Hydraulic Lake</button></div>';
 }
 function heroLiveHtml() {
-  return '<div class="hero card" style="padding:0;overflow:hidden">' +
-    '<div id="home-map" class="hero-map map-paper"></div>' +
-    '<button class="hero-cap" id="hero-go">📡 실시간 위치 — 무전 탭에서 송신하면 여기 뜸 · 탭하면 크게</button></div>';
+  const latest = latestByMember();
+  const seen = MEMBERS.filter((m) => latest[m.id]).length;
+  const night = isNight();
+  let inner = eyebrow(night ? "🌙" : "🏕️", "지금 · 캐빈", hm(new Date()));
+  inner += '<div class="band-title">' + (night ? "밤의 Hydraulic Lake" : "Hydraulic Lake") + "</div>" +
+    '<div class="band-sub">' + seen + "/" + MEMBERS.length + ' 명 위치 공유 중</div>' +
+    bandBtns([bBtn("📻 나 여기야", "home-ping"), bBtn("🗺️ 지도 크게", "hero-go", true)]);
+  return band("cabin", inner) +
+    '<div class="hero card"><div id="home-map" class="hero-map map-paper"></div></div>';
+}
+function isNight() { const h = new Date().getHours(); return h >= 20 || h < 6; }
+function modeDots(active) {
+  const order = ["drive", "winery", "shop", "arr", "cabin"];
+  return '<div class="mode-dots">' + order.map((m) => '<i class="' + (m === active ? "on" : "") + '"></i>').join("") + "</div>";
 }
 
 /* ---- 홈 자동 전환 엔진 ---- */
 function homeMode() {
+  if (modeOverride) return modeOverride;
+  const dd = getDest();
+  if (dd) {
+    if (lastPos && dd.lat && distKm(lastPos.lat, lastPos.lng, dd.lat, dd.lng) <= 0.4) {
+      if (!destClearing) { destClearing = true; setDest(null).then(() => { destClearing = false; toast("🏁 도착 — 목적지 자동 해제"); }); }
+    } else return "go";
+  }
   const isThu = todayStr() === TRIP.days[0].date;
   if (lastPos) {
     if (distKm(lastPos.lat, lastPos.lng, COSTCO.lat, COSTCO.lng) <= 0.6) return "costco";
@@ -388,10 +435,17 @@ function fetchETA(a, b, elId) {
   const ck = elId + "-" + Math.round(a.lat * 300) + "," + Math.round(a.lng * 300);
   const paint = (v) => {
     const el = document.getElementById(elId);
-    if (el) el.innerHTML = Math.round(v.sec / 60) + '분 <span class="muted" style="font-size:14px">· ' + (Math.round(v.km * 10) / 10) + "km" + (v.approx ? " · 직선 추정" : "") + "</span>";
+    if (!el) return;
+    if (el.classList.contains("band-num")) {
+      el.textContent = Math.round(v.sec / 60);
+      const side = el.parentElement && el.parentElement.querySelector(".band-side");
+      if (side) side.textContent = (Math.round(v.km * 10) / 10) + " km" + (v.approx ? " · 추정" : "") + " 남음";
+    } else {
+      el.innerHTML = Math.round(v.sec / 60) + '분 <span class="muted" style="font-size:14px">· ' + (Math.round(v.km * 10) / 10) + "km" + (v.approx ? " · 직선 추정" : "") + " · " + hm(new Date()) + ' 기준</span>';
+    }
   };
   const hit = etaCache[ck];
-  if (hit && Date.now() - hit.ts < 120000) { paint(hit); return; }
+  if (hit && Date.now() - hit.ts < 90000) { paint(hit); return; }
   fetch("https://router.project-osrm.org/route/v1/driving/" + a.lng + "," + a.lat + ";" + b.lng + "," + b.lat + "?overview=false")
     .then((r) => r.json())
     .then((d) => {
@@ -403,70 +457,158 @@ function fetchETA(a, b, elId) {
     .catch(() => { const km = distKm(a.lat, a.lng, b.lat, b.lng); paint({ sec: (km / 75) * 3600, km, approx: true }); });
 }
 
+/* ---------- 시네마틱 밴드 빌더 ---------- */
+function bandStars(n) {
+  let out = "";
+  const pts = [[26,200],[58,150],[40,265],[80,90],[100,240],[64,300]];
+  for (let i = 0; i < Math.min(n, pts.length); i++)
+    out += '<span class="star" style="width:' + (i % 2 ? 2 : 3) + "px;height:" + (i % 2 ? 2 : 3) + "px;top:" + pts[i][0] + "px;left:" + pts[i][1] + "px;animation-delay:" + (i * 0.6) + 's"></span>';
+  return out;
+}
+function progHtml(fromLabel, toLabel, pct) {
+  const p = Math.max(2, Math.min(98, pct));
+  return '<div class="prog"><div class="prog-track"></div><div class="prog-fill" style="width:' + p + '%"></div>' +
+    '<div class="prog-dot" style="left:' + p + '%"></div><div class="prog-end"></div></div>' +
+    '<div class="prog-labels"><span>' + esc(fromLabel) + "</span><span>" + esc(toLabel) + "</span></div>";
+}
+function band(mode, inner) {
+  return '<div class="band m-' + mode + '">' + (mode === "cabin" ? bandStars(6) : "") + inner + "</div>";
+}
+function eyebrow(ic, text, stamp) {
+  return '<div class="band-eyebrow"><span class="ic">' + ic + "</span>" + esc(text) +
+    (stamp ? '<span class="band-stamp">' + esc(stamp) + "</span>" : "") + "</div>";
+}
+function bandBtns(arr) { return '<div class="band-actions">' + arr.join("") + "</div>"; }
+function bBtn(label, id, ghost) { return '<button class="bbtn' + (ghost ? " ghost" : "") + '" id="' + id + '">' + label + "</button>"; }
+function bLink(label, q, ghost) { return '<a class="bbtn' + (ghost ? " ghost" : "") + '" href="' + gmapUrl(q) + '" target="_blank" rel="noopener">' + label + "</a>"; }
+
 function navBtn(q, label) {
   return '<a class="btn ghost small" style="text-decoration:none" href="' + gmapUrl(q) + '" target="_blank" rel="noopener">📍 ' + (label || "구글맵") + "</a>";
 }
 
 function driveCardHtml() {
   const next = nowAndNext().next;
-  const dest = next ? placeCoord(next.title) : null;
-  let html = '<div class="card navc"><div class="mode-badge">🚗 이동 중</div>';
+  let dest = next ? placeCoord(next.title) : null;
+  let q = next ? placeQuery(next.title) : null;
+  if (!dest) { const fd = firstDestination(); if (fd) { dest = fd; q = fd.q; } }
+  const total = dest ? distKm(WAYPOINTS[0].lat, WAYPOINTS[0].lng, dest.lat, dest.lng) : 0;
+  const left = dest && lastPos ? distKm(lastPos.lat, lastPos.lng, dest.lat, dest.lng) : total;
+  const pct = total > 0 ? Math.max(0, Math.min(100, (1 - left / total) * 100)) : 0;
+  let inner = eyebrow("🚗", "지금 · 이동 중", lastPos ? hm(new Date()) + " 갱신" : "");
   if (dest) {
-    html += '<div class="navc-dest">다음: <b>' + esc(dest.n) + "</b>" + (next && next.t ? ' <span class="muted">(' + esc(next.t) + " 예정)</span>" : "") + "</div>";
-    if (lastPos) html += '<div class="navc-eta" id="nav-eta">계산 중…</div>';
-    else html += '<button class="btn small" id="nav-loc">📍 위치 켜면 남은 시간 계산</button>';
-    html += '<div style="margin-top:8px">' + navBtn(placeQuery(next.title) || dest.n, "구글맵으로 안내 시작") + "</div>";
+    inner += '<div class="band-label">' + esc(dest.n) + "까지</div>" +
+      '<div class="band-big"><span class="band-num" id="nav-eta">' + (lastPos ? "…" : "—") + '</span><span class="band-unit">분</span>' +
+      '<span class="band-side">' + (lastPos ? Math.round(left) + " km 남음" : "위치 켜면 실시간") + "</span></div>" +
+      progHtml("포트무디", dest.n, pct) +
+      bandBtns([bLink("🧭 내비 시작", q || dest.n), bBtn("🛑 쉬는 곳 " + REST_STOPS.length, "rest-jump", true)]);
+    if (!lastPos) inner += bandBtns([bBtn("📍 위치 켜기 — 1분마다 자동 갱신", "nav-loc", true)]);
   } else {
-    html += '<div class="navc-dest">West Kelowna까지 달리는 중</div>';
+    inner += '<div class="band-title">West Kelowna까지 달리는 중</div>';
   }
-  html += '<div class="navc-rest"><b>쉬는 곳</b>';
+  let html = band("drive", inner);
+  html += '<div class="row-list" id="rest-list">';
   for (const r of REST_STOPS) {
-    html += '<div class="rest-row">' + esc(r.n) +
-      (lastPos ? '<span class="muted"> · 약 ' + Math.round(distKm(lastPos.lat, lastPos.lng, r.lat, r.lng)) + "km</span>" : "") +
+    html += '<div class="lrow"><span class="ic">☕️</span>' + esc(r.n) +
+      (lastPos ? '<span class="rt">' + Math.round(distKm(lastPos.lat, lastPos.lng, r.lat, r.lng)) + " km</span>" : '<span class="rt"></span>') +
       '<a class="rest-map" href="' + gmapUrl(r.q) + '" target="_blank" rel="noopener">📍</a></div>';
   }
-  html += "</div></div>";
+  html += "</div>";
   return html;
 }
 
 function wineryCardHtml() {
-  const cur = nowAndNext().cur, next = nowAndNext().next;
-  const here = nearestWinery();
-  const curName = here ? here.n : (cur ? cur.title : "와이너리");
-  let html = '<div class="card navc" style="border-color:var(--wine)"><div class="mode-badge" style="color:var(--wine)">🍷 와이너리 타임</div>' +
-    '<div class="navc-dest">지금: <b>' + esc(curName) + "</b></div>";
-  if (next) {
-    const nd = placeCoord(next.title);
-    html += '<div class="muted" style="margin-top:2px">다음 → ' + esc(next.title) + (next.t ? " (" + esc(next.t) + ")" : "") + "</div>";
-    if (nd && lastPos) html += '<div class="navc-eta" id="nav-eta" style="font-size:22px">계산 중…</div>';
-    if (nd) html += '<div style="margin-top:8px">' + navBtn(placeQuery(next.title) || nd.n, "다음 장소 내비") + "</div>";
+  const sq = seqNow();
+  const curName = sq.here ? sq.here.n : (sq.curItem ? sq.curItem.title : "와이너리");
+  let inner = eyebrow("🍷", "지금 · 와이너리" + (sq.here ? " · 위치 확인됨" : ""), hm(new Date()));
+  inner += '<div class="band-title">' + esc(curName) + "</div>";
+  if (sq.nextItem) {
+    const nd = placeCoord(sq.nextItem.title);
+    inner += '<div class="band-sub">다음 → <b>' + esc(sq.nextItem.title) + "</b>" + (sq.nextItem.t ? " · " + esc(sq.nextItem.t) + " 예정" : "") + "</div>";
+    if (nd && lastPos) inner += '<div class="band-big"><span class="band-num sm" id="nav-eta">…</span><span class="band-unit">분</span><span class="band-side">차로</span></div>';
+    const btns = [];
+    if (nd) btns.push(bLink("🧭 내비", placeQuery(sq.nextItem.title) || nd.n));
+    btns.push(bBtn("✅ 출발 확정 — 전원에게", "go-next", true));
+    inner += bandBtns(btns);
   }
-  html += '<div style="margin-top:10px"><button class="btn" id="wine-go" style="width:100%">🍷 이 와이너리 평가 남기기</button></div></div>';
-  return html;
+  if (sq.rest.length) inner += '<div class="band-note">이후 → ' + sq.rest.map((r) => esc(r.title)).join(" → ") + "</div>";
+  return band("wine", inner) + '<button class="btn" id="wine-go" style="width:100%;margin-top:10px">🍷 이 와이너리 평가 남기기</button>';
 }
 
 function costcoCardHtml() {
   const shop = store.shopping;
   const done = shop.filter((x) => x.done).length;
-  let html = '<div class="card navc" style="border-color:var(--pine)"><div class="mode-badge" style="color:var(--pine)">🛒 코스트코 타임 — 다흰 카드!</div>' +
-    '<div class="muted" style="margin:2px 0 6px">' + done + " / " + shop.length + ' 담음 · 계산 끝나면 장부에 금액 한 줄</div>' +
+  const pct = shop.length ? Math.round((done / shop.length) * 100) : 0;
+  let inner = eyebrow("🛒", "지금 · 코스트코 — 다흰 카드", hm(new Date()));
+  inner += '<div class="band-big"><span class="band-num">' + done + '</span><span class="band-unit">/ ' + shop.length + " 담음</span>" +
+    '<span class="band-side">' + pct + "%</span></div>" +
+    '<div class="band-bar"><i style="width:' + pct + '%"></i></div>' +
+    bandBtns([bBtn("🧾 계산 끝 — 장부 기록", "home-exp"), bLink("📍 지도", "Costco Kelowna BC", true)]);
+  let html = band("shop", inner);
+  html += '<div class="card"><div class="shop-add"><input class="input" id="shop-item-h" placeholder="살 것 바로 추가"><button class="btn" id="shop-go-h">추가</button></div>' +
     '<div class="checklist" id="home-shop">';
   const sorted = shop.slice().sort((a, b) => (a.done === b.done ? new Date(a.created_at) - new Date(b.created_at) : a.done ? 1 : -1));
-  if (!sorted.length) html += '<div class="muted">리스트 비어 있음 — 장부 탭에서 추가</div>';
+  if (!sorted.length) html += '<div class="muted">리스트 비어 있음 — 위에서 추가</div>';
   for (const it of sorted) {
-    html += '<label><input type="checkbox" class="shop-check" data-id="' + it.id + '"' + (it.done ? " checked" : "") + '><span class="' + (it.done ? "done" : "") + '">' + esc(it.item) + "</span></label>";
+    html += '<label><input type="checkbox" class="shop-check" data-id="' + it.id + '"' + (it.done ? " checked" : "") + '><span class="' + (it.done ? "done" : "") + '">' + esc(it.item) +
+      (it.added_by ? ' <span class="muted" style="font-size:11px">' + esc(nameOf(it.added_by)) + "</span>" : "") + "</span></label>";
   }
-  html += "</div>" + '<div style="margin-top:8px">' + navBtn("Costco Kelowna BC") + "</div></div>";
+  html += "</div></div>";
   return html;
 }
 
 function arrivalCardHtml() {
   const door = store.settings.door_code, wifi = store.settings.wifi_code;
-  return '<div class="card navc" style="border-color:var(--wine)"><div class="mode-badge" style="color:var(--wine)">🏠 숙소 도착</div>' +
-    '<div class="arr-row"><span class="arr-label">도어코드</span><span class="arr-code">' + (door ? esc(door) : "정보 탭에서 입력") + "</span>" + (door ? '<button class="btn ghost small cp" data-copy="' + esc(door) + '" data-lb="도어코드">복사</button>' : "") + "</div>" +
-    '<div class="arr-row"><span class="arr-label">Wi-Fi</span><span class="arr-code" style="font-size:19px">' + (wifi ? esc(wifi) : "숙소 안 QR") + "</span>" + (wifi ? '<button class="btn ghost small cp" data-copy="' + esc(wifi) + '" data-lb="Wi-Fi">복사</button>' : "") + "</div>" +
-    '<div class="muted" style="margin-top:6px">⚠️ 반드시 Hwy 33 · 변기엔 휴지만 · 수돗물 마시지 말기</div>' +
-    '<div style="margin-top:8px">' + navBtn("9995 McCulloch Rd Kelowna BC", "숙소 내비") + "</div></div>";
+  let inner = eyebrow("🏠", "지금 · 숙소 도착", hm(new Date()));
+  inner += '<div class="arr-row"><span class="arr-label">도어코드</span><span class="arr-code">' + (door ? esc(door) : "—") + "</span>" +
+    (door ? '<button class="bbtn ghost cp" data-copy="' + esc(door) + '" data-lb="도어코드" style="margin-left:auto">복사</button>' : "") + "</div>" +
+    '<div class="arr-row"><span class="arr-label">Wi-Fi</span><span class="arr-code" style="font-size:20px">' + (wifi ? esc(wifi) : "숙소 안 QR") + "</span>" +
+    (wifi ? '<button class="bbtn ghost cp" data-copy="' + esc(wifi) + '" data-lb="Wi-Fi" style="margin-left:auto">복사</button>' : "") + "</div>" +
+    '<div class="band-note">⚠️ 반드시 Hwy 33 · 변기엔 휴지만 · 수돗물 마시지 말기</div>' +
+    bandBtns([bLink("🧭 숙소 내비", "9995 McCulloch Rd Kelowna BC")]);
+  return band("arr", inner);
+}
+
+/* ---- 공유 목적지: 누가 정하면 전원 홈이 바뀐다 ---- */
+let destClearing = false;
+function getDest() {
+  const v = store.settings.current_dest;
+  if (!v) return null;
+  try { const d = JSON.parse(v); return d && d.n ? d : null; } catch (e) { return null; }
+}
+async function setDest(d) {
+  if (needSb()) return false;
+  const { error } = await sb.from("settings").upsert({ key: "current_dest", value: d ? JSON.stringify(d) : "" });
+  if (error) { toast("실패 — 다시 시도"); return false; }
+  loadAll();
+  return true;
+}
+function setDestFromTitle(title) {
+  const c = placeCoord(title);
+  const d = {
+    n: c ? c.n : title,
+    q: placeQuery(title) || title + " Kelowna BC",
+    lat: c ? c.lat : null, lng: c ? c.lng : null,
+    by: me, ts: Date.now(),
+  };
+  return setDest(d).then((ok) => {
+    if (ok) { toast("🧭 전원 홈에 띄웠어: " + d.n); switchTab("home"); }
+  });
+}
+function goCardHtml() {
+  const d = getDest();
+  if (!d) return "";
+  let inner = eyebrow("🧭", "우리 다 같이 → 이동 중", d.by ? nameOf(d.by) + " 확정" : "");
+  inner += '<div class="band-title">' + esc(d.n) + "</div>";
+  if (d.lat && lastPos) {
+    inner += '<div class="band-big"><span class="band-num sm" id="nav-eta">…</span><span class="band-unit">분</span>' +
+      '<span class="band-side">' + Math.round(distKm(lastPos.lat, lastPos.lng, d.lat, d.lng)) + " km 남음</span></div>";
+  } else if (d.lat) {
+    inner += '<div class="band-sub">위치 켜면 남은 시간이 여기 떠</div>';
+  }
+  const btns = [bLink("🧭 내비 시작", d.q || d.n), bBtn("🏁 도착 · 해제", "dest-done", true)];
+  if (d.lat && !lastPos) btns.push(bBtn("📍 위치 켜기", "nav-loc", true));
+  inner += bandBtns(btns);
+  return band("drive", inner);
 }
 
 function nearestWinery() {
@@ -478,27 +620,52 @@ function nearestWinery() {
   }
   return best;
 }
+
+/* 일정표 체인 기준 지금/다음 — 시계가 아니라 순서를 따른다 */
+function seqNow() {
+  let items = itemsFor(todayStr());
+  if (!items.length) items = itemsFor(TRIP.days[0].date); // 시연·출발 전 대비
+  let idx = -1;
+  const here = nearestWinery();
+  if (here) idx = items.findIndex((r) => (r.title || "").indexOf(here.n) >= 0);
+  if (idx < 0) {
+    const cur = nowAndNext().cur;
+    if (cur) idx = items.findIndex((r) => r.id === cur.id);
+  }
+  const curItem = idx >= 0 ? items[idx] : null;
+  const nextItem = idx + 1 < items.length ? items[idx + 1] : (idx < 0 && items.length ? items[0] : null);
+  const rest = idx >= 0 ? items.slice(idx + 2, idx + 4) : [];
+  return { curItem, nextItem, rest, here };
+}
 function renderHome() {
   const el = $("#tab-home");
-  const p = phase();
+  const p = modeOverride ? "during" : phase();
   let html = "";
 
   if (p === "before") {
+    const fd = firstDestination();
+    let inner = eyebrow("🧭", "출발 대기", "");
+    inner += '<div class="band-label">목 8:00 출발까지</div>' +
+      '<div class="band-big"><span class="band-num sm" data-tick="dep">…</span></div>' +
+      '<div class="band-sub">7:30 포트무디 집결 · A조 4 / B조 2</div>';
+    if (fd) inner += '<div class="band-note">첫 목적지 <b>' + esc(fd.n) + '</b> · <span id="pre-eta">경로 계산 중…</span></div>' +
+      bandBtns([bLink("🧭 경로 미리 보기", fd.q)]);
+    html += band("drive", inner);
     html += heroBeforeHtml();
-    html += '<div class="now-card"><div class="now-eyebrow">출발</div>' +
-      '<div class="now-title">목 7:30 포트무디 집결 → 8:00 출발</div>' +
-      '<div class="now-note">A조 4명 / B조 2명(랭리) · Hwy 33으로만 진입</div></div>';
     html += '<div id="aq-home">' + aqHtml() + "</div>";
     html += '<h2 class="sec">준비물</h2><div class="card checklist" id="checklist"></div>';
   }
 
   if (p === "during") {
+    if (modeOverride) html += '<button class="chip" id="preview-off" style="margin-top:10px">👁️ 시연 모드 (실제 당일엔 자동) — 종료 ✕</button>';
     const mode = homeMode();
-    if (mode === "drive") html += driveCardHtml();
+    if (mode === "go") html += goCardHtml();
+    else if (mode === "drive") html += driveCardHtml();
     else if (mode === "winery") html += wineryCardHtml();
     else if (mode === "costco") html += costcoCardHtml();
     else if (mode === "arrival") html += arrivalCardHtml();
     else html += heroLiveHtml();
+    html += modeDots(mode === "go" ? "drive" : mode === "costco" ? "shop" : mode === "arrival" ? "arr" : mode === "cabin" ? "cabin" : mode);
 
     const { cur, next } = nowAndNext();
     if (mode !== "costco") {
@@ -537,7 +704,8 @@ function renderHome() {
 
   el.innerHTML = html;
 
-  if (p === "before") renderChecklist();
+  if (p === "before") { renderChecklist(); tickDep(); preTripETA(); }
+  const po = $("#preview-off"); if (po) po.onclick = () => { modeOverride = ""; renderHome(); };
   if ($("#home-map")) drawMap("home-map", p === "before" ? { route: true } : {});
   const hg = $("#hero-go"); if (hg) hg.onclick = () => switchTab("stamp");
   bindCopies(el);
@@ -545,17 +713,31 @@ function renderHome() {
   const hp = $("#home-ping"); if (hp) hp.onclick = () => quickPing();
   const hs = $("#home-stamp"); if (hs) hs.onclick = openStampModal;
   const nl = $("#nav-loc"); if (nl) nl.onclick = () => getPosition().then(() => renderHome());
+  const rj = $("#rest-jump"); if (rj) rj.onclick = () => { const t = $("#rest-list"); if (t) t.scrollIntoView({ behavior: "smooth", block: "center" }); };
+  const ddn = $("#dest-done"); if (ddn) ddn.onclick = async () => { if (!confirm("목적지 해제할까? (전원 홈에서 사라짐)")) return; await setDest(null); toast("🏁 해제됨"); };
   const wg = $("#wine-go"); if (wg) wg.onclick = openWineModal;
+  const gn = $("#go-next"); if (gn) gn.onclick = () => {
+    if (!me) return openWho();
+    const nx = seqNow().nextItem;
+    if (nx) setDestFromTitle(nx.title);
+  };
+  const sgh = $("#shop-go-h"); if (sgh) sgh.onclick = () => addShopItem("shop-item-h");
+  const sih = $("#shop-item-h"); if (sih) sih.addEventListener("keydown", (e) => { if (e.key === "Enter") addShopItem("shop-item-h"); });
+  const hex = $("#home-exp"); if (hex) hex.onclick = openExpModal;
   $$("#home-shop .shop-check", el).forEach((cb) => cb.onchange = async () => {
     if (needSb()) return;
     await sb.from("shopping").update({ done: cb.checked }).eq("id", Number(cb.dataset.id));
     loadAll();
   });
   // ETA 계산
-  if (p === "during" && lastPos) {
-    const next = nowAndNext().next;
-    const dest = next ? placeCoord(next.title) : null;
-    if (dest && $("#nav-eta")) fetchETA(lastPos, dest, "nav-eta");
+  if (p === "during" && lastPos && $("#nav-eta")) {
+    const mode2 = homeMode();
+    let dest = null;
+    if (mode2 === "go") { const dd = getDest(); if (dd && dd.lat) dest = dd; }
+    else if (mode2 === "winery") { const nx = seqNow().nextItem; dest = nx ? placeCoord(nx.title) : null; }
+    else { const next = nowAndNext().next; dest = next ? placeCoord(next.title) : null; }
+    if (!dest) { const fd = firstDestination(); if (fd) dest = fd; }
+    if (dest) fetchETA(lastPos, dest, "nav-eta");
   }
   bindPolls(el);
 }
@@ -680,7 +862,8 @@ function renderPlan() {
       '<span class="plan-time">' + esc(r.t || "") + "</span>" +
       '<span class="plan-title"><span class="' + (tbd ? "tbd" : "") + '">' + esc(r.title) + "</span>" +
       (r.note ? '<span class="plan-note">' + esc(r.note) + "</span>" : "") + "</span>" +
-      '<span style="white-space:nowrap">' + (placeQuery(r.title) ? '<a class="plan-edit" style="text-decoration:none" href="' + gmapUrl(placeQuery(r.title)) + '" target="_blank" rel="noopener">📍</a>' : "") +
+      '<span style="white-space:nowrap"><button class="plan-edit go-set" data-title="' + esc(r.title) + '" title="전원 홈에 다음 목적지로">▶</button>' +
+      (placeQuery(r.title) ? '<a class="plan-edit" style="text-decoration:none" href="' + gmapUrl(placeQuery(r.title)) + '" target="_blank" rel="noopener">📍</a>' : "") +
       '<button class="plan-edit" data-id="' + r.id + '">✎</button></span></div>';
   }
   html += "</div>";
@@ -747,6 +930,12 @@ function renderPlan() {
   });
   const wa = $("#wish-add"); if (wa) wa.onclick = openWishModal;
   const wn = $("#wine-add"); if (wn) wn.onclick = openWineModal;
+  $$(".go-set", el).forEach((b) => b.onclick = () => {
+    if (!me) return openWho();
+    const t = b.dataset.title;
+    if (!confirm('"' + t + '" — 전원 홈에 "지금 우리 → 여기"로 띄울까?')) return;
+    setDestFromTitle(t);
+  });
   $$(".like-btn", el).forEach((b) => b.onclick = async () => {
     if (needSb()) return;
     if (!me) return openWho();
@@ -891,8 +1080,8 @@ function renderStamp() {
   html += "</div>";
 
   html += '<h2 class="sec">긴급</h2><div class="card" style="text-align:center">' +
-    '<button class="siren-btn" id="siren-btn"><span class="siren-ic">🚽</span>화장실 긴급</button>' +
-    '<p class="muted" id="siren-hint" style="margin:8px 0 0">익명 · 10분에 1번 · 두 번 눌러야 발사 (전원 폰에 사이렌)</p></div>';
+    '<div class="siren-wrap"><button class="siren-btn" id="siren-btn"><span class="siren-ic">🚽</span><span>화장실 긴급</span></button>' +
+    '<p class="muted" id="siren-hint" style="margin:10px 0 0">익명 · 10분에 1번 · 두 번 눌러야 발사 (전원 폰에 사이렌)</p></div></div>';
 
   el.innerHTML = html;
   $("#do-stamp").onclick = openStampModal;
@@ -1293,8 +1482,8 @@ function renderLedger() {
   el.innerHTML = html;
 
   $("#exp-add").onclick = openExpModal;
-  $("#shop-go").onclick = addShopItem;
-  $("#shop-item").addEventListener("keydown", (e) => { if (e.key === "Enter") addShopItem(); });
+  $("#shop-go").onclick = () => addShopItem("shop-item");
+  $("#shop-item").addEventListener("keydown", (e) => { if (e.key === "Enter") addShopItem("shop-item"); });
   $$(".shop-check", el).forEach((cb) => cb.onchange = async () => {
     if (needSb()) return;
     await sb.from("shopping").update({ done: cb.checked }).eq("id", Number(cb.dataset.id));
@@ -1314,12 +1503,14 @@ function renderLedger() {
   });
 }
 
-async function addShopItem() {
+async function addShopItem(inputId) {
   if (!me) return openWho();
-  const v = $("#shop-item").value.trim();
+  const inp = document.getElementById(typeof inputId === "string" ? inputId : "shop-item");
+  if (!inp) return;
+  const v = inp.value.trim();
   if (!v) return;
   const r = await qInsert("shopping", { item: v, added_by: me });
-  $("#shop-item").value = "";
+  inp.value = "";
   if (r === true) loadAll();
 }
 
@@ -1399,6 +1590,10 @@ function renderInfo() {
     '<div class="kv"><b>숙소 좌표</b><span class="code-line"><span class="muted">' + esc(String(cabinLat())) + ", " + esc(String(cabinLng())) + '</span><button class="btn ghost small" id="edit-coord">수정</button></span></div>' +
     '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me, "mini") + " " : "") + '<b style="color:' + (me ? colorOf(me) : "inherit") + '">' + esc(myName) + '</b><button class="btn ghost small" id="edit-me">변경</button></span></div>' +
     '<div class="kv"><b>튜토리얼</b><span><button class="btn ghost small" id="tut-again">다시 보기</button></span></div>' +
+    '<div class="kv"><b>홈 미리보기</b><span class="chip-row" style="margin:0" id="preview-row">' +
+    [["", "자동"], ["drive", "🚗 이동"], ["winery", "🍷 와이너리"], ["costco", "🛒 코스트코"], ["arrival", "🏠 도착"], ["cabin", "🗺️ 지도"]].map((pv) =>
+      '<button class="chip' + (modeOverride === pv[0] ? " on" : "") + '" data-pv="' + pv[0] + '">' + pv[1] + "</button>").join("") +
+    "</span></div>" +
     '<div class="kv"><b>테마</b><span class="chip-row" style="margin:0" id="theme-row">' +
     [["", "📓 수첩"], ["dark", "🌙 다크"], ["clean", "⬜ 클린"]].map((td) =>
       '<button class="chip' + ((localStorage.getItem("kel_theme") || "") === td[0] ? " on" : "") + '" data-th="' + td[0] + '">' + td[1] + "</button>").join("") +
@@ -1414,6 +1609,11 @@ function renderInfo() {
   $("#edit-coord").onclick = editCoord;
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
+  $$("#preview-row .chip").forEach((c) => c.onclick = () => {
+    modeOverride = c.dataset.pv;
+    switchTab("home");
+    if (modeOverride) toast("시연 모드 — 당일엔 시간·위치 따라 자동으로 떠");
+  });
   $$("#theme-row .chip").forEach((c) => c.onclick = () => {
     const th = c.dataset.th;
     if (th) { localStorage.setItem("kel_theme", th); document.documentElement.setAttribute("data-theme", th); }
@@ -1455,6 +1655,41 @@ async function loadWeather() {
       " (최고 " + Math.round(d.daily.temperature_2m_max[0]) + "° / 최저 " + Math.round(d.daily.temperature_2m_min[0]) + "°)" +
       (sunset ? " · 일몰 " + sunset : "");
   } catch (e) { el.textContent = "날씨는 신호 잡히면 다시 떠."; }
+}
+
+function fillInstallGuide() {
+  const ua = navigator.userAgent;
+  const isIOS = /iphone|ipad|ipod/i.test(ua);
+  const chromeIOS = isIOS && /CriOS/i.test(ua);
+  const box = $("#ig-body");
+  if (!box) return;
+  const shareSvg = '<svg class="ig-ic" width="20" height="24" viewBox="0 0 22 26"><rect x="2" y="9" width="18" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 14 V2 M11 2 L6.5 6.5 M11 2 L15.5 6.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const plusSvg = '<svg class="ig-ic" width="20" height="20" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7 v10 M7 12 h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  let steps;
+  if (chromeIOS) {
+    steps = [
+      ["크롬 주소창 오른쪽 <b>공유 버튼</b> 탭 " + shareSvg, ""],
+      ['메뉴에서 <b>"홈 화면에 추가"</b> ' + plusSvg, "안 보이면 아래로 스크롤"],
+      ["오른쪽 위 <b>추가</b>", "홈 화면에 아이콘 생김"],
+      ["<b>Safari가 더 매끄러워</b>", "사파리로 이 주소를 열어서 같은 방법으로 해도 됨"],
+    ];
+  } else if (isIOS) {
+    steps = [
+      ["Safari로 열려 있는지 확인", "카톡 브라우저면 위 배너의 'Safari로 열기'부터"],
+      ["하단 가운데 <b>공유 버튼</b> 탭 " + shareSvg, ""],
+      ['아래로 스크롤 → <b>"홈 화면에 추가"</b> ' + plusSvg, ""],
+      ["오른쪽 위 <b>추가</b>", "끝! 홈 화면에 아이콘 생김"],
+    ];
+  } else {
+    steps = [
+      ["주소창 오른쪽 <b>설치 아이콘</b>(⊕ 또는 모니터 모양) 클릭", ""],
+      ["<b>설치</b> 누르기", "안 보이면 ⋮ 메뉴 → '앱으로 설치' 또는 'Install'"],
+      ["창이 앱처럼 떠서 끝", "안드로이드는 홈 화면에 아이콘 생김"],
+    ];
+  }
+  box.innerHTML = steps.map((st, i) =>
+    '<div class="ig-step"><span class="ig-num">' + (i + 1) + "</span><div>" + st[0] +
+    (st[1] ? '<br><span class="muted">' + st[1] + "</span>" : "") + "</div></div>").join("");
 }
 
 /* ---------------- 튜토리얼 ---------------- */
@@ -1667,6 +1902,8 @@ function boot() {
   }, 60000);
   setInterval(() => { loadAll(); flushQueue(); }, 300000);
   setInterval(loadAQ, 1800000);
+  setInterval(tickDep, 1000);
+  setInterval(refreshLiveETA, 60000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) { loadAll(); flushQueue(); } });
   window.addEventListener("online", () => { loadAll(); flushQueue(); });
 

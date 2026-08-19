@@ -173,14 +173,9 @@
 <!-- 설치 가이드 -->
 <div id="install-modal" class="modal" hidden>
   <div class="modal-card">
-    <p class="modal-title">📲 홈 화면에 설치하기</p>
-    <div class="ig-step"><span class="ig-num">1</span><div><b>Safari로 열려 있는지 확인</b><br><span class="muted">카톡 브라우저면 위 배너의 "Safari로 열기"부터</span></div></div>
-    <div class="ig-step"><span class="ig-num">2</span><div><b>하단 가운데 공유 버튼</b> 탭
-      <svg class="ig-ic" width="22" height="26" viewBox="0 0 22 26"><rect x="2" y="9" width="18" height="15" rx="3" fill="none" stroke="#2E6E6A" stroke-width="2"/><path d="M11 14 V2 M11 2 L6.5 6.5 M11 2 L15.5 6.5" stroke="#2E6E6A" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
-    <div class="ig-step"><span class="ig-num">3</span><div><b>아래로 스크롤 → "홈 화면에 추가"</b>
-      <svg class="ig-ic" width="24" height="24" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="#2E6E6A" stroke-width="2"/><path d="M12 7 v10 M7 12 h10" stroke="#2E6E6A" stroke-width="2" stroke-linecap="round"/></svg></div></div>
-    <div class="ig-step"><span class="ig-num">4</span><div><b>오른쪽 위 "추가"</b> — 끝! 홈 화면에 수첩 아이콘 생김</div></div>
-    <button class="btn" id="install-close" style="width:100%;margin-top:10px">알겠어</button>
+    <p class="modal-title">📲 앱으로 설치하기</p>
+    <div id="ig-body"></div>
+    <button class="btn" id="install-close" style="width:100%;margin-top:12px">알겠어</button>
   </div>
 </div>
 
@@ -199,6 +194,7 @@
 <div id="stamp-fx" hidden><div class="stamp fx" id="stamp-fx-inner" style="--rot:-7deg"></div></div>
 
 <div id="emg" hidden>
+  <div class="emg-bars"></div>
   <div class="emg-inner">
     <div class="emg-icon">🚨 🚽 🚨</div>
     <div class="emg-title">화장실 긴급 상황</div>
