@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v14";
-const BUILD_NO = 14;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v15";
+const BUILD_NO = 15;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2446,6 +2446,8 @@ function renderInfo() {
     '<div class="kv"><b>공유 앨범</b><span class="code-line">' + (s.album_url ? '<a href="' + esc(s.album_url) + '" target="_blank" rel="noopener">열기</a>' : '<span class="muted">iCloud 공유 앨범 만들어서 링크 넣기</span>') + ' <button class="btn ghost small" id="edit-album">링크</button></span></div>' +
     '<div class="kv"><b>숙소 좌표</b><span class="code-line"><span class="muted">' + esc(String(cabinLat())) + ", " + esc(String(cabinLng())) + '</span><button class="btn ghost small" id="edit-coord">수정</button></span></div>' +
     '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me, "mini") + " " : "") + '<b style="color:' + (me ? colorOf(me) : "inherit") + '">' + esc(myName) + '</b><button class="btn ghost small" id="edit-me">변경</button></span></div>' +
+    '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me) + " <b>" + esc(nameOf(me)) + "</b>" : '<span class="muted">미선택</span>') +
+    '<button class="btn ghost small" id="who-change">다른 사람으로</button></span></div>' +
     '<div class="kv"><b>내 캐릭터</b><span class="code-line">' + (me && charOf(me) ? av(me) + " <b>" + esc(fullName(me)) + '</b> <span class="muted" style="font-size:12px">' + esc(tierById[tierOf(me)].name) + "</span>" : '<span class="muted">아직 없음</span>') +
     '<button class="btn ghost small" id="open-odds">확률표</button>' +
     (charOf(me) ? '<button class="btn ghost small" id="fx-demo">내 이펙트</button>' : "") +
@@ -2500,6 +2502,7 @@ function renderInfo() {
   $("#edit-coord").onclick = editCoord;
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
+  const wc = $("#who-change"); if (wc) wc.onclick = openWho;
   const oo = $("#open-odds"); if (oo) oo.onclick = openOdds;
   const fu = $("#force-update");
   if (fu) fu.onclick = hardUpdate;
@@ -2766,10 +2769,12 @@ function checkVersionGate() {
   const tok = setting("reset_token") || "";
   if (tok && localStorage.getItem("kel_reset_token") !== tok) {
     localStorage.setItem("kel_reset_token", tok);
-    ["kel_rolls", "kel_dry", "kel_fate", "kel_tut", "kel_tut_loc", "kel_tut_siren",
+    ["kel_me", "kel_rolls", "kel_dry", "kel_fate", "kel_tut", "kel_tut_loc", "kel_tut_siren",
      "kel_push_x", "kel_check", "kel_alerts", "kel_siren", "kel_req_done"].forEach((k) => localStorage.removeItem(k));
-    toast("🔄 새 판 시작 — 캐릭터를 다시 뽑자");
-    setTimeout(() => { rollResult = null; openRoll(); }, 800);
+    me = "";
+    rollResult = null;
+    toast("🔄 새 판 시작 — 이름부터 다시 고르자");
+    setTimeout(() => { rerender(); openWho(); }, 600);
   }
   return false;
 }
@@ -3264,7 +3269,7 @@ function openWho() {
       localStorage.setItem("kel_me", me);
       $("#who-modal").hidden = true;
       rerender();
-      toast("🎮 " + avatarOf(me) + " " + nameOf(me) + " 선택! 이 폰은 이제 네 수첩이야");
+      toast("🎮 " + nameOf(me) + " 선택! (상단 아바타를 누르면 언제든 바꿀 수 있어)");
       if (tutPaused) setTimeout(tutResume, 300);
       else if (!charOf(me)) setTimeout(openRoll, 400);
       else if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 400);
