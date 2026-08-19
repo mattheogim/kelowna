@@ -16,7 +16,7 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v6";   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v7";   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2511,6 +2511,7 @@ function renderInfo() {
     L.push("동작줄이기: " + (reduceMotion() ? "켜짐 ⚠️" : "꺼짐"));
     L.push("애니메이션 지원: " + (typeof document.body.animate === "function" ? "예" : "아니오"));
     L.push("요소 pack/sfx/fx: " + (pack ? "O" : "X") + "/" + (sfx ? "O" : "X") + "/" + (fx ? "O" : "X"));
+    L.push("HTML 신선도: " + (document.querySelector('meta[name="build"]') ? "최신" : "옛 캐시(자동보정됨)"));
     if (pack) {
       pack.removeAttribute("hidden");
       pack.style.cssText = "display:flex;position:fixed;inset:0;z-index:600;opacity:1;background:#111";
@@ -2857,6 +2858,56 @@ function drawTut() {
   if (a && !isDone) a.onclick = () => { try { st.run(); } catch (e) { console.error(e); } };
 }
 function closeTut() { localStorage.setItem("kel_tut", "1"); tutPaused = false; $("#tut-modal").hidden = true; rerender(); }
+
+/* ---------- 연출용 레이어가 없으면 직접 만든다 (옛 HTML 캐시 대비) ---------- */
+function ensureLayers() {
+  const mk = (id, html, cls) => {
+    let el = document.getElementById(id);
+    if (el) return el;
+    el = document.createElement("div");
+    el.id = id;
+    el.hidden = true;
+    if (cls) el.className = cls;
+    if (html) el.innerHTML = html;
+    document.body.appendChild(el);
+    return el;
+  };
+  mk("fx", "");
+  mk("sfx", "");
+  mk("point", "");
+  mk("wall", "");
+  const edge = document.getElementById("edge") || (() => { const e = document.createElement("div"); e.id = "edge"; document.body.appendChild(e); return e; })();
+  if (!document.getElementById("ribbon")) { const r = document.createElement("div"); r.id = "ribbon"; r.hidden = true; document.body.appendChild(r); }
+  if (!document.getElementById("incoming")) {
+    const i = document.createElement("div"); i.id = "incoming"; i.hidden = true; document.body.appendChild(i);
+  }
+  if (!document.getElementById("pack")) {
+    mk("pack",
+      '<div class="flash" id="p-flash"></div><div id="p-beams"></div>' +
+      '<div class="cardwrap"><div class="card3d" id="c3d">' +
+      '<div class="face front" id="p-front"><div class="shine"></div>' +
+      '<div class="em" id="p-em"></div><div class="nm" id="p-nm"></div>' +
+      '<div class="ko" id="p-ko"></div><div class="rk" id="p-rk"></div></div>' +
+      '<div class="face back"><i>🎴</i></div></div></div>' +
+      '<div id="p-conf"></div><div class="skip">TAP TO SKIP</div>');
+  }
+  if (!document.getElementById("roll-modal")) {
+    const m = document.createElement("div");
+    m.id = "roll-modal"; m.className = "modal"; m.hidden = true;
+    m.innerHTML = '<div class="modal-card"><p class="modal-title">🎲 캐릭터 뽑기</p>' +
+      '<p class="modal-sub">이름은 운이 정해 · 중복 없음</p><div id="roll-body"></div></div>';
+    document.body.appendChild(m);
+  }
+  if (!document.getElementById("odds-modal")) {
+    const m = document.createElement("div");
+    m.id = "odds-modal"; m.className = "modal"; m.hidden = true;
+    m.innerHTML = '<div class="modal-card"><p class="modal-title">확률표</p><div id="odds-body"></div>' +
+      '<button class="btn" id="odds-close" style="width:100%;margin-top:14px">닫기</button></div>';
+    document.body.appendChild(m);
+    m.querySelector("#odds-close").onclick = () => { m.hidden = true; };
+  }
+  return edge;
+}
 
 /* ---------------- 팩 오프닝 연출 ---------------- */
 let packT = [];
@@ -3257,6 +3308,7 @@ function rerender() {
 
 /* ---------------- 시작 ---------------- */
 function boot() {
+  ensureLayers();
   if (isInApp() && showGate()) return;
   if (installRequired() && showInstallWall()) return;
   const th = localStorage.getItem("kel_theme");
