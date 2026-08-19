@@ -1,0 +1,365 @@
+/* ============================================================
+   켈로나 여행수첩 — 종이 수첩 디자인
+   paper #F3EDE0 · ink #26241E · wine #7C2E3E · lake #2E6E6A
+   ============================================================ */
+
+:root{
+  --paper:#F3EDE0;
+  --paper-2:#EDE5D3;
+  --ink:#26241E;
+  --ink-soft:#5C574B;
+  --pencil:#8D8577;
+  --line:rgba(38,36,30,.14);
+  --wine:#7C2E3E;
+  --lake:#2E6E6A;
+  --pine:#47603F;
+  --accent:var(--wine);
+  --card:#FBF7EC;
+  --danger:#8A3B2E;
+  --radius:14px;
+  --tabbar-h:62px;
+}
+
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0;}
+body{
+  background:
+    radial-gradient(circle at 1px 1px, rgba(38,36,30,.05) 1px, transparent 1.6px) 0 0/22px 22px,
+    var(--paper);
+  color:var(--ink);
+  font-family:"Gowun Dodum", -apple-system, sans-serif;
+  font-size:16px;
+  line-height:1.55;
+  padding-bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
+}
+
+/* ---------- 상단 ---------- */
+#topbar{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background:linear-gradient(var(--paper) 82%, rgba(243,237,224,0));
+}
+.brand-title{
+  font-family:"Gowun Batang", serif; font-weight:700; font-size:20px;
+  letter-spacing:.02em;
+  border-bottom:2px solid var(--accent);
+  padding-bottom:2px;
+}
+.brand-sub{ display:block; font-size:12px; color:var(--pencil); margin-top:3px;}
+.bell{ position:relative; background:none; border:none; font-size:20px; padding:6px;}
+.bell-dot{
+  position:absolute; top:4px; right:2px; width:9px; height:9px;
+  background:var(--wine); border-radius:50%; border:2px solid var(--paper);
+}
+
+#offline-banner,#nokey-banner{
+  margin:0 14px 8px; padding:8px 12px; font-size:13px;
+  background:var(--paper-2); border:1px dashed var(--line); border-radius:10px;
+  color:var(--ink-soft);
+}
+
+/* ---------- 탭 공통 ---------- */
+main{ padding:0 14px; }
+.tab{ display:none; }
+.tab.active{ display:block; animation:page-in .18s ease-out; }
+@keyframes page-in{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px 16px;
+  margin:12px 0;
+  box-shadow:0 1px 0 rgba(38,36,30,.06);
+}
+.card.stitch{ border-style:dashed; }
+h2.sec{
+  font-family:"Gowun Batang", serif; font-size:15px; font-weight:700;
+  color:var(--ink-soft); letter-spacing:.06em;
+  margin:20px 2px 4px;
+  display:flex; align-items:center; gap:8px;
+}
+h2.sec::after{ content:""; flex:1; border-top:1px solid var(--line); }
+.muted{ color:var(--pencil); font-size:13px; }
+.hand{ font-family:"Nanum Pen Script", cursive; font-size:20px; line-height:1.25; }
+
+/* ---------- 지금 카드 ---------- */
+.now-card{
+  border:2px solid var(--accent);
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:14px 16px; margin:12px 0;
+  position:relative; overflow:hidden;
+}
+.now-eyebrow{ font-size:12px; letter-spacing:.14em; color:var(--accent); font-weight:700;}
+.now-title{ font-family:"Gowun Batang", serif; font-size:22px; font-weight:700; margin:2px 0;}
+.now-note{ color:var(--ink-soft); font-size:14px; }
+.now-next{ margin-top:10px; padding-top:8px; border-top:1px dashed var(--line); font-size:14px; color:var(--ink-soft);}
+.dday{ font-family:"Gowun Batang", serif; font-size:40px; font-weight:700; }
+
+/* ---------- 일정 ---------- */
+.day-tabs{ display:flex; gap:6px; margin-top:14px; }
+.day-tab{
+  flex:1; padding:9px 0 7px; text-align:center;
+  font-family:"Gowun Batang", serif; font-weight:700; font-size:15px;
+  background:var(--paper-2); color:var(--ink-soft);
+  border:1px solid var(--line); border-bottom:none;
+  border-radius:12px 12px 0 0;
+}
+.day-tab.active{ background:var(--card); color:var(--day-color, var(--ink)); box-shadow:inset 0 -3px 0 var(--day-color, var(--accent)); }
+.plan-list{ background:var(--card); border:1px solid var(--line); border-radius:0 0 var(--radius) var(--radius); padding:4px 0 8px; margin-bottom:6px;}
+.plan-row{
+  display:grid; grid-template-columns:64px 1fr auto; gap:10px;
+  padding:11px 14px; align-items:baseline;
+  border-bottom:1px solid var(--line);
+}
+.plan-row:last-child{ border-bottom:none; }
+.plan-row.now-row{ background:rgba(124,46,62,.07); }
+.plan-time{ font-variant-numeric:tabular-nums; font-weight:700; color:var(--day-color, var(--ink)); font-size:14px;}
+.plan-title{ font-size:15px; }
+.plan-title .tbd{ border-bottom:1px dashed var(--pencil); }
+.plan-note{ display:block; font-size:13px; color:var(--pencil); margin-top:1px;}
+.plan-edit{ background:none; border:none; color:var(--pencil); font-size:14px; padding:4px;}
+
+/* ---------- 스탬프 ---------- */
+.stamp-big{
+  width:100%; padding:16px; font-size:18px;
+  font-family:"Gowun Batang", serif; font-weight:700;
+  background:var(--accent); color:#FBF7EC;
+  border:none; border-radius:var(--radius);
+  margin:12px 0 4px;
+}
+.board{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;}
+.board-card{
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:10px 12px;
+}
+.board-name{ font-weight:700; font-size:14px; display:flex; align-items:center; gap:6px;}
+.dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+.board-place{ font-size:14px; margin-top:2px;}
+.board-when{ font-size:12px; color:var(--pencil); }
+.board-note{ font-family:"Nanum Pen Script", cursive; font-size:18px; color:var(--ink-soft); margin-top:2px;}
+
+#map{ height:240px; border-radius:var(--radius); border:1px solid var(--line); margin:10px 0; z-index:1;}
+
+.stamp-wall{ display:flex; flex-wrap:wrap; gap:12px; padding:6px 2px 2px; }
+.stamp{
+  --c:var(--wine);
+  width:96px; height:96px; border-radius:50%;
+  border:2.5px solid var(--c);
+  box-shadow:inset 0 0 0 2px var(--card), inset 0 0 0 3.5px var(--c);
+  color:var(--c);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:8px;
+  transform:rotate(var(--rot, -6deg));
+  opacity:.92; mix-blend-mode:multiply;
+  background:transparent;
+}
+.stamp .s-place{ font-family:"Gowun Batang", serif; font-weight:700; font-size:12.5px; line-height:1.15;}
+.stamp .s-when{ font-size:10px; margin-top:3px; letter-spacing:.04em;}
+.stamp .s-who{ font-size:10px; font-weight:700; margin-top:1px;}
+.stamp.pop{ animation:stamp-pop .3s cubic-bezier(.2,1.6,.4,1); }
+@keyframes stamp-pop{ from{ transform:rotate(var(--rot)) scale(1.6); opacity:0;} to{ transform:rotate(var(--rot)) scale(1); opacity:.92;} }
+
+.feed{ margin-top:6px; }
+.feed-row{ padding:9px 2px; border-bottom:1px solid var(--line); display:flex; gap:9px; align-items:baseline;}
+.feed-row:last-child{ border:none; }
+.feed-who{ font-weight:700; font-size:13px; white-space:nowrap;}
+.feed-body{ font-size:14px; }
+.feed-note{ font-family:"Nanum Pen Script", cursive; font-size:19px; color:var(--ink-soft);}
+.feed-when{ margin-left:auto; font-size:11px; color:var(--pencil); white-space:nowrap;}
+
+/* 여권 */
+.passport-row{ display:flex; align-items:center; gap:8px; margin:8px 0 2px; font-size:14px;}
+.passport-count{ margin-left:auto; font-family:"Gowun Batang", serif; font-weight:700;}
+
+/* ---------- 장부 ---------- */
+.ledger{
+  background:
+    repeating-linear-gradient(transparent 0 27px, var(--line) 27px 28px),
+    var(--card);
+  border:1px solid var(--line); border-radius:var(--radius);
+  padding:6px 14px; margin:12px 0;
+}
+.exp-row{ display:flex; gap:8px; align-items:baseline; padding:6px 0; min-height:28px;}
+.exp-title{ font-size:14.5px; }
+.exp-meta{ font-size:12px; color:var(--pencil); }
+.exp-amount{ margin-left:auto; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap;}
+.settle-row{ display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed var(--line); font-size:15px;}
+.settle-row:last-child{ border:none;}
+.settle-amt{ margin-left:auto; font-weight:700; font-variant-numeric:tabular-nums;}
+.totals{ display:grid; grid-template-columns:1fr 1fr; gap:6px 14px; font-size:14px; }
+.totals div{ display:flex; } .totals b{ margin-left:auto; font-variant-numeric:tabular-nums;}
+
+/* ---------- 투표 ---------- */
+.poll{ margin:12px 0; }
+.poll-q{ font-family:"Gowun Batang", serif; font-weight:700; font-size:16px; margin-bottom:8px;}
+.poll-by{ font-size:12px; color:var(--pencil); font-weight:400; margin-left:6px;}
+.opt{
+  position:relative; display:block; width:100%; text-align:left;
+  border:1px solid var(--line); background:var(--paper-2);
+  border-radius:10px; padding:10px 12px; margin:6px 0;
+  font-size:14.5px; overflow:hidden; color:var(--ink);
+}
+.opt .bar{ position:absolute; inset:0; width:0%; background:rgba(124,46,62,.14); transition:width .35s ease;}
+.opt .opt-label{ position:relative; display:flex; gap:8px; align-items:center;}
+.opt .opt-count{ margin-left:auto; font-weight:700; font-size:13px;}
+.opt.mine{ border-color:var(--accent); border-width:2px;}
+.opt .voters{ position:relative; display:block; font-size:11.5px; color:var(--pencil); margin-top:2px;}
+
+/* ---------- 정보 ---------- */
+.kv{ display:flex; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:14.5px; align-items:baseline;}
+.kv:last-child{border:none;}
+.kv b{ min-width:88px; color:var(--ink-soft); font-weight:700; font-size:13px;}
+.rule-list{ margin:4px 0 0; padding-left:18px; font-size:14.5px;}
+.rule-list li{ margin:5px 0; }
+.code-line{ display:flex; align-items:center; gap:8px; }
+.code-val{ font-family:"Gowun Batang", serif; font-weight:700; font-size:20px; letter-spacing:.08em;}
+.linkline a{ color:var(--lake); font-weight:700; }
+.checklist label{ display:flex; gap:10px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:15px;}
+.checklist label:last-child{border:none;}
+.checklist input{ width:19px; height:19px; accent-color:var(--pine);}
+.checklist .done{ text-decoration:line-through; color:var(--pencil);}
+
+/* ---------- 컨트롤 ---------- */
+.btn{
+  background:var(--ink); color:var(--paper);
+  border:none; border-radius:10px; padding:11px 16px;
+  font-size:15px; font-family:inherit; font-weight:700;
+}
+.btn.ghost{ background:transparent; color:var(--ink-soft); border:1px solid var(--line);}
+.btn.danger{ background:transparent; color:var(--danger); border:1px solid var(--danger);}
+.btn.small{ padding:7px 12px; font-size:13px; border-radius:8px;}
+.btn-row{ display:flex; gap:8px; justify-content:flex-end; margin-top:12px;}
+.input{
+  width:100%; padding:11px 12px; margin:6px 0;
+  border:1px solid var(--line); border-radius:10px;
+  background:#fff; font-size:15px; font-family:inherit; color:var(--ink);
+}
+.field-label{ font-size:12.5px; color:var(--ink-soft); font-weight:700; margin-top:8px;}
+.chip-row{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0;}
+.chip{
+  border:1px solid var(--line); background:var(--paper-2);
+  border-radius:999px; padding:6px 12px; font-size:13.5px; color:var(--ink); font-family:inherit;
+}
+.chip.on{ background:var(--ink); color:var(--paper); border-color:var(--ink);}
+
+/* ---------- 하단 탭바 ---------- */
+#tabbar{
+  position:fixed; left:0; right:0; bottom:0; z-index:50;
+  display:flex;
+  background:rgba(243,237,224,.94);
+  -webkit-backdrop-filter:saturate(1.2) blur(6px); backdrop-filter:saturate(1.2) blur(6px);
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+  height:calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+}
+.tb{
+  flex:1; background:none; border:none; position:relative;
+  font-size:11.5px; color:var(--pencil); font-family:inherit;
+  display:flex; flex-direction:column; align-items:center; gap:2px; padding-top:8px;
+}
+.tb-ic{ font-size:19px; filter:grayscale(.6) opacity(.75); }
+.tb.active{ color:var(--ink); font-weight:700; }
+.tb.active .tb-ic{ filter:none; }
+.tb-dot{ position:absolute; top:6px; right:calc(50% - 16px); width:8px; height:8px; background:var(--wine); border-radius:50%;}
+
+/* ---------- 모달 · 토스트 ---------- */
+.modal{ position:fixed; inset:0; z-index:80; background:rgba(38,36,30,.45); display:flex; align-items:flex-end; justify-content:center;}
+.modal[hidden]{ display:none; }
+.modal-card{
+  background:var(--paper); width:100%; max-width:520px;
+  border-radius:18px 18px 0 0; padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+  max-height:82vh; overflow:auto;
+}
+.modal-title{ font-family:"Gowun Batang", serif; font-weight:700; font-size:18px; margin:0 0 4px;}
+.modal-sub{ font-size:13px; color:var(--pencil); margin:0 0 10px;}
+.who-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;}
+.who-btn{
+  padding:16px 8px; border-radius:12px; border:1.5px solid var(--line);
+  background:var(--card); font-size:17px; font-weight:700; font-family:"Gowun Batang", serif; color:var(--ink);
+}
+.alert-list{ max-height:50vh; overflow:auto; margin-bottom:10px;}
+.alert-row{ padding:8px 2px; border-bottom:1px solid var(--line); font-size:14px;}
+.alert-row .when{ font-size:11px; color:var(--pencil); display:block;}
+
+#toasts{ position:fixed; top:calc(8px + env(safe-area-inset-top)); left:0; right:0; z-index:90; display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none;}
+.toast{
+  background:var(--ink); color:var(--paper);
+  padding:9px 16px; border-radius:999px; font-size:13.5px;
+  max-width:88%; box-shadow:0 4px 14px rgba(38,36,30,.25);
+  animation:toast-in .22s ease-out;
+}
+@keyframes toast-in{ from{ transform:translateY(-8px); opacity:0;} to{ transform:none; opacity:1;} }
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation:none !important; transition:none !important; }
+}
+
+/* ---------- 무전 · 제안 보드 · 장보기 · 공기질 ---------- */
+.radio-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stamp-big.alt{background:var(--lake)}
+.stamp-big.half{font-size:16px;padding:13px;margin:12px 0 2px}
+.wish-row{display:flex;align-items:center;gap:9px;padding:10px 2px;border-bottom:1px solid var(--line)}
+.wish-row:last-child{border:none}
+.wish-cat{font-size:18px}
+.wish-body{font-size:15px}
+.wish-by{display:block;font-size:11.5px;color:var(--pencil)}
+.like-btn{margin-left:auto;border:1px solid var(--line);background:var(--paper-2);border-radius:999px;padding:6px 12px;font-size:14px;font-family:inherit;color:var(--ink);white-space:nowrap}
+.like-btn.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.shop-add{display:flex;gap:6px;margin:8px 0 2px}
+.shop-add .input{margin:0;flex:1}
+.aq{font-size:14px}
+.aq-good{border-color:var(--pine)}
+.aq-mid{border-color:#A2762A}
+.aq-bad{border-color:var(--danger);border-width:2px}
+.check-row{display:flex;gap:8px;align-items:center;font-size:14px;margin:8px 0;color:var(--ink-soft)}
+.check-row input{width:18px;height:18px;accent-color:var(--pine)}
+
+/* ---------- 아바타 ---------- */
+.av{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:2px solid var(--ink);background:var(--paper-2);font-size:14px;flex:none;vertical-align:middle}
+.av.mini{width:21px;height:21px;font-size:12px;border-width:1.5px;margin-right:2px}
+.av.big{width:34px;height:34px;font-size:18px;background:var(--card);box-shadow:0 1px 5px rgba(38,36,30,.35)}
+.av-pin{background:none !important;border:none !important}
+.who-btn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 8px}
+.who-av{width:58px;height:58px;font-size:30px;border-width:3px;background:var(--card)}
+.who-btn.picked{animation:pick .32s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pick{0%{transform:scale(1)}45%{transform:scale(1.14) rotate(-4deg)}100%{transform:scale(1)}}
+.top-actions{display:flex;align-items:center;gap:2px}
+.me-chip{background:none;border:none;padding:4px}
+.feed-row .av.mini{align-self:center}
+
+/* ---------- 도장 쾅 오버레이 ---------- */
+#stamp-fx{position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;pointer-events:none;background:rgba(38,36,30,.07)}
+#stamp-fx[hidden]{display:none}
+.stamp.fx{width:190px;height:190px;background:var(--paper)}
+.stamp.fx .s-place{font-size:23px}
+.stamp.fx .s-when{font-size:15px}
+.stamp.fx .s-who{font-size:15px;font-weight:700}
+.stamp.fx.slam{animation:slam .85s cubic-bezier(.2,1.5,.35,1)}
+@keyframes slam{
+  0%{transform:rotate(var(--rot,-7deg)) scale(2.4);opacity:0}
+  35%{transform:rotate(var(--rot,-7deg)) scale(.96);opacity:1}
+  55%{transform:rotate(var(--rot,-7deg)) scale(1.04)}
+  100%{transform:rotate(var(--rot,-7deg)) scale(1);opacity:.95}
+}
+
+/* ---------- PTT 무전 버튼 · 튜토리얼 ---------- */
+.ptt-wrap{display:flex;flex-direction:column;align-items:center;margin:18px 0 4px}
+.ptt{width:158px;height:158px;border-radius:50%;border:none;background:var(--lake);color:#FBF7EC;font-family:"Gowun Batang",serif;font-weight:700;font-size:21px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;box-shadow:0 5px 0 rgba(38,36,30,.28), inset 0 0 0 6px rgba(251,247,236,.22);transition:transform .08s, box-shadow .08s}
+.ptt:active{transform:translateY(3px) scale(.96);box-shadow:0 1px 0 rgba(38,36,30,.28), inset 0 0 0 6px rgba(251,247,236,.22)}
+.ptt-ic{font-size:36px}
+.ptt-hint{font-size:13px;color:var(--pencil);text-align:center;line-height:1.55;margin:11px 0 6px}
+.status-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.status-row .chip{pointer-events:none;font-size:12.5px}
+.tut-ic{font-size:54px;text-align:center;margin:10px 0 2px}
+.tut-d{font-size:15px;color:var(--ink-soft);text-align:center;line-height:1.65;min-height:76px;margin:6px 4px 8px}
+.tut-dots{display:flex;gap:6px;justify-content:center;margin:2px 0 4px}
+.tut-dot{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.tut-dot.on{background:var(--ink)}
+
+/* ---------- 설치 배너 ---------- */
+.install-banner{margin:0 14px 8px;padding:10px 36px 10px 12px;font-size:13.5px;background:var(--card);border:1.5px solid var(--lake);border-radius:10px;position:relative;line-height:1.6}
+.install-banner .btn.small{vertical-align:middle;margin-left:4px}
+.ib-x{position:absolute;top:5px;right:5px;background:none;border:none;color:var(--pencil);font-size:14px;padding:5px}
