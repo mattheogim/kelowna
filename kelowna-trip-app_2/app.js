@@ -2406,6 +2406,7 @@ function showInstallWall() {
   document.body.classList.add("walled");
   $("#wall-point").onclick = pointToShare;
   $("#wall-guide").onclick = () => { fillInstallGuide(); $("#install-modal").hidden = false; };
+  // 벽 위에서 열리는 모달이 가려지지 않게 (스타일에서 처리)
   $("#wall-skip").onclick = () => {
     if (!confirm("홈 화면 아이콘으로 연 게 맞아?\n(사파리 탭이면 알림이 안 와)")) return;
     localStorage.setItem("kel_bypass", "1");
@@ -2435,22 +2436,22 @@ function showNotifWall() {
       '<button class="wall-skip" id="wall-skip2">알림 없이 그냥 할래 →</button>' +
     "</div>";
   g.hidden = false;
-  document.body.classList.add("walled");
+  document.body.classList.add("walled", "walled-notif");
   const nb = $("#wall-notif");
   if (nb) nb.onclick = async () => {
     await enablePush();
-    if (notifReady()) { g.hidden = true; document.body.classList.remove("walled"); openRoll(); }
+    if (notifReady()) { g.hidden = true; document.body.classList.remove("walled", "walled-notif"); openRoll(); }
     else showNotifWall();
   };
   const rc = $("#wall-recheck");
   if (rc) rc.onclick = () => {
-    if (pushState() === "granted") { enablePush().then(() => { g.hidden = true; document.body.classList.remove("walled"); openRoll(); }); }
+    if (pushState() === "granted") { enablePush().then(() => { g.hidden = true; document.body.classList.remove("walled", "walled-notif"); openRoll(); }); }
     else toast("아직 꺼져 있어 — 설정에서 켜고 다시");
   };
   $("#wall-skip2").onclick = () => {
     if (!confirm("알림 없이 진행하면 무전을 놓칠 수 있어. 그래도 할까?")) return;
     localStorage.setItem("kel_nonotif", "1");
-    g.hidden = true; document.body.classList.remove("walled");
+    g.hidden = true; document.body.classList.remove("walled", "walled-notif");
     openRoll();
   };
   return true;
@@ -2838,7 +2839,12 @@ function boot() {
   setInterval(loadAQ, 1800000);
   setInterval(tickDep, 1000);
   setInterval(refreshLiveETA, 60000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { loadAll(); flushQueue(); } });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    loadAll(); flushQueue();
+    const wl = document.getElementById("wall");
+    if (wl && !wl.hidden && !installRequired() && !document.body.classList.contains("walled-notif")) location.reload();
+  });
   window.addEventListener("online", () => { loadAll(); flushQueue(); });
 
   if ("serviceWorker" in navigator && location.protocol === "https:") {
