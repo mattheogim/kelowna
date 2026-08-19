@@ -16,6 +16,7 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
+const BUILD = "2026-08-19 v4";   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -23,12 +24,12 @@ const FX = {
   bolt:     { shape:"streak",motion:"burst", c:"#F2C744", n:22, special:"bolt", quake:true },
   skull:    { shape:"grape", motion:"rise",  c:"#4FBF6A", n:26, special:"skull", quake:true },
   phoenix:  { shape:"leaf",  motion:"rise",  c:"#F0C36A", n:26, special:"phoenix" },
-  patronus: { shape:"streak",motion:"sweep", c:"#BFE4F5", n:10, special:"patronus" },
-  book:     { shape:"leaf",  motion:"fall",  c:"#C9A87C", n:10 },
+  patronus: { shape:"streak",motion:"sweep", c:"#BFE4F5", n:20, special:"patronus" },
+  book:     { shape:"leaf",  motion:"fall",  c:"#C9A87C", n:20, special:"book" },
   chess:    { shape:"grape", motion:"fall",  c:"#3B3B3B", n:16, special:"chess", quake:true },
-  paw:      { shape:"grape", motion:"fall",  c:"#4A4A4A", n:10 },
-  cat:      { shape:"star",  motion:"burst", c:"#C7B26A", n:8 },
-  curse:    { shape:"streak",motion:"burst", c:"#D8453C", n:12 },
+  paw:      { shape:"grape", motion:"fall",  c:"#4A4A4A", n:18, special:"dog" },
+  cat:      { shape:"star",  motion:"burst", c:"#C7B26A", n:18, special:"cat" },
+  curse:    { shape:"streak",motion:"burst", c:"#D8453C", n:24, special:"curse", quake:true },
   star:     { shape:"star",  motion:"rise",  c:"#9DBBE8", n:12 },
   snake:    { shape:"streak",motion:"sweep", c:"#5FA86B", n:8 },
   stomp:    { shape:"grape", motion:"fall",  c:"#8A6A4A", n:10, quake:true },
@@ -349,6 +350,7 @@ function charFx(memberId, level) {
   clearTimeout(weatherFx._t);
   weatherFx._t = setTimeout(() => { layer.hidden = true; layer.innerHTML = ""; }, 5200);
   if (f.quake) { document.body.classList.add("quake"); setTimeout(() => document.body.classList.remove("quake"), 1100); }
+  if (c.t >= 3) edgeGlow(f.c || colorOf(memberId), c.t >= 4);
   if (f.special) specialFx(f.special, f.c);
   return true;
 }
@@ -374,6 +376,11 @@ function specialFx(kind, color) {
   }
   if (kind === "patronus") h = '<div class="sfx-patronus"></div><div class="sfx-patronus" style="top:56%;animation-delay:.35s;width:120px;opacity:.7"></div>';
   if (kind === "chess")    { h = '<div class="sfx-chess">♜</div><div class="sfx-crack"></div>'; shake = true; }
+  if (kind === "book")     h = '<div class="sfx-glow" style="--sc:#C9A87C"></div><div class="sfx-book">📖</div>' +
+    '<span class="sfx-page p1">📄</span><span class="sfx-page p2">📄</span><span class="sfx-page p3">📄</span>';
+  if (kind === "dog")      h = '<div class="sfx-dog">🐕‍🦺</div><span class="sfx-paw w1">🐾</span><span class="sfx-paw w2">🐾</span><span class="sfx-paw w3">🐾</span>';
+  if (kind === "cat")      h = '<div class="sfx-cateyes"><i></i><i></i></div><div class="sfx-catring"></div><div class="sfx-cat">🐈‍⬛</div>';
+  if (kind === "curse")    { h = '<div class="sfx-curse c1"></div><div class="sfx-curse c2"></div><div class="sfx-curse c3"></div><div class="sfx-redflash"></div>'; shake = true; }
   if (!h) return;
   if (shake) { document.body.classList.add("sfx-shake"); setTimeout(() => document.body.classList.remove("sfx-shake"), 1500); }
   o.innerHTML = h; o.hidden = false;
@@ -2432,6 +2439,10 @@ function renderInfo() {
     '<button class="btn" id="fate-btn" style="width:100%;margin-top:12px">뽑기</button></div>';
 
   html += '<p class="muted" style="margin:14px 4px">Safari 공유 버튼 → "홈 화면에 추가" 하면 앱처럼 열려. 6명 다 해두자.</p>';
+  html += '<div class="card" style="display:flex;align-items:center;gap:10px">' +
+    '<div><div style="font-weight:700;font-size:14px">앱 버전</div>' +
+    '<div class="muted" style="font-size:12px;margin-top:2px">' + BUILD + "</div></div>" +
+    '<button class="btn small" id="force-update" style="margin-left:auto">최신으로 갱신</button></div>';
   html += '<button class="btn ghost" id="reset-local" style="width:100%;margin:6px 0 20px;color:var(--pencil)">🔒 이 폰 초기화 (비밀번호 필요)</button>';
 
   el.innerHTML = html;
@@ -2442,6 +2453,18 @@ function renderInfo() {
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
   const oo = $("#open-odds"); if (oo) oo.onclick = openOdds;
+  const fu = $("#force-update");
+  if (fu) fu.onclick = async () => {
+    toast("갱신 중…");
+    try {
+      if ("caches" in window) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
+      if (navigator.serviceWorker) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    } catch (e) {}
+    location.href = location.pathname + "?v=" + Date.now();
+  };
   const rl = $("#reset-local");
   if (rl) rl.onclick = () => {
     const pw = prompt("초기화 비밀번호를 입력해");
