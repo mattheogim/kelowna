@@ -16,7 +16,7 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v7";   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v8";   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2945,73 +2945,103 @@ function openPack(c, done) {
   const tier = tierById[c.t];
   const myth = c.t === 5;
   const calm = reduceMotion();
-  const dur = calm ? 1600 : (myth ? 5500 : 4000), scale = dur / 4000;
-  pack.hidden = false;
+  const dur = calm ? 1800 : (myth ? 6200 : 4600), scale = dur / 4600;
+  const F = FX[c.fx] || {};
+
+  pack.classList.toggle("calm", calm);
+  pack.removeAttribute("hidden");
+  pack.style.cssText = "display:flex;align-items:center;justify-content:center;position:fixed;inset:0;z-index:600;" +
+    "opacity:1;visibility:visible;overflow:hidden;background:radial-gradient(120% 80% at 50% 50%,#241F1A 0%,#12100E 58%,#080807 100%)";
   pack.style.setProperty("--rc", tier.color);
+
   const c3d = $("#c3d"), front = $("#p-front");
   front.style.setProperty("--rc", tier.color);
-  front.classList.remove("on"); c3d.className = "card3d"; c3d.style.transform = ""; c3d.style.opacity = "";
+  front.classList.remove("on"); c3d.className = "card3d"; c3d.style.transform = ""; c3d.style.opacity = "1";
   front.style.opacity = ""; front.style.zIndex = "";
   const bk0 = pack.querySelector(".back"); if (bk0) { bk0.style.opacity = ""; bk0.style.zIndex = ""; }
-  document.body.classList.remove("quake");
+  const cw = pack.querySelector(".cardwrap");
+  if (cw) cw.style.cssText = "position:relative;width:236px;height:330px;z-index:5";
+
   $("#p-em").textContent = c.em;
   $("#p-nm").textContent = c.last + " " + nameOf(me) + " " + c.first;
   $("#p-ko").textContent = c.ko + " · " + tier.name;
   $("#p-rk").textContent = tier.en + " · " + (myth ? "0.1%" : tier.p + "%");
   $("#p-beams").innerHTML = ""; $("#p-conf").innerHTML = "";
-  const tBeam = Math.round(500 * scale), tFlip = Math.round(2200 * scale), tEnd = Math.round(4000 * scale);
-  pack.classList.toggle("calm", calm);
-  // CSS가 어떤 이유로 안 먹어도 무조건 보이게 (iOS 대비)
-  pack.removeAttribute("hidden");
-  pack.style.cssText = "display:flex;align-items:center;justify-content:center;position:fixed;inset:0;z-index:600;" +
-    "opacity:1;visibility:visible;overflow:hidden;background:radial-gradient(120% 80% at 50% 50%,#2A2622 0%,#141210 60%,#0B0A09 100%)";
-  const cw = pack.querySelector(".cardwrap");
-  if (cw) cw.style.cssText = "position:relative;width:230px;height:322px;z-index:3";
-  c3d.style.opacity = "1";
+
+  // 배경 레이어(워시·광선·등급 라벨·거대 글리프) 준비
+  let bg = pack.querySelector(".pack-bg");
+  if (!bg) { bg = document.createElement("div"); bg.className = "pack-bg"; pack.insertBefore(bg, pack.firstChild); }
+  bg.innerHTML =
+    '<div class="pack-wash"></div>' +
+    (c.t >= 3 ? '<div class="pack-rays"></div>' : "") +
+    '<div class="pack-shock"></div><div class="pack-shock s2"></div><div class="pack-shock s3"></div>' +
+    '<div class="pack-glyph">' + c.em + "</div>" +
+    '<div class="pack-tier">' + tier.en + "</div>";
+  bg.style.setProperty("--rc", tier.color);
+  bg.classList.remove("reveal");
+
+  const tBeam = Math.round(400 * scale), tFlip = Math.round(2400 * scale), tEnd = Math.round(4600 * scale);
+
   c3d.classList.add("enter");
+
+  // 1) 충전 — 빛기둥 + 안쪽으로 빨려드는 입자
   PT(() => {
-    const n = myth ? 8 : c.t >= 4 ? 6 : c.t >= 3 ? 4 : c.t >= 2 ? 3 : 2;
+    const n = myth ? 10 : c.t >= 4 ? 8 : c.t >= 3 ? 6 : c.t >= 2 ? 4 : 3;
     let h = "";
     for (let i = 0; i < n; i++)
       h += '<span class="beam go" style="--rc:' + tier.color + ";--rot:" + (i * (180 / n)) +
-        "deg;--dur:" + ((tFlip - tBeam) / 1000) + "s;--bw:" + (c.t >= 4 ? 150 : 100) + "px;--bl:" +
+        "deg;--dur:" + ((tFlip - tBeam) / 1000) + "s;--bw:" + (c.t >= 4 ? 160 : 110) + "px;--bl:" +
         (c.t >= 4 ? 10 : 16) + "px;animation-delay:" + (i * 0.05) + 's"></span>';
     h += '<span class="halo go" style="--rc:' + tier.color + ";--dur:" + ((tFlip - tBeam) / 1000) + 's"></span>';
+    const sucks = myth ? 34 : c.t >= 4 ? 26 : 16;
+    for (let i = 0; i < sucks; i++) {
+      const a = Math.random() * 360, d = 260 + Math.random() * 260;
+      h += '<span class="suck" style="--sx:' + Math.round(Math.cos(a * Math.PI / 180) * d) + "px;--sy:" +
+        Math.round(Math.sin(a * Math.PI / 180) * d) + "px;--sc2:" + tier.color +
+        ";animation-delay:" + (Math.random() * 1.1).toFixed(2) + 's"></span>';
+    }
     $("#p-beams").innerHTML = h;
     packTone(c.t);
-    buzz(c.t >= 5 ? [60,40,60,40,140] : c.t >= 4 ? [40,50,90] : [30]);
+    buzz(c.t >= 5 ? [60, 40, 60, 40, 140] : c.t >= 4 ? [40, 50, 90] : [30]);
   }, tBeam);
-  if (c.t >= 4) PT(() => { const f = $("#p-flash"); f.className = "flash"; void f.offsetWidth; f.className = "flash go"; }, tFlip - Math.round(200 * scale));
+
+  // 2) 공개 직전 섬광
+  PT(() => { const f = $("#p-flash"); f.className = "flash"; void f.offsetWidth; f.className = "flash go" + (c.t >= 4 ? " big" : ""); },
+     tFlip - Math.round(220 * scale));
+
+  // 3) 공개 — 카드 뒤집기 + 충격파 + 흔들림 + 캐릭터 시그니처
   PT(() => {
     c3d.classList.add("flip", "shown");
     front.style.opacity = "1"; front.style.zIndex = "2";
     const bk = pack.querySelector(".back"); if (bk) { bk.style.opacity = "0"; bk.style.zIndex = "1"; }
+    bg.classList.add("reveal");
+    document.body.classList.add("sfx-shake");
+    setTimeout(() => document.body.classList.remove("sfx-shake"), 1500);
+    if (F.special) specialFx(F.special, F.c, c.t);
   }, tFlip);
-  // 안전장치: 애니메이션이 죽어도 3.2초 뒤엔 무조건 카드가 보이게
-  PT(() => { c3d.classList.add("shown"); c3d.style.transform = "rotateY(0)"; c3d.style.opacity = "1"; front.classList.add("on"); }, tFlip + Math.round(900 * scale));
+
+  // 4) 정보 등장 + 색종이(전 등급)
   PT(() => {
     front.classList.add("on");
-    if (c.t >= 4) {
-      document.body.classList.add("quake");
-      let h = "";
-      const n = c.t >= 5 ? 40 : 24;
-      for (let i = 0; i < n; i++) {
-        const dx = (Math.random() * 2 - 1) * 260, dy = 200 + Math.random() * 420, dr = Math.random() * 720 - 360;
-        h += '<span class="conf go" style="left:50%;top:34%;background:' + (i % 3 ? tier.color : "#F4E4B8") +
-          ";--dx:" + dx + "px;--dy:" + dy + "px;--dr:" + dr + "deg;--cd:" + (1.2 + Math.random() * .9) +
-          "s;animation-delay:" + (Math.random() * .3) + 's"></span>';
-      }
-      $("#p-conf").innerHTML = h;
+    const n = myth ? 70 : c.t >= 4 ? 48 : c.t >= 3 ? 30 : c.t >= 2 ? 20 : 12;
+    let h = "";
+    for (let i = 0; i < n; i++) {
+      const dx = (Math.random() * 2 - 1) * 300, dy = 200 + Math.random() * 520, dr = Math.random() * 900 - 450;
+      h += '<span class="conf go" style="left:' + (30 + Math.random() * 40) + "%;top:26%;background:" +
+        (i % 3 ? tier.color : c.t >= 4 ? "#F4E4B8" : "#FFFFFF") +
+        ";--dx:" + dx + "px;--dy:" + dy + "px;--dr:" + dr + "deg;--cd:" + (1.3 + Math.random() * 1.1) +
+        "s;animation-delay:" + (Math.random() * .4) + 's"></span>';
     }
-  }, tFlip + Math.round(300 * scale));
+    $("#p-conf").innerHTML = h;
+  }, tFlip + Math.round(280 * scale));
+
   const finish = () => {
     packClear();
-    pack.style.display = "none";
-    pack.hidden = true;
-    document.body.classList.remove("quake");
+    pack.style.display = "none"; pack.hidden = true;
+    document.body.classList.remove("quake", "sfx-shake");
     done && done();
   };
-  PT(finish, tEnd + Math.round(1200 * scale));
+  PT(finish, tEnd + Math.round(1400 * scale));
   pack.onclick = finish;
 }
 
