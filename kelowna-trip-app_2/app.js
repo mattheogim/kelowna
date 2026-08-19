@@ -16,7 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v10";   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v11";
+const BUILD_NO = 11;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -802,6 +803,7 @@ async function loadAll() {
     console.error(e);
     restoreMirror(false);
   }
+  if (checkVersionGate()) return;
   rerender();
   } finally {
     loading = false;
@@ -1823,6 +1825,8 @@ function renderStamp() {
   }
   html += "</div>";
 
+  const hideFeed = localStorage.getItem("kel_hidefeed") === "1";
+  if (!hideFeed) {
   html += '<h2 class="sec">교신 기록</h2><div class="card feed">';
   if (!store.checkins.length) html += '<div class="muted">첫 교신의 주인공은?</div>';
   for (const c of store.checkins.slice(0, 40)) {
@@ -1840,6 +1844,7 @@ function renderStamp() {
       '<span class="feed-when">' + relTime(c.created_at) + "</span></div>" + rxHtml + "</div>";
   }
   html += "</div>";
+  }
 
   html += '<h2 class="sec">긴급</h2><div class="card" style="text-align:center">' +
     '<div class="siren-wrap"><button class="siren-btn" id="siren-btn"><span class="siren-ic">🚽</span><span>화장실 긴급</span></button>' +
@@ -2433,6 +2438,9 @@ function renderInfo() {
     (charOf(me) ? '<button class="btn ghost small" id="fx-demo">내 이펙트</button>' : "") +
     '<button class="btn ghost small" id="pack-demo">뽑기 연출 테스트</button>' +
     '<button class="btn ghost small" id="diag">연출 진단</button></span></div>' +
+    '<div class="kv"><b>교신 기록</b><span class="code-line">' +
+    (localStorage.getItem("kel_hidefeed") === "1" ? '<span class="muted">숨김</span>' : '<b style="color:var(--pine)">표시 중</b>') +
+    '<button class="btn ghost small" id="feed-toggle">' + (localStorage.getItem("kel_hidefeed") === "1" ? "다시 보기" : "숨기기") + "</button></span></div>" +
     '<div class="kv"><b>튜토리얼</b><span><button class="btn ghost small" id="tut-again">다시 보기</button></span></div>' +
     '<div class="kv"><b>홈 미리보기</b><span class="chip-row" style="margin:0" id="preview-row">' +
     [["", "자동"], ["drive", "🚗 이동"], ["winery", "🍷 와이너리"], ["costco", "🛒 코스트코"], ["arrival", "🏠 도착"], ["cabin", "🗺️ 지도"]].map((pv) =>
@@ -2504,6 +2512,13 @@ function renderInfo() {
     location.reload();
   };
   const fd = $("#fx-demo"); if (fd) fd.onclick = () => { charFx(me, 3); showRibbon(charOf(me).ko + "의 시그니처", colorOf(me)); };
+  const ft = $("#feed-toggle");
+  if (ft) ft.onclick = () => {
+    const now = localStorage.getItem("kel_hidefeed") === "1";
+    localStorage.setItem("kel_hidefeed", now ? "0" : "1");
+    toast(now ? "교신 기록 다시 표시" : "교신 기록 숨김");
+    rerender();
+  };
   const dg = $("#diag");
   if (dg) dg.onclick = () => {
     const L = [];
@@ -2699,6 +2714,52 @@ function a2hsBar() {
   $("#a2hs-x").onclick = () => {
     localStorage.setItem("kel_a2hs_snooze", String(Date.now() + 86400000));
     b.hidden = true; document.body.classList.remove("has-a2hs");
+  };
+}
+
+/* ---------- 버전 강제 · 원격 리셋 ---------- */
+function setting(k) {
+  const st = store.settings;
+  if (!st) return "";
+  if (Array.isArray(st)) { const r = st.find((x) => x.key === k); return r ? r.value : ""; }
+  return st[k] || "";
+}
+function checkVersionGate() {
+  const min = Number(setting("min_version") || 0);
+  if (min && BUILD_NO < min) { showVersionWall(min); return true; }
+  const tok = setting("reset_token") || "";
+  if (tok && localStorage.getItem("kel_reset_token") !== tok) {
+    localStorage.setItem("kel_reset_token", tok);
+    ["kel_rolls", "kel_dry", "kel_fate", "kel_tut", "kel_tut_loc", "kel_tut_siren",
+     "kel_push_x", "kel_check", "kel_alerts", "kel_siren", "kel_req_done"].forEach((k) => localStorage.removeItem(k));
+    toast("🔄 새 판 시작 — 캐릭터를 다시 뽑자");
+    setTimeout(() => { rollResult = null; openRoll(); }, 800);
+  }
+  return false;
+}
+function showVersionWall(min) {
+  const g = document.getElementById("wall");
+  if (!g) return;
+  g.innerHTML =
+    '<div class="wall-card">' +
+      '<div class="wall-ic">🔄</div>' +
+      '<p class="wall-t">업데이트가 필요해</p>' +
+      '<p class="wall-d">이 폰은 <b>v' + BUILD_NO + "</b>, 지금 필요한 건 <b>v" + min + "</b>야.<br>버튼 한 번이면 끝나.</p>" +
+      '<button class="btn" id="vw-go" style="width:100%;padding:16px">⬇️ 지금 갱신하기</button>' +
+      '<p class="wall-hint">갱신해도 여행 기록은 그대로 남아.</p>' +
+    "</div>";
+  g.hidden = false;
+  document.body.classList.add("walled");
+  $("#vw-go").onclick = async () => {
+    toast("갱신 중…");
+    try {
+      if ("caches" in window) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
+      if (navigator.serviceWorker) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    } catch (e) {}
+    location.href = location.pathname + "?v=" + Date.now();
   };
 }
 
