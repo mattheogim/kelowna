@@ -1,15 +1,80 @@
 /* 켈로나 여행수첩 — app.js */
 "use strict";
 
+/* ============================================================
+   캐릭터 뽑기 — 등급/확률/명단
+   tier 1 일반 58% · 2 희귀 25% · 3 영웅 12% · 4 전설 4.4% · 5 신화 0.5% · 6 초월 0.1%
+   이름 표기: last + 한글이름 + first  (예: Snape 재민 Severus)
+   ============================================================ */
+const TIERS = [
+  { t: 1, name: "일반",  en: "COMMON",    p: 58,  color: "#7E9A6F" },
+  { t: 2, name: "희귀",  en: "RARE",      p: 25,  color: "#5B7FA8" },
+  { t: 3, name: "영웅",  en: "EPIC",      p: 12,  color: "#8A6BA8" },
+  { t: 4, name: "전설",  en: "LEGENDARY", p: 4.4, color: "#C79A3E" },
+  { t: 5, name: "신화",  en: "MYTHIC",    p: 0.5, color: "#C8503C" },
+  { t: 6, name: "초월",  en: "BEYOND",    p: 0.1, color: "#C8503C" },
+];
+
+const ROSTER = [
+  // tier 1
+  { id:"longbottom", last:"Longbottom", first:"Neville", em:"🌱", t:1, ko:"롱보텀" },
+  { id:"finnigan",   last:"Finnigan",   first:"Seamus",  em:"🔥", t:1, ko:"피니간" },
+  { id:"percy",      last:"Weasley",    first:"Percy",   em:"📏", t:1, ko:"퍼시" },
+  { id:"wood",       last:"Wood",       first:"Oliver",  em:"🧹", t:1, ko:"우드" },
+  { id:"creevey",    last:"Creevey",    first:"Colin",   em:"📷", t:1, ko:"크리비" },
+  { id:"thomas",     last:"Thomas",     first:"Dean",    em:"🎨", t:1, ko:"딘" },
+  // tier 2
+  { id:"granger",    last:"Granger",    first:"Hermione",em:"📚", t:2, ko:"그레인저" },
+  { id:"ron",        last:"Weasley",    first:"Ron",     em:"🍗", t:2, ko:"론" },
+  { id:"ginny",      last:"Weasley",    first:"Ginny",   em:"🦅", t:2, ko:"지니" },
+  { id:"lovegood",   last:"Lovegood",   first:"Luna",    em:"🌙", t:2, ko:"러브굿" },
+  { id:"malfoy",     last:"Malfoy",     first:"Draco",   em:"🐍", t:2, ko:"말포이" },
+  { id:"diggory",    last:"Diggory",    first:"Cedric",  em:"🏆", t:2, ko:"디고리" },
+  // tier 3
+  { id:"potter",     last:"Potter",     first:"Harry",   em:"⚡", t:3, ko:"포터" },
+  { id:"snape",      last:"Snape",      first:"Severus", em:"🧪", t:3, ko:"스네이프" },
+  { id:"mcgonagall", last:"McGonagall", first:"Minerva", em:"🐈", t:3, ko:"맥고나걸" },
+  { id:"hagrid",     last:"Hagrid",     first:"Rubeus",  em:"🗝️", t:3, ko:"해그리드" },
+  { id:"black",      last:"Black",      first:"Sirius",  em:"🐕", t:3, ko:"블랙" },
+  // tier 4
+  { id:"dumbledore", last:"Dumbledore", first:"Albus",   em:"🧙", t:4, ko:"덤블도어" },
+  { id:"voldemort",  last:"Riddle",     first:"Tom",     em:"💀", t:4, ko:"볼드모트" },
+  { id:"bellatrix",  last:"Lestrange",  first:"Bellatrix",em:"🗡️",t:4, ko:"벨라트릭스" },
+  { id:"dobby",      last:"Dobby",      first:"the Elf", em:"🧦", t:4, ko:"도비" },
+  // tier 5 — 부엉이
+  { id:"hedwig",     last:"Hedwig",     first:"the Owl", em:"🦉", t:5, ko:"헤드위그" },
+  { id:"errol",      last:"Errol",      first:"the Owl", em:"🪶", t:5, ko:"에롤" },
+  // tier 6 — 다른 세계
+  { id:"gollum",     last:"Gollum",     first:"Sméagol", em:"💍", t:6, ko:"골룸" },
+  { id:"grey",       last:"Grey",       first:"Pilgrim", em:"🧙‍♂️", t:6, ko:"회색의 순례자" },
+];
+
+const MAX_ROLLS = 20;
+
+
 /* ---------------- 기본 도구 ---------------- */
 const $ = (s, el) => (el || document).querySelector(s);
 const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const byId = Object.fromEntries(MEMBERS.map((m) => [m.id, m]));
+const charById = Object.fromEntries(ROSTER.map((c) => [c.id, c]));
+const tierById = Object.fromEntries(TIERS.map((t) => [t.t, t]));
+/* store.characters: [{member, char_id, tier, rolls}] */
+function charOf(memberId) {
+  const rec = (store.characters || []).find((c) => c.member === memberId);
+  return rec ? charById[rec.char_id] : null;
+}
+function tierOf(memberId) { const c = charOf(memberId); return c ? c.t : 0; }
+function fullName(memberId) {
+  const c = charOf(memberId), m = byId[memberId];
+  if (!c || !m) return m ? m.name : memberId;
+  return c.last + " " + m.name + " " + c.first;
+}
+function takenIds() { return (store.characters || []).map((c) => c.char_id); }
 const nameOf = (id) => (id && byId[id] ? byId[id].name : id ? id : "수첩");
-const colorOf = (id) => (id && byId[id] ? byId[id].color : "#8D8577");
-const avatarOf = (id) => (id && byId[id] && byId[id].avatar ? byId[id].avatar : "📓");
-const av = (id, cls) => '<span class="av ' + (cls || "") + '" style="border-color:' + colorOf(id) + '">' + avatarOf(id) + "</span>";
+const colorOf = (id) => { const t = tierOf(id); return t ? tierById[t].color : (byId[id] ? byId[id].color : "#9A9A92"); };
+const avatarOf = (id) => { const c = charOf(id); if (c) return c.em; return byId[id] && byId[id].avatar ? byId[id].avatar : "📓"; };
+const av = (id, cls) => '<span class="av ' + (cls || "") + (id === me ? " self" : "") + '" style="--rc:' + colorOf(id) + '">' + avatarOf(id) + "</span>";
 const money = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
 const pad = (n) => String(n).padStart(2, "0");
 const CAT_EMOJI = { "와이너리": "🍷", "음식": "🍽️", "액티비티": "🏞️", "기타": "📌" };
@@ -205,7 +270,7 @@ function toast(msg) {
 const store = {
   itinerary: [], polls: [], votes: [], expenses: [], checkins: [],
   wishes: [], wishLikes: [], shopping: [],
-  wineRatings: [], reactions: [],
+  wineRatings: [], reactions: [], characters: [],
   settings: {}, loadedAt: null,
 };
 let sb = null;
@@ -465,7 +530,7 @@ async function loadAll() {
     return;
   }
   try {
-    const [it, po, vo, ex, ch, wi, wl, sh, wr, rx, se] = await Promise.all([
+    const [it, po, vo, ex, ch, wi, wl, sh, wr, rx, ca, se] = await Promise.all([
       sb.from("itinerary").select("*").order("day").order("sort"),
       sb.from("polls").select("*").order("created_at", { ascending: false }),
       sb.from("votes").select("*"),
@@ -476,14 +541,15 @@ async function loadAll() {
       sb.from("shopping").select("*").order("created_at"),
       sb.from("wine_ratings").select("*").order("created_at", { ascending: false }),
       sb.from("reactions").select("*"),
+      sb.from("characters").select("*"),
       sb.from("settings").select("*"),
     ]);
-    const bad = [it, po, vo, ex, ch, wi, wl, sh, wr, rx, se].find((r) => r.error);
+    const bad = [it, po, vo, ex, ch, wi, wl, sh, wr, rx, ca, se].find((r) => r.error);
     if (bad) throw bad.error;
     store.itinerary = it.data; store.polls = po.data; store.votes = vo.data;
     store.expenses = ex.data; store.checkins = ch.data;
     store.wishes = wi.data; store.wishLikes = wl.data; store.shopping = sh.data;
-    store.wineRatings = wr.data; store.reactions = rx.data;
+    store.wineRatings = wr.data; store.reactions = rx.data; store.characters = ca.data || [];
     store.settings = Object.fromEntries(se.data.map((r) => [r.key, r.value]));
     store.loadedAt = Date.now();
     localStorage.setItem("kel_mirror", JSON.stringify(store));
@@ -511,7 +577,7 @@ function restoreMirror(silent) {
 function subscribe() {
   if (!sb) return;
   const ch = sb.channel("kel-live");
-  ["checkins", "expenses", "polls", "votes", "itinerary", "wishes", "wish_likes", "shopping", "wine_ratings", "reactions", "sirens", "settings"].forEach((t) => {
+  ["checkins", "expenses", "polls", "votes", "itinerary", "wishes", "wish_likes", "shopping", "wine_ratings", "reactions", "sirens", "settings", "characters"].forEach((t) => {
     ch.on("postgres_changes", { event: "*", schema: "public", table: t }, (p) => onLive(t, p));
   });
   ch.subscribe();
@@ -522,7 +588,7 @@ function onLive(table, payload) {
   if (payload.eventType !== "INSERT") return;
   const r = payload.new || {};
   if (table === "sirens") { emergency(); return; }
-  if (table === "reactions") return;
+  if (table === "reactions" || table === "characters") return;
   if (table === "settings") {
     const r2 = payload.new || {};
     if (r2.key === "current_dest" && r2.value) {
@@ -705,10 +771,34 @@ function bandStars(n) {
     out += '<span class="star" style="width:' + (i % 2 ? 2 : 3) + "px;height:" + (i % 2 ? 2 : 3) + "px;top:" + pts[i][0] + "px;left:" + pts[i][1] + "px;animation-delay:" + (i * 0.6) + 's"></span>';
   return out;
 }
-function progHtml(fromLabel, toLabel, pct) {
+function partyPositions(destLat, destLng, originLat, originLng) {
+  // 각자 마지막 위치를 출발지→목적지 진행률(0~1)로
+  const latest = latestByMember();
+  const total = distKm(originLat, originLng, destLat, destLng) || 1;
+  const out = [];
+  for (const m of MEMBERS) {
+    const c = latest[m.id];
+    if (!c || !c.lat) { out.push({ id: m.id, pct: null, stale: true }); continue; }
+    const left = distKm(c.lat, c.lng, destLat, destLng);
+    const pct = Math.max(3, Math.min(97, (1 - left / total) * 100));
+    const stale = (Date.now() - new Date(c.created_at).getTime()) > 30 * 60000;
+    out.push({ id: m.id, pct, stale });
+  }
+  return out;
+}
+function progHtml(fromLabel, toLabel, pct, party) {
   const p = Math.max(2, Math.min(98, pct));
+  let avs = "";
+  if (party && party.length) {
+    const placed = party.filter((x) => x.pct !== null);
+    placed.forEach((x, i) => {
+      avs += '<span class="prog-av' + (x.id === me ? " self" : "") + (x.stale ? " stale" : "") +
+        '" style="left:' + x.pct + "%;--pc:" + colorOf(x.id) + '">' + avatarOf(x.id) +
+        "<b>" + esc(nameOf(x.id)) + "</b></span>";
+    });
+  }
   return '<div class="prog"><div class="prog-track"></div><div class="prog-fill" style="width:' + p + '%"></div>' +
-    '<div class="prog-dot" style="left:' + p + '%"></div><div class="prog-end"></div></div>' +
+    (avs ? avs : '<div class="prog-dot" style="left:' + p + '%"></div>') + '<div class="prog-end"></div></div>' +
     '<div class="prog-labels"><span>' + esc(fromLabel) + "</span><span>" + esc(toLabel) + "</span></div>";
 }
 function band(mode, inner) {
@@ -757,7 +847,7 @@ function driveCardHtml() {
     inner += '<div class="band-label">' + esc(dest.n) + "까지</div>" +
       '<div class="band-big"><span class="band-num" id="nav-eta">' + (lastPos ? "…" : "—") + '</span><span class="band-unit">분</span>' +
       '<span class="band-side">' + (lastPos ? Math.round(left) + " km 남음" : "위치 켜면 실시간") + "</span></div>" +
-      progHtml("포트무디", dest.n, pct) +
+      progHtml("포트무디", dest.n, pct, partyPositions(dest.lat, dest.lng, WAYPOINTS[0].lat, WAYPOINTS[0].lng)) +
       bandBtns([bLink("🧭 내비 시작", q || dest.n), bBtn("🛑 쉬는 곳 " + REST_STOPS.length, "rest-jump", true)]);
     if (!lastPos) inner += bandBtns([bBtn("📍 위치 켜기 — 1분마다 자동 갱신", "nav-loc", true)]);
   } else {
@@ -789,6 +879,12 @@ function wineryCardHtml() {
     if (nd) btns.push(bLink("🧭 내비", placeQuery(sq.nextItem.title) || nd.n));
     btns.push(bBtn("✅ 출발 확정 — 전원에게", "go-next", true));
     inner += bandBtns(btns);
+  }
+  if (sq.nextItem) {
+    const nd2 = placeCoord(sq.nextItem.title);
+    const cur = sq.here || (sq.curItem ? placeCoord(sq.curItem.title) : null);
+    if (nd2 && cur) inner += progHtml(sq.here ? sq.here.n : "지금", sq.nextItem.title, 40,
+      partyPositions(nd2.lat, nd2.lng, cur.lat, cur.lng));
   }
   if (sq.rest.length) inner += '<div class="band-note">이후 → ' + sq.rest.map((r) => esc(r.title)).join(" → ") + "</div>";
   return band("wine", inner) + '<button class="btn" id="wine-go" style="width:100%;margin-top:10px">🍷 이 와이너리 평가 남기기</button>';
@@ -2083,6 +2179,8 @@ function renderInfo() {
     '<div class="kv"><b>공유 앨범</b><span class="code-line">' + (s.album_url ? '<a href="' + esc(s.album_url) + '" target="_blank" rel="noopener">열기</a>' : '<span class="muted">iCloud 공유 앨범 만들어서 링크 넣기</span>') + ' <button class="btn ghost small" id="edit-album">링크</button></span></div>' +
     '<div class="kv"><b>숙소 좌표</b><span class="code-line"><span class="muted">' + esc(String(cabinLat())) + ", " + esc(String(cabinLng())) + '</span><button class="btn ghost small" id="edit-coord">수정</button></span></div>' +
     '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me, "mini") + " " : "") + '<b style="color:' + (me ? colorOf(me) : "inherit") + '">' + esc(myName) + '</b><button class="btn ghost small" id="edit-me">변경</button></span></div>' +
+    '<div class="kv"><b>내 캐릭터</b><span class="code-line">' + (me && charOf(me) ? av(me) + " <b>" + esc(fullName(me)) + '</b> <span class="muted" style="font-size:12px">' + esc(tierById[tierOf(me)].name) + "</span>" : '<span class="muted">아직 없음</span>') +
+    '<button class="btn ghost small" id="open-odds">확률표</button></span></div>' +
     '<div class="kv"><b>튜토리얼</b><span><button class="btn ghost small" id="tut-again">다시 보기</button></span></div>' +
     '<div class="kv"><b>홈 미리보기</b><span class="chip-row" style="margin:0" id="preview-row">' +
     [["", "자동"], ["drive", "🚗 이동"], ["winery", "🍷 와이너리"], ["costco", "🛒 코스트코"], ["arrival", "🏠 도착"], ["cabin", "🗺️ 지도"]].map((pv) =>
@@ -2094,6 +2192,13 @@ function renderInfo() {
     "</span></div>" +
     "</div>";
 
+  html += '<h2 class="sec">운명</h2><div class="card"><div class="fate">' +
+    '<div><div style="font-weight:700;font-size:15px">운명 거스르기</div>' +
+    '<div class="muted" style="margin-top:3px">다른 이름으로 다시 뽑기</div></div>' +
+    '<div style="margin-left:auto;text-align:right"><div class="fate-price">$10.99</div>' +
+    '<div class="muted" style="font-size:11px">사실 공짜</div></div></div>' +
+    '<button class="btn" id="fate-btn" style="width:100%;margin-top:12px">뽑기</button></div>';
+
   html += '<p class="muted" style="margin:14px 4px">Safari 공유 버튼 → "홈 화면에 추가" 하면 앱처럼 열려. 6명 다 해두자.</p>';
 
   el.innerHTML = html;
@@ -2103,6 +2208,11 @@ function renderInfo() {
   $("#edit-coord").onclick = editCoord;
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
+  const oo = $("#open-odds"); if (oo) oo.onclick = openOdds;
+  const fb = $("#fate-btn"); if (fb) fb.onclick = () => {
+    if (!confirm("$10.99 — 진짜로 결제되진 않아. 다시 뽑을까?")) return;
+    rollResult = drawCharacter(); openRoll();
+  };
   const pon = $("#push-on"); if (pon) pon.onclick = enablePush;
   const pt = $("#push-test");
   if (pt) pt.onclick = () => {
@@ -2270,9 +2380,9 @@ function tutSteps() {
   const installed = isStandalone();
   const pushOn = pushState() === "granted" && !!localStorage.getItem("kel_push");
   return [
-    { ic: (me ? avatarOf(me) : "🎮"), t: me ? nameOf(me) + "(으)로 시작" : "캐릭터 선택",
-      d: "이 폰은 이제 " + (me ? nameOf(me) : "네") + "의 수첩이야. 보내는 무전·장부 기록이 다 이 이름으로 남아.",
-      btn: "다른 캐릭터로", run: () => { tutPause(); openWho(); }, done: () => !!me },
+    { ic: (me ? avatarOf(me) : "🎲"), t: me && charOf(me) ? fullName(me) : "캐릭터 뽑기",
+      d: me && charOf(me) ? ("등급 <b>" + tierById[tierOf(me)].name + "</b>. 이 이모지가 지도·무전·장부에서 계속 나를 대신해.") : "주사위를 굴려서 이름을 받아. 20번까지 다시 굴릴 수 있어.",
+      btn: charOf(me) ? "다시 뽑기" : "지금 뽑기", run: () => { tutPause(); rollResult = drawCharacter(); openRoll(); }, done: () => !!charOf(me) },
     { ic: "📲", t: "홈 화면에 설치", d: "이거 안 하면 알림이 아예 안 와 (애플 규칙). 사파리 공유 버튼 → 홈 화면에 추가 → 그 아이콘으로 열기.",
       btn: "설치 방법 보기", run: () => { tutPause(); fillInstallGuide(); $("#install-modal").hidden = false; }, done: () => installed, skipIf: () => installed },
     { ic: "🔔", t: "알림 켜기", d: "앱이 꺼져 있어도 무전·사이렌이 알림으로 와. 지금 눌러서 켜자.",
@@ -2310,6 +2420,89 @@ function drawTut() {
 }
 function closeTut() { localStorage.setItem("kel_tut", "1"); tutPaused = false; $("#tut-modal").hidden = true; rerender(); }
 
+/* ---------------- 캐릭터 뽑기 ---------------- */
+let rollResult = null;
+function myRolls() { return Number(localStorage.getItem("kel_rolls") || 0); }
+function bumpRolls() { localStorage.setItem("kel_rolls", String(myRolls() + 1)); }
+function drawCharacter() {
+  const taken = takenIds();
+  const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0);
+  if (!pool.length) return null;
+  // 등급 가중 추첨 → 해당 등급에 남은 캐릭터가 없으면 아래 등급으로
+  let roll = Math.random() * 100, picked = null;
+  const order = TIERS.slice().sort((a, b) => a.p - b.p); // 희귀한 것부터 검사
+  let acc = 0;
+  for (const t of order) { acc += t.p; if (roll <= acc) { picked = t.t; break; } }
+  if (!picked) picked = 1;
+  let cands = pool.filter((c) => c.t === picked);
+  if (!cands.length) {
+    for (let t = picked - 1; t >= 1 && !cands.length; t--) cands = pool.filter((c) => c.t === t);
+    if (!cands.length) cands = pool;
+  }
+  return cands[Math.floor(Math.random() * cands.length)];
+}
+function openRoll() {
+  if (!me) return openWho();
+  rollResult = rollResult || drawCharacter();
+  drawRoll();
+  $("#roll-modal").hidden = false;
+}
+function drawRoll() {
+  const box = $("#roll-body");
+  if (!box) return;
+  const c = rollResult;
+  if (!c) { box.innerHTML = '<p class="muted">남은 캐릭터가 없어.</p>'; return; }
+  const t = tierById[c.t];
+  const left = Math.max(0, MAX_ROLLS - myRolls());
+  const taken = takenIds().map((id) => charById[id]).filter(Boolean);
+  box.innerHTML =
+    '<div class="medal spin" style="--rc:' + t.color + '">' +
+      (c.t >= 5 ? '<span class="spark" style="width:8px;height:8px;top:-2px;left:70px"></span><span class="spark" style="width:5px;height:5px;top:36px;right:-6px;animation-delay:.5s"></span><span class="spark" style="width:4px;height:4px;bottom:10px;left:14px;animation-delay:1s"></span>' : "") +
+      '<div class="rg"></div><div class="in"><div class="em">' + c.em + '</div><div class="rk">' + t.en + " · " + t.p + "%</div></div></div>" +
+    '<div class="roll-name"><div class="en">' + esc(c.last) + " <b>" + esc(nameOf(me)) + "</b> " + esc(c.first) + "</div>" +
+      '<div class="ko">' + esc(c.ko) + " · " + t.name + (c.t === 6 ? " — 이 세계 사람이 아니야" : c.t === 5 ? " — 부엉이다" : "") + "</div></div>" +
+    '<div class="rolls">ROLLS LEFT<b>' + left + '<span>/' + MAX_ROLLS + "</span></b></div>" +
+    '<div class="btn-row" style="margin-top:12px">' +
+      '<button class="btn ghost" id="roll-again"' + (left <= 0 ? " disabled" : "") + ' style="flex:1">🎲 다시 굴리기</button>' +
+      '<button class="btn" id="roll-ok" style="flex:1">이걸로 확정</button></div>' +
+    (taken.length ? '<div class="field-label">이미 뽑힌 이름</div><div class="taken">' +
+      taken.map((x) => "<span>" + x.em + " " + esc(x.ko) + "</span>").join("") + "</div>" : "") +
+    '<button class="btn ghost" id="roll-odds" style="width:100%;margin-top:14px">확률표 보기</button>';
+  $("#roll-again").onclick = () => { if (myRolls() >= MAX_ROLLS) return toast("20번 다 썼어"); bumpRolls(); rollResult = drawCharacter(); drawRoll(); };
+  $("#roll-ok").onclick = confirmRoll;
+  $("#roll-odds").onclick = openOdds;
+}
+async function confirmRoll() {
+  if (needSb() || !rollResult) return;
+  const c = rollResult;
+  const { error } = await sb.from("characters").upsert({ member: me, char_id: c.id, tier: c.t, rolls: myRolls() }, { onConflict: "member" });
+  if (error) {
+    toast("누가 방금 그 캐릭터를 가져갔어 — 다시 뽑을게");
+    await loadAll(); rollResult = drawCharacter(); drawRoll(); return;
+  }
+  $("#roll-modal").hidden = true;
+  rollResult = null;
+  await loadAll();
+  stampFx(c.em + " " + c.ko);
+  toast(fullName(me) + " 확정!");
+  if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 500);
+}
+function openOdds() {
+  const box = $("#odds-body");
+  if (!box) return;
+  const taken = takenIds();
+  box.innerHTML = TIERS.map((t) => {
+    const list = ROSTER.filter((c) => c.t === t.t);
+    const left = list.filter((c) => taken.indexOf(c.id) < 0).length;
+    return '<div class="odds-row"><span class="odds-ring" style="--rc:' + t.color + '">' + list[0].em + "</span>" +
+      '<div><div class="odds-t">' + t.name + " <span class=\"muted\">" + t.en + "</span></div>" +
+      '<div class="odds-l">' + list.map((c) => c.em + " " + c.ko).join(" · ") + "</div>" +
+      '<div class="odds-l">남은 인원 ' + left + "/" + list.length + "</div></div>" +
+      '<span class="odds-p" style="color:' + t.color + '">' + t.p + "%</span></div>";
+  }).join("") + '<p class="muted" style="text-align:center;margin-top:14px">꽝은 없어. 운만 다를 뿐</p>';
+  $("#odds-modal").hidden = false;
+}
+
 /* ---------------- 나 선택 ---------------- */
 function openWho() {
   const g = $("#who-grid");
@@ -2329,6 +2522,7 @@ function openWho() {
       rerender();
       toast("🎮 " + avatarOf(me) + " " + nameOf(me) + " 선택! 이 폰은 이제 네 수첩이야");
       if (tutPaused) setTimeout(tutResume, 300);
+      else if (!charOf(me)) setTimeout(openRoll, 400);
       else if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 400);
     }, 320);
   });
@@ -2351,6 +2545,7 @@ function wireModals() {
   $("#alert-close").onclick = () => $("#alert-modal").hidden = true;
   $("#tut-skip").onclick = () => { if (tutIdx === 0) closeTut(); else { tutIdx--; drawTut(); } };
   $("#install-close").onclick = () => { $("#install-modal").hidden = true; tutResume(); };
+  const oc = $("#odds-close"); if (oc) oc.onclick = () => { $("#odds-modal").hidden = true; };
   $("#tut-next").onclick = () => { if (tutIdx >= tutList.length - 1) closeTut(); else { tutIdx++; drawTut(); } };
   $("#stamp-cancel").onclick = () => $("#stamp-modal").hidden = true;
   $("#exp-cancel").onclick = () => $("#exp-modal").hidden = true;
@@ -2463,11 +2658,28 @@ function renderTab(tab) {
     }
   }
 }
+function togetherBadge() {
+  const latest = latestByMember();
+  const pts = MEMBERS.map((m) => latest[m.id]).filter((c) => c && c.lat &&
+    (Date.now() - new Date(c.created_at).getTime()) < 30 * 60000);
+  const el = document.getElementById("together");
+  if (!el) return;
+  if (pts.length < 2) { el.hidden = true; return; }
+  let far = 0;
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++)
+    far = Math.max(far, distKm(pts[i].lat, pts[i].lng, pts[j].lat, pts[j].lng));
+  const near = far <= 0.3;
+  el.textContent = near ? "● " + pts.length + "명 모임" : "● " + pts.length + "명 · " + Math.round(far) + "km 분산";
+  el.className = "together" + (near ? "" : " split");
+  el.hidden = false;
+}
+
 function rerender() {
   document.documentElement.style.setProperty("--accent", phase() === "during" ? dayTheme() : "#7C2E3E");
   $("#phase-label").textContent = phaseLabel();
   const chip = $("#me-chip");
   if (chip) { chip.hidden = !me; if (me) chip.innerHTML = av(me); }
+  togetherBadge();
   const y = window.scrollY;
   renderTab(currentTab);
   window.scrollTo(0, y);
@@ -2486,6 +2698,7 @@ function boot() {
   const mc = $("#me-chip"); if (mc) mc.onclick = openWho;
   $$("#tabbar .tb").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
   if (!me) openWho();
+  else setTimeout(() => { if (sb && !charOf(me)) openRoll(); }, 900);
   loadAll();
   subscribe();
   loadAQ();

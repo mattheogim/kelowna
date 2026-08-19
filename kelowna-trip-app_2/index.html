@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -24,6 +24,7 @@
     <span class="brand-title">켈로나 여행수첩</span>
     <span class="brand-sub" id="phase-label"></span>
   </div>
+  <span id="together" class="together" hidden></span>
   <div class="top-actions">
     <button id="me-chip" class="me-chip" hidden aria-label="캐릭터 변경"></button>
     <button id="bell" class="bell" aria-label="알림">
@@ -47,11 +48,11 @@
 </main>
 
 <nav id="tabbar">
-  <button data-tab="home" class="tb active"><span class="tb-ic">🏕️</span>홈<span class="tb-dot" hidden></span></button>
-  <button data-tab="plan" class="tb"><span class="tb-ic">🗓️</span>일정<span class="tb-dot" hidden></span></button>
-  <button data-tab="stamp" class="tb"><span class="tb-ic">📻</span>무전<span class="tb-dot" hidden></span></button>
-  <button data-tab="ledger" class="tb"><span class="tb-ic">🧾</span>장부<span class="tb-dot" hidden></span></button>
-  <button data-tab="info" class="tb"><span class="tb-ic">📖</span>정보<span class="tb-dot" hidden></span></button>
+  <button data-tab="home" class="tb active"><span class="tb-ic">🧭</span>NOW<span class="tb-dot" hidden></span></button>
+  <button data-tab="plan" class="tb"><span class="tb-ic">🗓️</span>PLAN<span class="tb-dot" hidden></span></button>
+  <button data-tab="stamp" class="tb"><span class="tb-ic">📻</span>RADIO<span class="tb-dot" hidden></span></button>
+  <button data-tab="ledger" class="tb"><span class="tb-ic">🧾</span>SPLIT<span class="tb-dot" hidden></span></button>
+  <button data-tab="info" class="tb"><span class="tb-ic">🔑</span>INFO<span class="tb-dot" hidden></span></button>
 </nav>
 
 <!-- 내가 누구인지 -->
@@ -176,6 +177,24 @@
     <p class="modal-title">📲 앱으로 설치하기</p>
     <div id="ig-body"></div>
     <button class="btn" id="install-close" style="width:100%;margin-top:12px">알겠어</button>
+  </div>
+</div>
+
+<!-- 캐릭터 뽑기 -->
+<div id="roll-modal" class="modal" hidden>
+  <div class="modal-card">
+    <p class="modal-title">🎲 캐릭터 뽑기</p>
+    <p class="modal-sub">이름은 운이 정해 · 중복 없음</p>
+    <div id="roll-body"></div>
+  </div>
+</div>
+
+<!-- 확률표 -->
+<div id="odds-modal" class="modal" hidden>
+  <div class="modal-card">
+    <p class="modal-title">확률표</p>
+    <div id="odds-body"></div>
+    <button class="btn" id="odds-close" style="width:100%;margin-top:14px">닫기</button>
   </div>
 </div>
 
