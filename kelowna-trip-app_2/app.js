@@ -2383,6 +2383,41 @@ function a2hsBar() {
   };
 }
 
+/* ---------- 설치 안 하면 앱 잠금 ---------- */
+function isMobileUA() { return /iphone|ipad|ipod|android/i.test(navigator.userAgent || ""); }
+function installRequired() {
+  if (localStorage.getItem("kel_bypass")) return false;
+  if (!isMobileUA()) return false;          // 데스크탑은 통과
+  return !isStandalone();
+}
+function showInstallWall() {
+  const g = document.getElementById("wall");
+  if (!g) return false;
+  const ua = navigator.userAgent || "";
+  const isIOS = /iphone|ipad|ipod/i.test(ua);
+  g.innerHTML =
+    '<div class="wall-card">' +
+      '<div class="wall-ic">🎲</div>' +
+      '<p class="wall-t">먼저 홈 화면에 설치해야<br>시작할 수 있어</p>' +
+      '<p class="wall-d">캐릭터 뽑기·알림·음성 무전은 <b>설치한 앱에서만</b> 작동해.<br>2분이면 끝나고, 한 번만 하면 돼.</p>' +
+      '<button class="btn" id="wall-point" style="width:100%;padding:16px">👆 어디 누르는지 보여줘</button>' +
+      '<button class="btn ghost" id="wall-guide" style="width:100%;margin-top:9px">그림으로 4단계 보기</button>' +
+      '<p class="wall-hint">설치 후에는 <b>홈 화면 아이콘</b>으로 열어야 해.<br>사파리 탭으로 들어오면 이 화면이 계속 떠.</p>' +
+      '<button class="wall-skip" id="wall-skip">이미 설치했는데 안 넘어가 →</button>' +
+    "</div>";
+  g.hidden = false;
+  document.body.classList.add("walled");
+  $("#wall-point").onclick = pointToShare;
+  $("#wall-guide").onclick = () => { fillInstallGuide(); $("#install-modal").hidden = false; };
+  $("#wall-skip").onclick = () => {
+    if (!confirm("홈 화면 아이콘으로 연 게 맞아?\n(사파리 탭이면 알림이 안 와)")) return;
+    localStorage.setItem("kel_bypass", "1");
+    g.hidden = true; document.body.classList.remove("walled");
+    location.reload();
+  };
+  return true;
+}
+
 /* ---------- 설치: 실제 화면 위에 화살표 오버레이 ---------- */
 function pointToShare() {
   const o = document.getElementById("point");
@@ -2404,7 +2439,10 @@ function pointToShare() {
   o.hidden = false;
   document.body.classList.add("pointing");
   const d = document.getElementById("pt-done");
-  if (d) d.onclick = () => { o.hidden = true; document.body.classList.remove("pointing"); tutResume(); };
+  if (d) d.onclick = () => {
+    o.hidden = true; document.body.classList.remove("pointing");
+    if (isStandalone()) location.reload(); else tutResume();
+  };
 }
 
 /* ---------------- 튜토리얼 (행동형) ---------------- */
@@ -2474,6 +2512,7 @@ function drawCharacter() {
   return cands[Math.floor(Math.random() * cands.length)];
 }
 function openRoll() {
+  if (installRequired()) { showInstallWall(); return; }
   if (!me) return openWho();
   rollResult = rollResult || drawCharacter();
   drawRoll();
@@ -2721,6 +2760,7 @@ function rerender() {
 /* ---------------- 시작 ---------------- */
 function boot() {
   if (isInApp() && showGate()) return;
+  if (installRequired() && showInstallWall()) return;
   const th = localStorage.getItem("kel_theme");
   if (th) document.documentElement.setAttribute("data-theme", th);
   initSb();
