@@ -86,6 +86,40 @@ function relTime(iso) {
   if (todayStr(t) === todayStr()) return hm(t);
   return (t.getMonth() + 1) + "/" + t.getDate() + " " + hm(t);
 }
+function edgeGlow(color, strong) {
+  const e = document.getElementById("edge");
+  if (!e) return;
+  e.style.setProperty("--glow", color || "#7FE3D2");
+  e.classList.remove("on", "strong");
+  void e.offsetWidth;
+  e.classList.add(strong ? "strong" : "on");
+  setTimeout(() => e.classList.remove("on", "strong"), strong ? 4200 : 2200);
+}
+function buzz(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern || [35, 60, 35]); } catch (e) {} }
+
+/* 도착한 교신을 '메시지'처럼 보여주는 배너 */
+function incoming(opts) {
+  const box = document.getElementById("incoming");
+  if (!box) return;
+  box.innerHTML = '<div class="inc-card">' +
+    '<span class="inc-av">' + (opts.who ? avatarOf(opts.who) : "📻") + "</span>" +
+    '<span class="inc-body"><span class="inc-name">' + esc(opts.name || "무전") + '</span>' +
+    '<span class="inc-text">' + esc(opts.text || "") + "</span></span>" +
+    (opts.audio ? '<button class="inc-play" id="inc-play">▶︎</button>' : '<button class="inc-go" id="inc-go">보기</button>') +
+    "</div>";
+  box.hidden = false;
+  box.classList.remove("in"); void box.offsetWidth; box.classList.add("in");
+  const p = document.getElementById("inc-play");
+  if (p) p.onclick = () => { playAudio(opts.audio, p); };
+  const g = document.getElementById("inc-go");
+  if (g) g.onclick = () => { box.hidden = true; switchTab(opts.tab || "stamp"); };
+  clearTimeout(incoming._t);
+  incoming._t = setTimeout(() => { box.hidden = true; }, 7000);
+  edgeGlow(opts.color || "#7FE3D2");
+  buzz();
+  beep();
+}
+
 let lastToast = { msg: "", ts: 0 };
 function toast(msg) {
   if (msg === lastToast.msg && Date.now() - lastToast.ts < 2500) return;
@@ -312,7 +346,7 @@ function onLive(table, payload) {
       try {
         const d = JSON.parse(r2.value);
         if (d && d.n && d.by !== me) {
-          toast("🧭 다음 목적지: " + d.n + (d.by ? " (" + nameOf(d.by) + ")" : ""));
+          incoming({ who: d.by, name: nameOf(d.by) + " · 목적지 확정", text: "우리 다 같이 → " + d.n, tab: "home", color: "#7FE3D2" });
           pushAlert("🧭 다음 목적지: " + d.n);
           if (currentTab !== "home") badge("home", true);
         }
@@ -323,7 +357,14 @@ function onLive(table, payload) {
   const actor = r.member || r.payer || r.added_by || r.created_by || "";
   if (actor === me) return;
   let msg = "", tab = "";
-  if (table === "checkins") { msg = "📻 " + nameOf(actor) + " — " + r.place + (r.note ? " · " + r.note : ""); tab = "stamp"; if (r.audio) beep(); }
+  if (table === "checkins") {
+    const isVoice = !!r.audio;
+    const body = isVoice ? "음성 무전이 도착했어" : (r.note ? r.note : r.place);
+    incoming({ who: actor, name: nameOf(actor) + (isVoice ? " · 음성" : r.lat ? " · 위치" : ""), text: body, audio: r.audio, tab: "stamp", color: colorOf(actor) });
+    pushAlert("📻 " + nameOf(actor) + " — " + (r.note || r.place));
+    if (currentTab !== "stamp") badge("stamp", true);
+    return;
+  }
   if (table === "expenses") { msg = nameOf(actor) + "가 장부에 적음: " + r.title + " " + money(Number(r.amount)); tab = "ledger"; }
   if (table === "polls") { msg = "새 투표: " + r.question; tab = "home"; }
   if (table === "itinerary") { msg = "일정 추가됨: " + r.title; tab = "plan"; }
@@ -702,6 +743,41 @@ function seqNow() {
   const rest = idx >= 0 ? items.slice(idx + 2, idx + 4) : [];
   return { curItem, nextItem, rest, here };
 }
+function stopStackHtml() {
+  const day = (modeOverride || phase() === "during") ? todayStr() : TRIP.days[0].date;
+  let items = itemsFor(day);
+  if (!items.length) items = itemsFor(TRIP.days[0].date);
+  const sq = seqNow();
+  let idx = 0;
+  if (sq.curItem) {
+    const i = items.findIndex((r) => r.id === sq.curItem.id);
+    if (i >= 0) idx = i;
+  }
+  const list = items.slice(idx, idx + 6);
+  if (!list.length) return "";
+  let html = '<h2 class="sec">다음 순서</h2><div class="stack">';
+  list.forEach((r, i) => {
+    const c = placeCoord(r.title);
+    const q = placeQuery(r.title);
+    html += '<div class="stopcard' + (i === 0 ? " cur" : "") + '">' +
+      '<div class="stop-t">' + esc(r.t || "") + (i === 0 ? ' <span class="stop-now">지금</span>' : "") + "</div>" +
+      '<div class="stop-title">' + esc(r.title) + "</div>" +
+      (r.note ? '<div class="stop-note">' + esc(r.note) + "</div>" : "") +
+      '<div class="stop-acts">' +
+      (q ? '<a class="chip" href="' + gmapUrl(q) + '" target="_blank" rel="noopener">📍 지도</a>' : "") +
+      (c ? '<button class="chip go-set" data-title="' + esc(r.title) + '">🧭 여기로 출발</button>' : "") +
+      "</div></div>";
+  });
+  html += "</div>";
+  return html;
+}
+
+function modeSwitchHtml(active) {
+  const list = [["", "자동"], ["drive", "🚗 이동"], ["winery", "🍷 와이너리"], ["costco", "🛒 코스트코"], ["arrival", "🏠 도착"], ["cabin", "🗺️ 지도"]];
+  return '<div class="chip-row mode-switch" id="mode-switch">' + list.map((m) =>
+    '<button class="chip' + ((modeOverride || "") === m[0] ? " on" : "") + '" data-pv="' + m[0] + '">' + m[1] + "</button>").join("") + "</div>";
+}
+
 function renderHome() {
   const el = $("#tab-home");
   const p = modeOverride ? "during" : phase();
@@ -716,13 +792,13 @@ function renderHome() {
     if (fd) inner += '<div class="band-note">첫 목적지 <b>' + esc(fd.n) + '</b> · <span id="pre-eta">경로 계산 중…</span></div>' +
       bandBtns([bLink("🧭 경로 미리 보기", fd.q)]);
     html += band("drive", inner);
+    html += stopStackHtml();
     html += heroBeforeHtml();
     html += '<div id="aq-home">' + aqHtml() + "</div>";
     html += '<h2 class="sec">준비물</h2><div class="card checklist" id="checklist"></div>';
   }
 
   if (p === "during") {
-    if (modeOverride) html += '<button class="chip" id="preview-off" style="margin-top:10px">👁️ 시연 모드 (실제 당일엔 자동) — 종료 ✕</button>';
     const mode = homeMode();
     if (mode === "go") html += goCardHtml();
     else if (mode === "drive") html += driveCardHtml();
@@ -730,7 +806,8 @@ function renderHome() {
     else if (mode === "costco") html += costcoCardHtml();
     else if (mode === "arrival") html += arrivalCardHtml();
     else html += heroLiveHtml();
-    html += modeDots(mode === "go" ? "drive" : mode === "costco" ? "shop" : mode === "arrival" ? "arr" : mode === "cabin" ? "cabin" : mode);
+    html += modeSwitchHtml(mode);
+    html += stopStackHtml();
 
     const { cur, next } = nowAndNext();
     if (mode !== "costco") {
@@ -770,7 +847,13 @@ function renderHome() {
   el.innerHTML = html;
 
   if (p === "before") { renderChecklist(); tickDep(); preTripETA(); }
-  const po = $("#preview-off"); if (po) po.onclick = () => { modeOverride = ""; renderHome(); };
+  $$("#mode-switch .chip", el).forEach((c) => c.onclick = () => { modeOverride = c.dataset.pv; renderHome(); });
+  $$(".go-set", el).forEach((b) => b.onclick = () => {
+    if (!me) return openWho();
+    const t = b.dataset.title;
+    if (!confirm('"' + t + '" — 전원 홈에 "우리 다 같이 → 여기"로 띄울까?')) return;
+    setDestFromTitle(t);
+  });
   if ($("#home-map")) drawMap("home-map", p === "before" ? { route: true } : {});
   const hg = $("#hero-go"); if (hg) hg.onclick = () => switchTab("stamp");
   bindCopies(el);
@@ -1215,19 +1298,29 @@ function renderStamp() {
 
 /* ---- 화장실 긴급 버튼 ---- */
 let sirenArmTimer = null, sirenNodes = null, emgSoundTimer = null;
-function wireSiren() {
-  const b = $("#siren-btn");
+function wireSiren(sel) {
+  const b = $(sel || "#siren-btn");
   if (!b) return;
+  const hintOf = () => $(b.id === "siren-fab" ? "#fab-hint" : "#siren-hint");
   b.onclick = async () => {
     const last = Number(localStorage.getItem("kel_siren") || 0);
     if (Date.now() - last < 600000) return toast("🚽 10분에 한 번만 — " + Math.ceil((600000 - (Date.now() - last)) / 60000) + "분 뒤 가능");
     if (!b.classList.contains("armed")) {
       b.classList.add("armed");
-      $("#siren-hint").textContent = "⚠️ 진짜 급해? 3초 안에 한 번 더 누르면 전원 발사";
+      buzz([25]);
+      const h = hintOf();
+      if (h) h.textContent = "⚠️ 진짜 급해? 3초 안에 한 번 더 누르면 전원 발사";
+      if (b.id === "siren-fab") { const t = $("#fab-tip"); if (t) { t.hidden = false; t.textContent = "한 번 더 누르면 발사!"; } }
       clearTimeout(sirenArmTimer);
-      sirenArmTimer = setTimeout(() => { b.classList.remove("armed"); $("#siren-hint").textContent = "익명 · 10분에 1번 · 두 번 눌러야 발사 (전원 폰에 사이렌)"; }, 3000);
+      sirenArmTimer = setTimeout(() => {
+        b.classList.remove("armed");
+        const h2 = hintOf();
+        if (h2) h2.textContent = "익명 · 10분에 1번 · 두 번 눌러야 발사 (전원 폰에 사이렌)";
+        const t2 = $("#fab-tip"); if (t2) t2.hidden = true;
+      }, 3000);
       return;
     }
+    const tipEl = $("#fab-tip"); if (tipEl) tipEl.hidden = true;
     clearTimeout(sirenArmTimer);
     b.classList.remove("armed");
     if (needSb()) return;
@@ -1240,6 +1333,8 @@ function emergency() {
   const e = $("#emg");
   if (!e || !e.hidden) return;
   e.hidden = false;
+  edgeGlow("#FF5E4D", true);
+  buzz([90, 70, 90, 70, 160]);
   startSirenSound();
   clearTimeout(emgSoundTimer);
   emgSoundTimer = setTimeout(stopSirenSound, 12000);
@@ -1915,11 +2010,23 @@ function wireModals() {
 
 /* ---------------- 전체 렌더 ---------------- */
 function renderTab(tab) {
-  if (tab === "home") renderHome();
-  else if (tab === "plan") renderPlan();
-  else if (tab === "stamp") renderStamp();
-  else if (tab === "ledger") renderLedger();
-  else if (tab === "info") renderInfo();
+  try {
+    if (tab === "home") renderHome();
+    else if (tab === "plan") renderPlan();
+    else if (tab === "stamp") renderStamp();
+    else if (tab === "ledger") renderLedger();
+    else if (tab === "info") renderInfo();
+  } catch (e) {
+    console.error(e);
+    const el = document.getElementById("tab-" + tab);
+    if (el) {
+      el.innerHTML = '<div class="card"><b>화면을 그리다 문제가 생겼어</b>' +
+        '<div class="muted" style="margin:6px 0">' + esc(e.message) + "</div>" +
+        '<button class="btn" id="err-reload" style="width:100%">새로고침</button></div>';
+      const rb = document.getElementById("err-reload");
+      if (rb) rb.onclick = () => location.reload();
+    }
+  }
 }
 function rerender() {
   document.documentElement.style.setProperty("--accent", phase() === "during" ? dayTheme() : "#7C2E3E");
@@ -1939,6 +2046,7 @@ function boot() {
   initSb();
   wireModals();
   $("#bell").onclick = openAlerts;
+  wireSiren("#siren-fab");
   const mc = $("#me-chip"); if (mc) mc.onclick = openWho;
   $$("#tabbar .tb").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
   if (!me) openWho();
