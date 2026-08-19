@@ -355,7 +355,7 @@ function specialFx(kind, color) {
   const o = document.getElementById("sfx");
   if (!o) return;
   let h = "";
-  if (kind === "bolt")     h = '<svg class="sfx-bolt" viewBox="0 0 120 400"><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#F7E27A" stroke-width="7" stroke-linejoin="round"/><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#fff" stroke-width="2.5"/></svg>';
+  if (kind === "bolt")     h = '<svg class="sfx-bolt" viewBox="0 0 120 400" width="160" height="520" preserveAspectRatio="none"><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#F7E27A" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></svg>';
   if (kind === "skull")    h = '<div class="sfx-smoke"></div><div class="sfx-skull">💀</div>';
   if (kind === "phoenix")  h = '<div class="sfx-glow"></div><div class="sfx-feather">🪶</div>';
   if (kind === "patronus") h = '<div class="sfx-patronus"></div>';
