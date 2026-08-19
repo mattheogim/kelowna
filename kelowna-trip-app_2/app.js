@@ -43,7 +43,7 @@ let sb = null;
 let me = localStorage.getItem("kel_me") || "";
 let currentTab = "home";
 let planDay = null;
-let map = null, mapMarkers = [];
+const maps = {};
 let lastPos = null;
 let alertLog = JSON.parse(localStorage.getItem("kel_alerts") || "[]");
 let lastSend = 0;
@@ -282,22 +282,48 @@ function nowAndNext() {
   return { cur, next };
 }
 
+function heroBeforeHtml() {
+  const d = Math.max(0, Math.ceil((new Date(TRIP.start + "T08:00:00") - new Date()) / 86400000));
+  return '<div class="hero card" style="padding:0;overflow:hidden;position:relative">' +
+    '<svg viewBox="0 0 360 200" class="route-svg">' +
+    '<polygon points="30,152 70,92 110,152" class="mt"/>' +
+    '<polygon points="80,152 130,72 180,152" class="mt mt2"/>' +
+    '<polygon points="225,152 278,97 330,152" class="mt"/>' +
+    '<ellipse cx="298" cy="152" rx="48" ry="12" class="lake"/>' +
+    '<path id="route" d="M18,166 C70,150 90,106 150,120 C200,132 218,92 258,96 C288,100 300,122 300,140" class="route-path"/>' +
+    '<circle cx="18" cy="166" r="5" class="node"/>' +
+    '<circle cx="300" cy="140" r="5" class="node end"/>' +
+    '<text x="12" y="188" class="rt-label">포트무디 7:30</text>' +
+    '<text x="118" y="110" class="rt-label">🍷 West Kelowna</text>' +
+    '<text x="232" y="180" class="rt-label">🏕️ Hydraulic Lake</text>' +
+    '<text font-size="17" class="rt-car">🚗<animateMotion dur="13s" repeatCount="indefinite"><mpath href="#route"/></animateMotion></text>' +
+    "</svg>" +
+    '<div class="stamp dday-stamp" style="--c:var(--wine);--rot:8deg"><span class="s-place">D-' + d + '</span><span class="s-when">8/20 목 8:00</span></div>' +
+    "</div>";
+}
+function heroLiveHtml() {
+  return '<div class="hero card" style="padding:0;overflow:hidden">' +
+    '<div id="home-map" class="hero-map"></div>' +
+    '<button class="hero-cap" id="hero-go">📡 실시간 위치 — 무전 탭에서 송신하면 여기 뜸 · 탭하면 크게</button></div>';
+}
+
 function renderHome() {
   const el = $("#tab-home");
   const p = phase();
   let html = "";
 
   if (p === "before") {
-    const d = Math.max(0, Math.ceil((new Date(TRIP.start + "T08:00:00") - new Date()) / 86400000));
-    html += '<div class="now-card"><div class="now-eyebrow">출발까지</div>' +
-      '<div class="dday">D-' + d + '</div>' +
-      '<div class="now-note">목 7:30 포트무디 집결 → 8:00 출발</div></div>';
+    html += heroBeforeHtml();
+    html += '<div class="now-card"><div class="now-eyebrow">출발</div>' +
+      '<div class="now-title">목 7:30 포트무디 집결 → 8:00 출발</div>' +
+      '<div class="now-note">A조 4명 / B조 2명(랭리) · Hwy 33으로만 진입</div></div>';
     html += '<div id="aq-home">' + aqHtml() + "</div>";
     html += '<h2 class="sec">준비물</h2><div class="card checklist" id="checklist"></div>';
   }
 
   if (p === "during") {
     const { cur, next } = nowAndNext();
+    html += heroLiveHtml();
     html += '<div class="now-card" style="border-color:' + dayTheme() + '">' +
       '<div class="now-eyebrow" style="color:' + dayTheme() + '">지금</div>' +
       '<div class="now-title">' + esc(cur ? cur.title : "자유시간") + "</div>" +
@@ -312,6 +338,7 @@ function renderHome() {
   }
 
   if (p === "after") {
+    html += heroLiveHtml();
     html += '<div class="now-card"><div class="now-eyebrow">수고했어</div>' +
       '<div class="now-title">2박 3일 끝!</div>' +
       '<div class="now-note">장부 탭에서 정산 마무리하고, 사진은 공유 앨범에.</div></div>';
@@ -333,6 +360,8 @@ function renderHome() {
   el.innerHTML = html;
 
   if (p === "before") renderChecklist();
+  if ($("#home-map")) drawMap("home-map");
+  const hg = $("#hero-go"); if (hg) hg.onclick = () => switchTab("stamp");
   const np = $("#new-poll"); if (np) np.onclick = openPollModal;
   const hp = $("#home-ping"); if (hp) hp.onclick = quickPing;
   const hs = $("#home-stamp"); if (hs) hs.onclick = openStampModal;
@@ -621,8 +650,7 @@ function renderStamp() {
   ptt.onpointerleave = () => { if (rec.t0) pttUp(); };
   ptt.oncontextmenu = (e) => e.preventDefault();
   $$(".play-btn", el).forEach((b) => b.onclick = () => playAudio(b.dataset.audio, b));
-  map = null;
-  if (currentTab === "stamp") setTimeout(initMap, 60);
+  if (currentTab === "stamp") setTimeout(() => drawMap("map"), 60);
 }
 
 /* ---- 음성 무전 (꾹 누르고 말하기) ---- */
@@ -768,30 +796,34 @@ function distKm(a, b, c, d) {
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 
-function initMap() {
-  const holder = $("#map");
+function drawMap(id) {
+  const holder = document.getElementById(id);
   if (!holder || typeof L === "undefined") return;
-  if (!map) {
-    map = L.map("map", { zoomControl: false, attributionControl: true });
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(map);
+  let m = maps[id];
+  if (m && m.getContainer() !== holder) { try { m.remove(); } catch (e) {} m = null; maps[id] = null; }
+  if (!m) {
+    m = L.map(id, { zoomControl: false, attributionControl: true });
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(m);
+    m._mk = [];
+    maps[id] = m;
   }
-  mapMarkers.forEach((m) => m.remove()); mapMarkers = [];
+  (m._mk || []).forEach((x) => x.remove()); m._mk = [];
   const pts = [];
   const cabin = L.circleMarker([cabinLat(), cabinLng()], { radius: 8, color: "#26241E", fillColor: "#F3EDE0", fillOpacity: 1 })
-    .addTo(map).bindPopup("🏠 숙소");
-  mapMarkers.push(cabin); pts.push([cabinLat(), cabinLng()]);
+    .addTo(m).bindPopup("🏠 숙소");
+  m._mk.push(cabin); pts.push([cabinLat(), cabinLng()]);
   const latest = latestByMember();
-  for (const m of MEMBERS) {
-    const c = latest[m.id];
+  for (const mem of MEMBERS) {
+    const c = latest[mem.id];
     if (c && c.lat && c.lng) {
-      const mk = L.marker([c.lat, c.lng], { icon: L.divIcon({ className: "av-pin", html: '<span class="av big" style="border-color:' + m.color + '">' + m.avatar + "</span>", iconSize: [34, 34], iconAnchor: [17, 17] }) })
-        .addTo(map).bindPopup("<b>" + m.avatar + " " + esc(m.name) + "</b><br>" + esc(c.place) + "<br>" + relTime(c.created_at));
-      mapMarkers.push(mk); pts.push([c.lat, c.lng]);
+      const mk = L.marker([c.lat, c.lng], { icon: L.divIcon({ className: "av-pin", html: '<span class="av big" style="border-color:' + mem.color + '">' + mem.avatar + "</span>", iconSize: [34, 34], iconAnchor: [17, 17] }) })
+        .addTo(m).bindPopup("<b>" + mem.avatar + " " + esc(mem.name) + "</b><br>" + esc(c.place) + "<br>" + relTime(c.created_at));
+      m._mk.push(mk); pts.push([c.lat, c.lng]);
     }
   }
-  if (pts.length > 1) map.fitBounds(pts, { padding: [30, 30] });
-  else map.setView(pts[0], 11);
-  setTimeout(() => map && map.invalidateSize(), 120);
+  if (pts.length > 1) m.fitBounds(pts, { padding: [28, 28] });
+  else m.setView(pts[0], 11);
+  setTimeout(() => { const mm = maps[id]; if (mm) mm.invalidateSize(); }, 120);
 }
 
 /* ---------------- 장부 (장보기 + 지출 + 정산) ---------------- */
@@ -1207,7 +1239,15 @@ function boot() {
   }
 
   // 1분: '지금' 카드 · 5분: 데이터 · 30분: 공기질
-  setInterval(() => { if (currentTab === "home" || currentTab === "plan") { renderHome(); renderPlan(); } }, 60000);
+  let lastNowKey = "";
+  setInterval(() => {
+    const nn = nowAndNext();
+    const key = todayStr() + "-" + (nn.cur ? nn.cur.id : 0) + "-" + (nn.next ? nn.next.id : 0);
+    if (key !== lastNowKey) {
+      lastNowKey = key;
+      if (currentTab === "home" || currentTab === "plan") { const y = window.scrollY; renderTab(currentTab); window.scrollTo(0, y); }
+    }
+  }, 60000);
   setInterval(() => { loadAll(); flushQueue(); }, 300000);
   setInterval(loadAQ, 1800000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) { loadAll(); flushQueue(); } });
