@@ -616,23 +616,24 @@ body.quake{animation:qk .5s cubic-bezier(.36,.07,.19,.97) 2}
 .sfx-wash{position:absolute;inset:0;
   background:radial-gradient(120% 90% at 50% 45%,var(--sc) 0%,transparent 62%),
              linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.5));
-  opacity:.85;animation:washin 2.6s cubic-bezier(.2,.8,.3,1) forwards}
-@keyframes washin{0%{opacity:0}14%{opacity:.92}70%{opacity:.8}100%{opacity:0}}
+  opacity:.9;animation:washin 4.2s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes washin{0%{opacity:0}8%{opacity:.95}80%{opacity:.9}100%{opacity:0}}
 /* 퍼지는 링 3겹 */
 .sfx-rings i{position:absolute;left:50%;top:44%;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;
-  border:4px solid var(--sc);opacity:.55;animation:ringout 1.6s ease-out forwards}
-.sfx-rings i:nth-child(2){animation-delay:.18s;border-width:3px}
-.sfx-rings i:nth-child(3){animation-delay:.36s;border-width:2px}
+  border:4px solid var(--sc);opacity:.6;animation:ringout 2.2s ease-out infinite}
+.sfx-rings i:nth-child(2){animation-delay:.5s;border-width:3px}
+.sfx-rings i:nth-child(3){animation-delay:1s;border-width:2px}
 @keyframes ringout{0%{opacity:0;transform:scale(.2)}18%{opacity:.95}100%{opacity:0;transform:scale(7)}}
 /* 초대형 글리프 */
 .sfx-big{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-size:min(46vw,190px);line-height:1;
   filter:drop-shadow(0 0 40px var(--sc)) drop-shadow(0 12px 26px rgba(0,0,0,.5));
-  opacity:1;animation:bigin 2.6s cubic-bezier(.2,1.3,.3,1) forwards}
+  opacity:1;animation:bigin 4.2s cubic-bezier(.2,1.3,.3,1) forwards}
 @keyframes bigin{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-12deg)}
-  18%{opacity:1;transform:translate(-50%,-50%) scale(1.18) rotate(4deg)}
-  32%{transform:translate(-50%,-50%) scale(1) rotate(0)}
-  75%{opacity:1;transform:translate(-50%,-50%) scale(1.04)}
-  100%{opacity:0;transform:translate(-50%,-50%) scale(1.3)}}
+  10%{opacity:1;transform:translate(-50%,-50%) scale(1.2) rotate(5deg)}
+  20%{transform:translate(-50%,-50%) scale(1) rotate(0)}
+  50%{transform:translate(-50%,-50%) scale(1.08) rotate(-2deg)}
+  85%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.35)}}
 .sfx-shake{animation:sfxq .5s cubic-bezier(.36,.07,.19,.97) 3}
 @keyframes sfxq{10%,90%{transform:translateX(-5px)}30%,70%{transform:translateX(9px)}50%{transform:translateX(-11px)}}
 
