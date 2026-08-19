@@ -86,6 +86,72 @@ function relTime(iso) {
   if (todayStr(t) === todayStr()) return hm(t);
   return (t.getMonth() + 1) + "/" + t.getDate() + " " + hm(t);
 }
+/* ---------- 기상효과: 상황별 파티클 + 시스템 리본 ---------- */
+const FX_SPEC = {
+  drive:  { shape: "streak", tint: "#7FE3D2", up: true },
+  winery: { shape: "grape",  tint: "#F0A6B4" },
+  shop:   { shape: "leaf",   tint: "#8FE0A8" },
+  arrival:{ shape: "leaf",   tint: "#FFD08A" },
+  cabin:  { shape: "star",   tint: "#A8B8FF" },
+  night:  { shape: "star",   tint: "#A8B8FF" },
+  voice:  { shape: "ring",   tint: "#7FE3D2" },
+  siren:  { shape: "warn",   tint: "#FF5E4D", up: true },
+};
+function fxModeNow() {
+  const m = (function () { try { return homeMode(); } catch (e) { return "cabin"; } })();
+  if (m === "costco") return "shop";
+  if (m === "go") return "drive";
+  if (m === "cabin" && isNight()) return "night";
+  return FX_SPEC[m] ? m : "cabin";
+}
+function shapeHtml(shape, color, i) {
+  const style = "--c:" + color + ";";
+  if (shape === "streak") return '<i class="p p-streak" style="' + style + '"></i>';
+  if (shape === "grape") return '<i class="p p-grape" style="' + style + '"></i>';
+  if (shape === "leaf") return '<i class="p p-leaf" style="' + style + '"></i>';
+  if (shape === "star") return '<i class="p p-star" style="' + style + '"></i>';
+  if (shape === "ring") return '<i class="p p-ring" style="' + style + '"></i>';
+  if (shape === "warn") return '<i class="p p-warn" style="' + style + '"></i>';
+  return '<i class="p p-grape" style="' + style + '"></i>';
+}
+/* level: 1 은은 · 2 보통 · 3 강함 */
+function weatherFx(kind, level, tintOverride, ribbonText) {
+  const layer = document.getElementById("fx");
+  if (!layer) return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (ribbonText) showRibbon(ribbonText, tintOverride);
+    return;
+  }
+  const spec = FX_SPEC[kind] || FX_SPEC.cabin;
+  const n = level === 3 ? 20 : level === 2 ? 12 : 6;
+  const tint = tintOverride || spec.tint;
+  let html = "";
+  for (let i = 0; i < n; i++) {
+    const left = Math.round(Math.random() * 96) + "%";
+    const dur = (2.6 + Math.random() * 2.2).toFixed(2) + "s";
+    const delay = (Math.random() * 0.9).toFixed(2) + "s";
+    const size = (spec.shape === "ring" ? 18 : 7) + Math.round(Math.random() * 8);
+    const drift = (Math.random() * 40 - 20).toFixed(0) + "px";
+    html += '<span class="pw' + (spec.up ? " up" : "") + '" style="left:' + left + ";animation-duration:" + dur +
+      ";animation-delay:" + delay + ";--sz:" + size + "px;--drift:" + drift + '">' + shapeHtml(spec.shape, tint, i) + "</span>";
+  }
+  layer.innerHTML = html;
+  layer.hidden = false;
+  clearTimeout(weatherFx._t);
+  weatherFx._t = setTimeout(() => { layer.hidden = true; layer.innerHTML = ""; }, 5200);
+  if (ribbonText) showRibbon(ribbonText, tint);
+}
+function showRibbon(text, tint) {
+  const r = document.getElementById("ribbon");
+  if (!r) return;
+  r.style.setProperty("--c", tint || "#7FE3D2");
+  r.textContent = text;
+  r.hidden = false;
+  r.classList.remove("in"); void r.offsetWidth; r.classList.add("in");
+  clearTimeout(showRibbon._t);
+  showRibbon._t = setTimeout(() => { r.hidden = true; }, 3600);
+}
+
 function edgeGlow(color, strong) {
   const e = document.getElementById("edge");
   if (!e) return;
@@ -116,6 +182,8 @@ function incoming(opts) {
   clearTimeout(incoming._t);
   incoming._t = setTimeout(() => { box.hidden = true; }, 7000);
   edgeGlow(opts.color || "#7FE3D2");
+  const lvl = opts.level || 1;
+  weatherFx(opts.fx || (opts.audio ? "voice" : fxModeNow()), lvl, opts.color, opts.ribbon);
   buzz();
   beep();
 }
@@ -346,7 +414,11 @@ function onLive(table, payload) {
       try {
         const d = JSON.parse(r2.value);
         if (d && d.n && d.by !== me) {
-          incoming({ who: d.by, name: nameOf(d.by) + " · 목적지 확정", text: "우리 다 같이 → " + d.n, tab: "home", color: "#7FE3D2" });
+          incoming({
+            who: d.by, name: nameOf(d.by) + " · 목적지 확정",
+            text: "우리 다 같이 → " + d.n, tab: "home", color: "#7FE3D2",
+            level: 3, fx: "drive", ribbon: "다음 목적지 — " + d.n,
+          });
           pushAlert("🧭 다음 목적지: " + d.n);
           if (currentTab !== "home") badge("home", true);
         }
@@ -360,7 +432,14 @@ function onLive(table, payload) {
   if (table === "checkins") {
     const isVoice = !!r.audio;
     const body = isVoice ? "음성 무전이 도착했어" : (r.note ? r.note : r.place);
-    incoming({ who: actor, name: nameOf(actor) + (isVoice ? " · 음성" : r.lat ? " · 위치" : ""), text: body, audio: r.audio, tab: "stamp", color: colorOf(actor) });
+    incoming({
+      who: actor,
+      name: nameOf(actor) + (isVoice ? " · 음성" : r.lat ? " · 위치" : ""),
+      text: body, audio: r.audio, tab: "stamp", color: colorOf(actor),
+      level: isVoice ? 2 : 1,
+      fx: isVoice ? "voice" : fxModeNow(),
+      ribbon: isVoice ? nameOf(actor) + "의 무전이 도착했다" : null,
+    });
     pushAlert("📻 " + nameOf(actor) + " — " + (r.note || r.place));
     if (currentTab !== "stamp") badge("stamp", true);
     return;
@@ -1334,6 +1413,7 @@ function emergency() {
   if (!e || !e.hidden) return;
   e.hidden = false;
   edgeGlow("#FF5E4D", true);
+  weatherFx("siren", 3, "#FF5E4D", "화장실 긴급 — 길을 비켜라");
   buzz([90, 70, 90, 70, 160]);
   startSirenSound();
   clearTimeout(emgSoundTimer);

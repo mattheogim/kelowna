@@ -471,3 +471,29 @@ h2.sec{
 .stop-acts .chip{text-decoration:none;font-size:12.5px}
 .mode-switch{justify-content:center;margin:10px 0 2px}
 .mode-switch .chip{font-size:12.5px;padding:6px 11px}
+
+
+/* ---------- 기상효과 파티클 ---------- */
+#fx{position:fixed;inset:0;z-index:205;pointer-events:none;overflow:hidden}
+#fx[hidden]{display:none}
+.pw{position:absolute;top:-8%;animation:fall linear forwards;will-change:transform,opacity}
+.pw.up{top:auto;bottom:-8%;animation-name:rise}
+@keyframes fall{0%{transform:translate3d(0,-40px,0);opacity:0}12%{opacity:.5}100%{transform:translate3d(var(--drift,0),105vh,0);opacity:0}}
+@keyframes rise{0%{transform:translate3d(0,40px,0);opacity:0}12%{opacity:.5}100%{transform:translate3d(var(--drift,0),-105vh,0);opacity:0}}
+.p{display:block;width:var(--sz,10px);height:var(--sz,10px);opacity:.45;filter:blur(.3px)}
+.p-grape{border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+.p-leaf{border-radius:60% 15% 60% 15%;background:var(--c);transform:rotate(25deg)}
+.p-star{background:var(--c);clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%);box-shadow:0 0 10px var(--c)}
+.p-streak{width:2px;height:calc(var(--sz,10px) * 3.2);border-radius:2px;background:linear-gradient(var(--c),transparent);opacity:.5}
+.p-ring{border:2px solid var(--c);border-radius:50%;background:transparent;animation:ring-grow 1.6s ease-out infinite;opacity:.5}
+@keyframes ring-grow{0%{transform:scale(.4);opacity:.65}100%{transform:scale(1.7);opacity:0}}
+.p-warn{width:0;height:0;border-left:calc(var(--sz,10px)/1.6) solid transparent;border-right:calc(var(--sz,10px)/1.6) solid transparent;border-bottom:var(--sz,10px) solid var(--c);opacity:.55}
+
+/* ---------- 시스템 리본 ---------- */
+#ribbon{position:fixed;left:50%;top:26%;transform:translateX(-50%);z-index:215;
+  background:rgba(23,24,26,.9);color:#fff;border:1px solid var(--c,#7FE3D2);
+  border-radius:999px;padding:9px 20px;font-size:14px;font-weight:600;white-space:nowrap;
+  box-shadow:0 8px 26px rgba(23,24,26,.32), 0 0 18px -6px var(--c,#7FE3D2);max-width:88vw;overflow:hidden;text-overflow:ellipsis}
+#ribbon[hidden]{display:none}
+#ribbon.in{animation:ribbon-in .5s cubic-bezier(.2,1.2,.3,1)}
+@keyframes ribbon-in{0%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(.94)}60%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.02)}100%{opacity:1;transform:translateX(-50%) scale(1)}}
