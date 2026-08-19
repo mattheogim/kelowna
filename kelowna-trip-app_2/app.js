@@ -13,6 +13,26 @@ const av = (id, cls) => '<span class="av ' + (cls || "") + '" style="border-colo
 const money = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
 const pad = (n) => String(n).padStart(2, "0");
 const CAT_EMOJI = { "와이너리": "🍷", "음식": "🍽️", "액티비티": "🏞️", "기타": "📌" };
+const MISSIONS = [
+  { e: "🍷", t: "와이너리 4곳 정복" },
+  { e: "🍽️", t: "Old Vines 점심" },
+  { e: "🛒", t: "코스트코 클리어" },
+  { e: "🏠", t: "숙소 도착" },
+  { e: "🌊", t: "호수 입수" },
+  { e: "🛶", t: "카약·패들보드" },
+  { e: "♨️", t: "핫텁" },
+  { e: "🔥", t: "캠프파이어" },
+  { e: "📸", t: "단체사진" },
+  { e: "⭐", t: "별 보기" },
+];
+
+async function copyText(t, label) {
+  try { await navigator.clipboard.writeText(t); toast((label || "") + " 복사됨"); }
+  catch (e) { prompt("길게 눌러서 복사해", t); }
+}
+function bindCopies(scope) {
+  $$(".cp", scope).forEach((b) => b.onclick = () => copyText(b.dataset.copy, b.dataset.lb));
+}
 
 function todayStr(d) { const x = d || new Date(); return x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate()); }
 function hm(d) { return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
@@ -362,6 +382,7 @@ function renderHome() {
   if (p === "before") renderChecklist();
   if ($("#home-map")) drawMap("home-map");
   const hg = $("#hero-go"); if (hg) hg.onclick = () => switchTab("stamp");
+  bindCopies(el);
   const np = $("#new-poll"); if (np) np.onclick = openPollModal;
   const hp = $("#home-ping"); if (hp) hp.onclick = quickPing;
   const hs = $("#home-stamp"); if (hs) hs.onclick = openStampModal;
@@ -374,8 +395,9 @@ function cabinCardHtml() {
   if (!reveal && !near) return "";
   const door = store.settings.door_code, wifi = store.settings.wifi_code;
   return '<div class="card stitch"><b>🏠 ' + esc(TRIP.cabinName) + "</b>" +
-    '<div class="kv"><b>도어코드</b><span class="code-val">' + (door ? esc(door) : '<span class="muted" style="font-size:13px">정보 탭에서 입력</span>') + "</span></div>" +
-    '<div class="kv"><b>Wi-Fi</b><span class="code-val">' + (wifi ? esc(wifi) : '<span class="muted" style="font-size:13px">숙소 안 QR / 정보 탭에서 입력</span>') + "</span></div>" +
+    '<div class="kv"><b>도어코드</b><span class="code-line"><span class="code-val">' + (door ? esc(door) : '<span class="muted" style="font-size:13px">정보 탭에서 입력</span>') + "</span>" + (door ? '<button class="btn ghost small cp" data-copy="' + esc(door) + '" data-lb="도어코드">복사</button>' : "") + "</span></div>" +
+    '<div class="kv"><b>Wi-Fi</b><span class="code-line"><span class="code-val">' + (wifi ? esc(wifi) : '<span class="muted" style="font-size:13px">숙소 안 QR / 정보 탭에서 입력</span>') + "</span>" + (wifi ? '<button class="btn ghost small cp" data-copy="' + esc(wifi) + '" data-lb="Wi-Fi">복사</button>' : "") + "</span></div>" +
+    '<div class="kv"><b>주소</b><span class="code-line"><span style="font-size:13px">Unit #1, 9995 McCulloch Rd</span><button class="btn ghost small cp" data-copy="9995 McCulloch Rd, Kelowna, BC" data-lb="주소">복사</button></span></div>' +
     '<div class="muted">Hwy 33으로만 진입 · 생수 · 변기엔 휴지만</div></div>';
 }
 
@@ -614,6 +636,19 @@ function renderStamp() {
 
   html += '<h2 class="sec">지도</h2><div id="map"></div>';
 
+  html += '<h2 class="sec">도장판 — 이번 여행 미션</h2><div class="card">';
+  for (const mi of MISSIONS) {
+    const label = mi.e + " " + mi.t;
+    const doneBy = MEMBERS.filter((m2) => store.checkins.some((c) => c.member === m2.id && c.place === label));
+    const mine = me && doneBy.some((m2) => m2.id === me);
+    html += '<div class="mission-row' + (mine ? " done" : "") + '" data-label="' + esc(label) + '">' +
+      '<span class="mi-badge">' + mi.e + "</span>" +
+      '<span class="mi-title">' + esc(mi.t) + "</span>" +
+      '<span class="mi-who">' + doneBy.map((m2) => av(m2.id, "mini")).join("") + "</span>" +
+      '<span class="mi-act">' + (mine ? "✔" : "찍기") + "</span></div>";
+  }
+  html += '</div><p class="muted" style="margin:2px 4px">해낸 순간 탭해서 도장 — 도장 수가 곧 MVP</p>';
+
   html += '<h2 class="sec">여권 — 스탬프 수집</h2><div class="card">';
   for (const m of MEMBERS) {
     const n = store.checkins.filter((c) => c.member === m.id).length;
@@ -621,6 +656,9 @@ function renderStamp() {
       '<span class="passport-count">' + n + "개</span></div>";
   }
   html += "</div>";
+
+  html += '<h2 class="sec">문자 교신</h2>' +
+    '<div class="shop-add"><input class="input" id="radio-text" placeholder="짧게 한 마디 (신호 없으면 자동 대기)"><button class="btn" id="radio-send">📨</button></div>';
 
   html += '<h2 class="sec">교신 기록</h2><div class="card feed">';
   if (!store.checkins.length) html += '<div class="muted">첫 교신의 주인공은?</div>';
@@ -650,6 +688,25 @@ function renderStamp() {
   ptt.onpointerleave = () => { if (rec.t0) pttUp(); };
   ptt.oncontextmenu = (e) => e.preventDefault();
   $$(".play-btn", el).forEach((b) => b.onclick = () => playAudio(b.dataset.audio, b));
+  $$(".mission-row", el).forEach((r) => r.onclick = async () => {
+    if (!me) return openWho();
+    const label = r.dataset.label;
+    if (store.checkins.some((c) => c.member === me && c.place === label)) return toast("이미 찍은 미션이야");
+    if (!confirm('"' + label + '" 도장 찍을까?')) return;
+    const res = await qInsert("checkins", { member: me, place: label, note: "미션 클리어", lat: lastPos ? lastPos.lat : null, lng: lastPos ? lastPos.lng : null });
+    if (res === true) { stampFx(label); loadAll(); }
+  });
+  const rt = $("#radio-text"), rs = $("#radio-send");
+  async function sendRadioText() {
+    if (!me) return openWho();
+    const v = rt.value.trim();
+    if (!v) return;
+    const res = await qInsert("checkins", { member: me, place: "💬", note: v, lat: null, lng: null });
+    rt.value = "";
+    if (res === true) loadAll();
+  }
+  if (rs) rs.onclick = sendRadioText;
+  if (rt) rt.addEventListener("keydown", (e) => { if (e.key === "Enter") sendRadioText(); });
   if (currentTab === "stamp") setTimeout(() => drawMap("map"), 60);
 }
 
@@ -972,11 +1029,12 @@ function renderInfo() {
 
   html += '<h2 class="sec">숙소</h2><div class="card">' +
     "<b>" + esc(TRIP.cabinName) + "</b>" +
-    '<div class="muted">9995 McCulloch Rd #1 — 켈로나 동남쪽 산속, Hydraulic Lake 호숫가</div>' +
+    '<div class="kv"><b>주소</b><span class="code-line"><span style="font-size:13.5px">Unit #1, 9995 McCulloch Rd</span><button class="btn ghost small cp" data-copy="9995 McCulloch Rd, Kelowna, BC" data-lb="주소">복사</button></span></div>' +
+    '<div class="muted">켈로나 동남쪽 산속, Hydraulic Lake 호숫가 — GPS 말고 Hwy 33 경로 확인</div>' +
     '<div class="kv"><b>체크인</b><span>목 16:00 (셀프, 스마트락)</span></div>' +
     '<div class="kv"><b>체크아웃</b><span>토 10:00</span></div>' +
-    '<div class="kv"><b>도어코드</b><span class="code-line"><span class="code-val">' + (s.door_code ? esc(s.door_code) : "—") + '</span><button class="btn ghost small" id="edit-door">입력</button></span></div>' +
-    '<div class="kv"><b>Wi-Fi</b><span class="code-line"><span class="code-val">' + (s.wifi_code ? esc(s.wifi_code) : "—") + '</span><button class="btn ghost small" id="edit-wifi">입력</button></span></div>' +
+    '<div class="kv"><b>도어코드</b><span class="code-line"><span class="code-val">' + (s.door_code ? esc(s.door_code) : "—") + "</span>" + (s.door_code ? '<button class="btn ghost small cp" data-copy="' + esc(s.door_code) + '" data-lb="도어코드">복사</button>' : "") + '<button class="btn ghost small" id="edit-door">입력</button></span></div>' +
+    '<div class="kv"><b>Wi-Fi</b><span class="code-line"><span class="code-val">' + (s.wifi_code ? esc(s.wifi_code) : "—") + "</span>" + (s.wifi_code ? '<button class="btn ghost small cp" data-copy="' + esc(s.wifi_code) + '" data-lb="Wi-Fi">복사</button>' : "") + '<button class="btn ghost small" id="edit-wifi">입력</button></span></div>' +
     "</div>";
 
   html += '<div class="card stitch"><b>호스트(Kelly) 규칙 — 진짜 중요</b><ul class="rule-list">' +
@@ -1014,6 +1072,10 @@ function renderInfo() {
     '<div class="kv"><b>숙소 좌표</b><span class="code-line"><span class="muted">' + esc(String(cabinLat())) + ", " + esc(String(cabinLng())) + '</span><button class="btn ghost small" id="edit-coord">수정</button></span></div>' +
     '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me, "mini") + " " : "") + '<b style="color:' + (me ? colorOf(me) : "inherit") + '">' + esc(myName) + '</b><button class="btn ghost small" id="edit-me">변경</button></span></div>' +
     '<div class="kv"><b>튜토리얼</b><span><button class="btn ghost small" id="tut-again">다시 보기</button></span></div>' +
+    '<div class="kv"><b>테마</b><span class="chip-row" style="margin:0" id="theme-row">' +
+    [["", "📓 수첩"], ["dark", "🌙 다크"], ["clean", "⬜ 클린"]].map((td) =>
+      '<button class="chip' + ((localStorage.getItem("kel_theme") || "") === td[0] ? " on" : "") + '" data-th="' + td[0] + '">' + td[1] + "</button>").join("") +
+    "</span></div>" +
     "</div>";
 
   html += '<p class="muted" style="margin:14px 4px">Safari 공유 버튼 → "홈 화면에 추가" 하면 앱처럼 열려. 6명 다 해두자.</p>';
@@ -1025,6 +1087,13 @@ function renderInfo() {
   $("#edit-coord").onclick = editCoord;
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
+  $$("#theme-row .chip").forEach((c) => c.onclick = () => {
+    const th = c.dataset.th;
+    if (th) { localStorage.setItem("kel_theme", th); document.documentElement.setAttribute("data-theme", th); }
+    else { localStorage.removeItem("kel_theme"); document.documentElement.removeAttribute("data-theme"); }
+    rerender();
+  });
+  bindCopies(el);
   loadWeather();
 }
 
@@ -1219,6 +1288,8 @@ function rerender() {
 
 /* ---------------- 시작 ---------------- */
 function boot() {
+  const th = localStorage.getItem("kel_theme");
+  if (th) document.documentElement.setAttribute("data-theme", th);
   initSb();
   wireModals();
   $("#bell").onclick = openAlerts;

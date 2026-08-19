@@ -390,3 +390,37 @@ h2.sec::after{ content:""; flex:1; border-top:1px solid var(--line); }
 .rt-label{font-family:"Nanum Pen Script",cursive;font-size:15px;fill:var(--ink-soft)}
 .dday-stamp{position:absolute;top:10px;right:10px;width:88px;height:88px;background:rgba(251,247,236,.72)}
 .dday-stamp .s-place{font-size:21px}
+
+/* ---------- 도장판 미션 ---------- */
+.mission-row{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px dashed var(--line)}
+.mission-row:last-child{border:none}
+.mi-badge{flex:none;width:34px;height:34px;border:2px dashed var(--pencil);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;background:transparent}
+.mission-row.done .mi-badge{border-style:solid;border-color:var(--pine);background:rgba(71,96,63,.14)}
+.mi-title{font-size:14.5px}
+.mission-row.done .mi-title{color:var(--ink-soft)}
+.mi-who{margin-left:auto;display:flex;gap:2px}
+.mi-act{font-size:12.5px;color:var(--pencil);font-weight:700;min-width:30px;text-align:right}
+.mission-row.done .mi-act{color:var(--pine)}
+
+/* ---------- 테마: 🌙 다크 (원정대) ---------- */
+:root[data-theme="dark"]{
+  --paper:#1A1917; --paper-2:#242220; --ink:#EDE7DA; --ink-soft:#CBC4B4;
+  --pencil:#948D7E; --line:rgba(237,231,218,.17); --card:#211F1D;
+  --wine:#C86478; --lake:#5FB3AC; --pine:#7FA372; --danger:#D07A6A;
+}
+:root[data-theme="dark"] body{background:radial-gradient(circle at 1px 1px, rgba(237,231,218,.05) 1px, transparent 1.6px) 0 0/22px 22px, var(--paper)}
+:root[data-theme="dark"] #tabbar{background:rgba(26,25,23,.94)}
+:root[data-theme="dark"] .stamp{mix-blend-mode:normal}
+:root[data-theme="dark"] .input{background:#2B2926;color:var(--ink)}
+:root[data-theme="dark"] .now-card,:root[data-theme="dark"] .card{box-shadow:none}
+
+/* ---------- 테마: ⬜ 클린 ---------- */
+:root[data-theme="clean"]{
+  --paper:#FFFFFF; --paper-2:#F3F4F6; --ink:#1E2530; --ink-soft:#4A5568;
+  --pencil:#8A94A6; --line:rgba(30,37,48,.12); --card:#FFFFFF;
+  --wine:#E0565B; --lake:#0E7C86; --pine:#3E7C4F; --danger:#C64F3E;
+}
+:root[data-theme="clean"] body{background:var(--paper);font-family:-apple-system,"SF Pro Text","Helvetica Neue","Noto Sans KR",sans-serif}
+:root[data-theme="clean"] #tabbar{background:rgba(255,255,255,.94)}
+:root[data-theme="clean"] .card,:root[data-theme="clean"] .now-card,:root[data-theme="clean"] .plan-list{box-shadow:0 1px 3px rgba(30,37,48,.07),0 5px 16px rgba(30,37,48,.06);border-color:rgba(30,37,48,.06)}
+:root[data-theme="clean"] .stamp{mix-blend-mode:normal}
