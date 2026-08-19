@@ -16,7 +16,7 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v4";   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v5";   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2427,7 +2427,8 @@ function renderInfo() {
     '<div class="kv"><b>내 캐릭터</b><span class="code-line">' + (me && charOf(me) ? av(me) + " <b>" + esc(fullName(me)) + '</b> <span class="muted" style="font-size:12px">' + esc(tierById[tierOf(me)].name) + "</span>" : '<span class="muted">아직 없음</span>') +
     '<button class="btn ghost small" id="open-odds">확률표</button>' +
     (charOf(me) ? '<button class="btn ghost small" id="fx-demo">내 이펙트</button>' : "") +
-    '<button class="btn ghost small" id="pack-demo">뽑기 연출 테스트</button></span></div>' +
+    '<button class="btn ghost small" id="pack-demo">뽑기 연출 테스트</button>' +
+    '<button class="btn ghost small" id="diag">연출 진단</button></span></div>' +
     '<div class="kv"><b>튜토리얼</b><span><button class="btn ghost small" id="tut-again">다시 보기</button></span></div>' +
     '<div class="kv"><b>홈 미리보기</b><span class="chip-row" style="margin:0" id="preview-row">' +
     [["", "자동"], ["drive", "🚗 이동"], ["winery", "🍷 와이너리"], ["costco", "🛒 코스트코"], ["arrival", "🏠 도착"], ["cabin", "🗺️ 지도"]].map((pv) =>
@@ -2499,6 +2500,28 @@ function renderInfo() {
     location.reload();
   };
   const fd = $("#fx-demo"); if (fd) fd.onclick = () => { charFx(me, 3); showRibbon(charOf(me).ko + "의 시그니처", colorOf(me)); };
+  const dg = $("#diag");
+  if (dg) dg.onclick = () => {
+    const L = [];
+    const pack = document.getElementById("pack"), sfx = document.getElementById("sfx"), fx = document.getElementById("fx");
+    L.push("빌드: " + BUILD);
+    L.push("설치됨: " + (isStandalone() ? "예" : "아니오"));
+    L.push("동작줄이기: " + (reduceMotion() ? "켜짐 ⚠️" : "꺼짐"));
+    L.push("애니메이션 지원: " + (typeof document.body.animate === "function" ? "예" : "아니오"));
+    L.push("요소 pack/sfx/fx: " + (pack ? "O" : "X") + "/" + (sfx ? "O" : "X") + "/" + (fx ? "O" : "X"));
+    if (pack) {
+      pack.removeAttribute("hidden");
+      pack.style.cssText = "display:flex;position:fixed;inset:0;z-index:600;opacity:1;background:#111";
+      const cs = getComputedStyle(pack);
+      L.push("pack 계산값 → display:" + cs.display + " opacity:" + cs.opacity + " z:" + cs.zIndex);
+      const em = document.getElementById("p-em");
+      if (em) { const es = getComputedStyle(em); L.push("이모지 → opacity:" + es.opacity + " size:" + es.fontSize + " 내용:" + (em.textContent || "(빈칸)")); }
+      setTimeout(() => { pack.style.display = "none"; pack.hidden = true; }, 900);
+    }
+    L.push("화면: " + window.innerWidth + "x" + window.innerHeight);
+    L.push("UA: " + navigator.userAgent.slice(0, 70));
+    alert(L.join("\n"));
+  };
   const pd = $("#pack-demo");
   if (pd) pd.onclick = () => { const pick = ROSTER[Math.floor(Math.random() * ROSTER.length)]; openPack(pick, () => toast(pick.em + " " + pick.ko + " — 연출 끝")); };
   const fb = $("#fate-btn"); if (fb) fb.onclick = () => {
@@ -2875,6 +2898,8 @@ function openPack(c, done) {
   const c3d = $("#c3d"), front = $("#p-front");
   front.style.setProperty("--rc", tier.color);
   front.classList.remove("on"); c3d.className = "card3d"; c3d.style.transform = ""; c3d.style.opacity = "";
+  front.style.opacity = ""; front.style.zIndex = "";
+  const bk0 = pack.querySelector(".back"); if (bk0) { bk0.style.opacity = ""; bk0.style.zIndex = ""; }
   document.body.classList.remove("quake");
   $("#p-em").textContent = c.em;
   $("#p-nm").textContent = c.last + " " + nameOf(me) + " " + c.first;
@@ -2883,6 +2908,13 @@ function openPack(c, done) {
   $("#p-beams").innerHTML = ""; $("#p-conf").innerHTML = "";
   const tBeam = Math.round(500 * scale), tFlip = Math.round(2200 * scale), tEnd = Math.round(4000 * scale);
   pack.classList.toggle("calm", calm);
+  // CSS가 어떤 이유로 안 먹어도 무조건 보이게 (iOS 대비)
+  pack.removeAttribute("hidden");
+  pack.style.cssText = "display:flex;align-items:center;justify-content:center;position:fixed;inset:0;z-index:600;" +
+    "opacity:1;visibility:visible;overflow:hidden;background:radial-gradient(120% 80% at 50% 50%,#2A2622 0%,#141210 60%,#0B0A09 100%)";
+  const cw = pack.querySelector(".cardwrap");
+  if (cw) cw.style.cssText = "position:relative;width:230px;height:322px;z-index:3";
+  c3d.style.opacity = "1";
   c3d.classList.add("enter");
   PT(() => {
     const n = myth ? 8 : c.t >= 4 ? 6 : c.t >= 3 ? 4 : c.t >= 2 ? 3 : 2;
@@ -2897,7 +2929,11 @@ function openPack(c, done) {
     buzz(c.t >= 5 ? [60,40,60,40,140] : c.t >= 4 ? [40,50,90] : [30]);
   }, tBeam);
   if (c.t >= 4) PT(() => { const f = $("#p-flash"); f.className = "flash"; void f.offsetWidth; f.className = "flash go"; }, tFlip - Math.round(200 * scale));
-  PT(() => { c3d.classList.add("flip", "shown"); }, tFlip);
+  PT(() => {
+    c3d.classList.add("flip", "shown");
+    front.style.opacity = "1"; front.style.zIndex = "2";
+    const bk = pack.querySelector(".back"); if (bk) { bk.style.opacity = "0"; bk.style.zIndex = "1"; }
+  }, tFlip);
   // 안전장치: 애니메이션이 죽어도 3.2초 뒤엔 무조건 카드가 보이게
   PT(() => { c3d.classList.add("shown"); c3d.style.transform = "rotateY(0)"; c3d.style.opacity = "1"; front.classList.add("on"); }, tFlip + Math.round(900 * scale));
   PT(() => {
@@ -2915,7 +2951,13 @@ function openPack(c, done) {
       $("#p-conf").innerHTML = h;
     }
   }, tFlip + Math.round(300 * scale));
-  const finish = () => { packClear(); pack.hidden = true; document.body.classList.remove("quake"); done && done(); };
+  const finish = () => {
+    packClear();
+    pack.style.display = "none";
+    pack.hidden = true;
+    document.body.classList.remove("quake");
+    done && done();
+  };
   PT(finish, tEnd + Math.round(1200 * scale));
   pack.onclick = finish;
 }
