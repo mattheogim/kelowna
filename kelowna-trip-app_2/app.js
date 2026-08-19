@@ -16,7 +16,7 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v8";   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v9";   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -322,8 +322,8 @@ function charFx(memberId, level) {
   const f = FX[c.fx];
   const layer = document.getElementById("fx");
   if (!layer) return false;
-  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-  const n = Math.round((f.n || 10) * (level >= 3 ? 1.6 : level >= 2 ? 1 : 0.6));
+  const calmFx = reduceMotion();
+  const n = Math.round((f.n || 10) * (level >= 3 ? 1.6 : level >= 2 ? 1 : 0.6) * (calmFx ? 0.35 : 1));
   let html = "";
   for (let i = 0; i < n; i++) {
     const dur = (2.4 + Math.random() * 2).toFixed(2) + "s";
@@ -349,7 +349,7 @@ function charFx(memberId, level) {
   layer.hidden = false;
   clearTimeout(weatherFx._t);
   weatherFx._t = setTimeout(() => { layer.hidden = true; layer.innerHTML = ""; }, 5200);
-  if (f.quake) { document.body.classList.add("quake"); setTimeout(() => document.body.classList.remove("quake"), 1100); }
+  if (f.quake && !calmFx) { document.body.classList.add("quake"); setTimeout(() => document.body.classList.remove("quake"), 1100); }
   if (c.t >= 3) edgeGlow(f.c || colorOf(memberId), c.t >= 4);
   if (f.special) specialFx(f.special, f.c, c.t);
   return true;
@@ -402,8 +402,10 @@ function specialFx(kind, color, tier) {
     '<div class="sfx-big">' + T.glyph + "</div>";
   o.hidden = false;
 
-  document.body.classList.add("sfx-shake");
-  setTimeout(() => document.body.classList.remove("sfx-shake"), 1800);
+  if (!reduceMotion()) {
+    document.body.classList.add("sfx-shake");
+    setTimeout(() => document.body.classList.remove("sfx-shake"), 1800);
+  }
   clearTimeout(specialFx._t);
   specialFx._t = setTimeout(() => { o.style.display = "none"; o.hidden = true; o.innerHTML = ""; o.className = ""; }, 4600);
 }
