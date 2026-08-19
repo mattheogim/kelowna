@@ -363,3 +363,14 @@ h2.sec::after{ content:""; flex:1; border-top:1px solid var(--line); }
 .install-banner{margin:0 14px 8px;padding:10px 36px 10px 12px;font-size:13.5px;background:var(--card);border:1.5px solid var(--lake);border-radius:10px;position:relative;line-height:1.6}
 .install-banner .btn.small{vertical-align:middle;margin-left:4px}
 .ib-x{position:absolute;top:5px;right:5px;background:none;border:none;color:var(--pencil);font-size:14px;padding:5px}
+
+/* ---------- 음성 무전 · 설치 가이드 ---------- */
+.ptt{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.ptt.rec{background:var(--wine);animation:ptt-pulse 1.1s ease-in-out infinite}
+@keyframes ptt-pulse{0%,100%{box-shadow:0 5px 0 rgba(38,36,30,.28), 0 0 0 0 rgba(124,46,62,.35)}50%{box-shadow:0 5px 0 rgba(38,36,30,.28), 0 0 0 16px rgba(124,46,62,0)}}
+.ptt-state{min-height:19px;font-size:13.5px;color:var(--wine);font-weight:700;margin-top:8px}
+.play-btn{border:1px solid var(--line);background:var(--paper-2);border-radius:999px;padding:3px 9px;font-size:13px;vertical-align:middle;margin-left:2px}
+.ig-step{display:flex;gap:12px;align-items:flex-start;padding:11px 2px;border-bottom:1px dashed var(--line);font-size:15px;line-height:1.55}
+.ig-step:last-of-type{border:none}
+.ig-num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.ig-ic{vertical-align:middle;margin-left:6px}

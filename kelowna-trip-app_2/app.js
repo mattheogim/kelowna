@@ -92,7 +92,7 @@ function showInstall() {
   } else if (deferredPrompt) {
     inner = '📲 홈 화면에 앱으로 설치 가능 — <button class="btn small" id="do-install">설치</button>';
   } else if (isIOS) {
-    inner = '📲 앱처럼 쓰려면: 하단 <b>공유(⬆️) 버튼 → "홈 화면에 추가"</b>';
+    inner = '📲 앱처럼 설치하면 전체화면 + 아이콘 생김 — <button class="btn small" id="ig-open">방법 보기</button>';
   } else return;
   b.innerHTML = inner + '<button class="ib-x" id="ib-close" aria-label="닫기">✕</button>';
   b.hidden = false;
@@ -101,6 +101,8 @@ function showInstall() {
   if (os) os.onclick = () => { location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(location.href); };
   const di = $("#do-install");
   if (di) di.onclick = () => { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt = null; b.hidden = true; };
+  const ig = $("#ig-open");
+  if (ig) ig.onclick = () => { $("#install-modal").hidden = false; };
 }
 
 /* ---------------- 여행 단계 ---------------- */
@@ -233,7 +235,7 @@ function onLive(table, payload) {
   const actor = r.member || r.payer || r.added_by || r.created_by || "";
   if (actor === me) return;
   let msg = "", tab = "";
-  if (table === "checkins") { msg = "📻 " + nameOf(actor) + " — " + r.place + (r.note ? " · " + r.note : ""); tab = "stamp"; }
+  if (table === "checkins") { msg = "📻 " + nameOf(actor) + " — " + r.place + (r.note ? " · " + r.note : ""); tab = "stamp"; if (r.audio) beep(); }
   if (table === "expenses") { msg = nameOf(actor) + "가 장부에 적음: " + r.title + " " + money(Number(r.amount)); tab = "ledger"; }
   if (table === "polls") { msg = "새 투표: " + r.question; tab = "home"; }
   if (table === "itinerary") { msg = "일정 추가됨: " + r.title; tab = "plan"; }
@@ -560,8 +562,9 @@ function renderStamp() {
 
   const online = navigator.onLine;
   let html = '<div class="ptt-wrap">' +
-    '<button class="ptt" id="do-ping"><span class="ptt-ic">📻</span>나 여기야!</button>' +
-    '<p class="ptt-hint">누르면 내 위치가 다들 폰에 바로 뜸<br>신호 없으면 잡히는 순간 자동 송신</p>' +
+    '<button class="ptt" id="do-ping"><span class="ptt-ic">📻</span>꾹 눌러 말하기</button>' +
+    '<span class="ptt-state" id="ptt-state"></span>' +
+    '<p class="ptt-hint"><b>꾹 누르고 말해, 떼면 전송</b> (최대 30초)<br>짧게 탭 = 위치만 송신 · 신호 없으면 위치는 자동 대기 후 송신</p>' +
     '<div class="status-row">' +
     '<span class="chip">' + (online ? "🟢 신호 있음" : "🔴 오프라인") + "</span>" +
     (myLast ? '<span class="chip">내 마지막 송신 ' + relTime(myLast.created_at) + "</span>" : "") +
@@ -573,7 +576,7 @@ function renderStamp() {
   for (const m of MEMBERS) {
     const c = latest[m.id];
     html += '<div class="board-card"><div class="board-name">' + av(m.id, "mini") + esc(m.name) + "</div>" +
-      (c ? '<div class="board-place">' + esc(c.place) + '</div><div class="board-when">' + relTime(c.created_at) + (c.lat ? " · 📍" : "") + "</div>" +
+      (c ? '<div class="board-place">' + esc(c.place) + (c.audio ? ' <button class="play-btn" data-audio="' + esc(c.audio) + '">▶️</button>' : "") + '</div><div class="board-when">' + relTime(c.created_at) + (c.lat ? " · 📍" : "") + "</div>" +
         (c.note ? '<div class="board-note">' + esc(c.note) + "</div>" : "")
         : '<div class="board-when">아직 소식 없음</div>') +
       "</div>";
@@ -594,7 +597,7 @@ function renderStamp() {
   if (!store.checkins.length) html += '<div class="muted">첫 교신의 주인공은?</div>';
   for (const c of store.checkins.slice(0, 40)) {
     html += '<div class="feed-row">' + av(c.member, "mini") + '<span class="feed-who" style="color:' + colorOf(c.member) + '">' + esc(nameOf(c.member)) + "</span>" +
-      '<span class="feed-body">' + esc(c.place) + (c.note ? ' <span class="feed-note">' + esc(c.note) + "</span>" : "") + "</span>" +
+      '<span class="feed-body">' + esc(c.place) + (c.audio ? ' <button class="play-btn" data-audio="' + esc(c.audio) + '">▶️</button>' : "") + (c.note ? ' <span class="feed-note">' + esc(c.note) + "</span>" : "") + "</span>" +
       '<span class="feed-when">' + relTime(c.created_at) + "</span></div>";
   }
   html += "</div>";
@@ -611,9 +614,107 @@ function renderStamp() {
 
   el.innerHTML = html;
   $("#do-stamp").onclick = openStampModal;
-  $("#do-ping").onclick = quickPing;
+  const ptt = $("#do-ping");
+  ptt.onpointerdown = pttDown;
+  ptt.onpointerup = pttUp;
+  ptt.onpointercancel = pttUp;
+  ptt.onpointerleave = () => { if (rec.t0) pttUp(); };
+  ptt.oncontextmenu = (e) => e.preventDefault();
+  $$(".play-btn", el).forEach((b) => b.onclick = () => playAudio(b.dataset.audio, b));
   map = null;
   if (currentTab === "stamp") setTimeout(initMap, 60);
+}
+
+/* ---- 음성 무전 (꾹 누르고 말하기) ---- */
+const rec = { mr: null, chunks: [], t0: 0, stream: null, limit: null };
+const REC_MIN = 500, REC_MAX = 30000;
+
+function setPttState(st) {
+  const b = $("#do-ping"), h = $("#ptt-state");
+  if (b) b.classList.toggle("rec", st === "rec");
+  if (h) h.textContent = st === "rec" ? "🔴 녹음 중… 손 떼면 전송" : st === "nomic" ? "마이크를 못 잡았어 — 떼면 위치만 송신" : "";
+}
+
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; g.gain.value = 0.08; o.start();
+    setTimeout(() => { o.frequency.value = 660; }, 90);
+    setTimeout(() => { o.stop(); ctx.close(); }, 190);
+  } catch (e) {}
+}
+
+async function pttDown(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  if (!me) return openWho();
+  if (needSb()) return;
+  if (rec.mr || rec.t0) return;
+  rec.t0 = Date.now();
+  getPosition(); // GPS는 백그라운드로 미리
+  let stream = null;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (err) {}
+  if (rec.t0 === 0) { if (stream) stream.getTracks().forEach((t) => t.stop()); return; } // 이미 뗐음
+  if (!stream || !window.MediaRecorder) { setPttState("nomic"); return; }
+  const mime = MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4"
+    : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+  try { rec.mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined); }
+  catch (err) { stream.getTracks().forEach((t) => t.stop()); setPttState("nomic"); return; }
+  rec.stream = stream;
+  rec.chunks = [];
+  rec.mr.ondataavailable = (ev) => { if (ev.data && ev.data.size) rec.chunks.push(ev.data); };
+  rec.mr.start();
+  setPttState("rec");
+  rec.limit = setTimeout(pttUp, REC_MAX);
+}
+
+async function pttUp() {
+  if (!rec.t0) return;
+  clearTimeout(rec.limit);
+  const held = Date.now() - rec.t0;
+  rec.t0 = 0;
+  const mr = rec.mr; rec.mr = null;
+  if (!mr) { setPttState("idle"); quickPing(); return; } // 마이크 실패 → 위치만
+  await new Promise((res) => { mr.onstop = res; try { mr.stop(); } catch (e) { res(); } });
+  if (rec.stream) { rec.stream.getTracks().forEach((t) => t.stop()); rec.stream = null; }
+  setPttState("idle");
+  if (held < REC_MIN) { quickPing(); return; } // 짧게 = 위치만
+  const blob = new Blob(rec.chunks, { type: mr.mimeType || "audio/mp4" });
+  if (!blob.size) { toast("녹음이 비었어 — 다시"); return; }
+  sendVoice(blob, mr.mimeType || "audio/mp4");
+}
+
+async function sendVoice(blob, mime) {
+  toast("📻 전송 중…");
+  const ext = mime.includes("webm") ? "webm" : "m4a";
+  const path = me + "-" + Date.now() + "." + ext;
+  try {
+    const up = await sb.storage.from("radio").upload(path, blob, { contentType: mime });
+    if (up.error) throw up.error;
+    const pub = sb.storage.from("radio").getPublicUrl(path);
+    const ins = await sb.from("checkins").insert({
+      member: me, place: "📻 음성 교신", note: null,
+      lat: lastPos ? lastPos.lat : null, lng: lastPos ? lastPos.lng : null,
+      audio: pub.data.publicUrl,
+    });
+    if (ins.error) throw ins.error;
+    beep(); stampFx("📻 음성 교신");
+    loadAll();
+  } catch (err) {
+    console.error(err);
+    toast("전송 실패 — 음성은 신호가 있어야 돼 (위치 송신은 짧게 탭)");
+  }
+}
+
+let player = null;
+function playAudio(url, btn) {
+  if (player) { player.pause(); player = null; }
+  $$(".play-btn").forEach((b) => b.textContent = "▶️");
+  player = new Audio(url);
+  player.play().catch(() => toast("재생 실패 — 다시 눌러봐"));
+  btn.textContent = "🔊";
+  player.onended = () => { btn.textContent = "▶️"; };
 }
 
 async function quickPing() {
@@ -931,20 +1032,25 @@ async function loadWeather() {
 /* ---------------- 튜토리얼 ---------------- */
 const TUT = [
   { ic: "🏕️", t: "홈 — 지금 뭐 할 차례?", d: "일정 따라 '지금' 카드가 자동으로 바뀌어. 급한 결정은 투표 걸면 실시간 집계." },
-  { ic: "📻", t: "무전 — 흩어져도 OK", d: "큰 버튼 한 번이면 내 위치가 다들 폰에 뜸. 카톡 필요 없음. 산길에서 신호 없어도 잡히는 순간 자동 송신." },
+  { ic: "📻", t: "무전 — 진짜 무전기임", d: "큰 버튼 꾹 누르고 말하면 음성이 전송돼. 짧게 탭하면 위치만. 카톡 필요 없고, 신호 없어도 위치는 자동 대기 후 송신." },
   { ic: "📮", t: "도장 — 게임처럼 모아", d: "가는 곳마다 도장 쾅. 여권에 쌓이고, 제일 많이 모은 사람이 이번 여행 MVP." },
   { ic: "🧾", t: "장부 — 정산은 자동", d: "산 사람이 그 자리에서 한 줄만 적으면 끝. 마지막에 누가 누구한테 얼마 보낼지 자동 계산." },
   { ic: "🎒", t: "준비 끝!", d: "Wi-Fi·도어코드·숙소 규칙은 정보 탭. 금요일에 뭐 할지는 일정 탭 → 제안 보드에서 골라." },
 ];
-let tutIdx = 0;
-function openTut() { tutIdx = 0; drawTut(); $("#tut-modal").hidden = false; }
+let tutIdx = 0, tutList = TUT;
+function openTut() {
+  tutList = TUT.slice();
+  if (!isStandalone()) tutList.splice(tutList.length - 1, 0,
+    { ic: "📲", t: "홈 화면에 설치", d: "앱처럼 전체화면으로 쓰려면 설치가 최고야. 상단 배너의 '방법 보기' 누르면 그림으로 알려줘." });
+  tutIdx = 0; drawTut(); $("#tut-modal").hidden = false;
+}
 function drawTut() {
-  const st = TUT[tutIdx];
+  const st = tutList[tutIdx];
   $("#tut-body").innerHTML = '<div class="tut-ic">' + st.ic + '</div>' +
     '<p class="modal-title" style="text-align:center">' + st.t + "</p>" +
     '<p class="tut-d">' + st.d + "</p>";
-  $("#tut-dots").innerHTML = TUT.map((_, i) => '<span class="tut-dot' + (i === tutIdx ? " on" : "") + '"></span>').join("");
-  $("#tut-next").textContent = tutIdx === TUT.length - 1 ? "시작하기" : "다음";
+  $("#tut-dots").innerHTML = tutList.map((_, i) => '<span class="tut-dot' + (i === tutIdx ? " on" : "") + '"></span>').join("");
+  $("#tut-next").textContent = tutIdx === tutList.length - 1 ? "시작하기" : "다음";
 }
 function closeTut() { localStorage.setItem("kel_tut", "1"); $("#tut-modal").hidden = true; }
 
@@ -987,7 +1093,8 @@ function wireModals() {
   $$(".modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m && m.id !== "who-modal") m.hidden = true; }));
   $("#alert-close").onclick = () => $("#alert-modal").hidden = true;
   $("#tut-skip").onclick = closeTut;
-  $("#tut-next").onclick = () => { if (tutIdx >= TUT.length - 1) closeTut(); else { tutIdx++; drawTut(); } };
+  $("#install-close").onclick = () => $("#install-modal").hidden = true;
+  $("#tut-next").onclick = () => { if (tutIdx >= tutList.length - 1) closeTut(); else { tutIdx++; drawTut(); } };
   $("#stamp-cancel").onclick = () => $("#stamp-modal").hidden = true;
   $("#exp-cancel").onclick = () => $("#exp-modal").hidden = true;
   $("#poll-cancel").onclick = () => $("#poll-modal").hidden = true;
