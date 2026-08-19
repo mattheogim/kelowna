@@ -36,6 +36,7 @@
 <div id="offline-banner" hidden>오프라인 — 마지막으로 본 내용이야. 쓴 건 신호 잡히면 자동 송신됨</div>
 <div id="nokey-banner" hidden>아직 미리보기 모드야 — config.js에 Supabase 키 넣으면 전부 살아나</div>
 <div id="install-banner" class="install-banner" hidden></div>
+<div id="req-banner" class="req-banner" hidden></div>
 
 <main id="main">
   <section id="tab-home" class="tab active"></section>
@@ -135,6 +136,24 @@
   </div>
 </div>
 
+<!-- 와인 평가 -->
+<div id="wine-modal" class="modal" hidden>
+  <div class="modal-card">
+    <p class="modal-title">🍷 와인 평가</p>
+    <div class="field-label">어느 와이너리? (위치 잡히면 자동 선택)</div>
+    <div id="wine-winery" class="chip-row"></div>
+    <div class="field-label">별점</div>
+    <div id="wine-stars" class="star-row"></div>
+    <input id="wine-name" class="input" placeholder="와인 이름 (선택 — 예: 2022 Pinot Noir)">
+    <input id="wine-price" class="input" type="number" inputmode="decimal" placeholder="가격 CAD (선택)">
+    <input id="wine-note" class="input" placeholder="한 줄 (예: 이건 사야 함)">
+    <div class="btn-row">
+      <button class="btn ghost" id="wine-cancel">취소</button>
+      <button class="btn" id="wine-save">기록</button>
+    </div>
+  </div>
+</div>
+
 <!-- 일정 추가/수정 -->
 <div id="it-modal" class="modal" hidden>
   <div class="modal-card">
@@ -178,6 +197,15 @@
 </div>
 
 <div id="stamp-fx" hidden><div class="stamp fx" id="stamp-fx-inner" style="--rot:-7deg"></div></div>
+
+<div id="emg" hidden>
+  <div class="emg-inner">
+    <div class="emg-icon">🚨 🚽 🚨</div>
+    <div class="emg-title">화장실 긴급 상황</div>
+    <div class="emg-sub">누군가 한계에 도달했다. 길을 비켜라.</div>
+    <button class="btn emg-close" id="emg-x">상황 종료 ✕</button>
+  </div>
+</div>
 
 <div id="toasts"></div>
 

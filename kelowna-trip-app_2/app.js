@@ -13,6 +13,49 @@ const av = (id, cls) => '<span class="av ' + (cls || "") + '" style="border-colo
 const money = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
 const pad = (n) => String(n).padStart(2, "0");
 const CAT_EMOJI = { "와이너리": "🍷", "음식": "🍽️", "액티비티": "🏞️", "기타": "📌" };
+const QUICK_PHRASES = ["📢 어디십니까", "📍 위치를 보내라", "👌 콜", "🚗 지금 출발함", "⏱️ 5분 안에 감", "🍚 밥은?"];
+const REACT_EMOJI = ["🫡", "👍", "😂"];
+const WINERIES = [
+  { n: "Quails' Gate", lat: 49.848, lng: -119.556 },
+  { n: "Beaumont Family Estates", lat: 49.828, lng: -119.523 },
+  { n: "Little Straw", lat: 49.8253, lng: -119.532 },
+  { n: "Volcanic Hills", lat: 49.8268, lng: -119.5308 },
+  { n: "Mt. Boucherie", lat: 49.845, lng: -119.556 },
+  { n: "Kalala", lat: 49.8657, lng: -119.6335 },
+  { n: "Off the Grid", lat: 49.8686, lng: -119.642 },
+];
+const COSTCO = { n: "코스트코 켈로나", lat: 49.8829, lng: -119.4266 };
+const REST_STOPS = [
+  { n: "호프 — 주유·간식", lat: 49.3792, lng: -121.4419, q: "Hope BC" },
+  { n: "Britton Creek 휴게소", lat: 49.596, lng: -120.868, q: "Britton Creek Rest Area" },
+  { n: "메리트 — 마지막 큰 정류", lat: 50.1113, lng: -120.7862, q: "Merritt BC" },
+];
+const WAYPOINTS = [
+  { lat: 49.2831, lng: -122.8317 }, { lat: 49.3792, lng: -121.4419 },
+  { lat: 49.596, lng: -120.868 }, { lat: 50.1113, lng: -120.7862 },
+  { lat: 49.8625, lng: -119.5833 },
+];
+function gmapUrl(q) { return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q); }
+function placeQuery(title) {
+  const t = title || "";
+  const w = WINERIES.find((x) => t.indexOf(x.n) >= 0);
+  if (w) return w.n + " Winery West Kelowna";
+  if (/코스트코/.test(t)) return "Costco Kelowna BC";
+  if (/숙소/.test(t)) return "9995 McCulloch Rd Kelowna BC";
+  if (/West Kelowna/.test(t)) return "West Kelowna BC";
+  if (/포트무디/.test(t)) return "Port Moody BC";
+  return null;
+}
+function placeCoord(title) {
+  const t = title || "";
+  const w = WINERIES.find((x) => t.indexOf(x.n) >= 0);
+  if (w) return { n: w.n, lat: w.lat, lng: w.lng };
+  if (/코스트코/.test(t)) return COSTCO;
+  if (/숙소/.test(t)) return { n: "숙소", lat: cabinLat(), lng: cabinLng() };
+  if (/West Kelowna/.test(t)) return { n: "West Kelowna", lat: 49.8625, lng: -119.5833 };
+  return null;
+}
+
 const MISSIONS = [
   { e: "🍷", t: "와이너리 4곳 정복" },
   { e: "🍽️", t: "Old Vines 점심" },
@@ -57,6 +100,7 @@ function toast(msg) {
 const store = {
   itinerary: [], polls: [], votes: [], expenses: [], checkins: [],
   wishes: [], wishLikes: [], shopping: [],
+  wineRatings: [], reactions: [],
   settings: {}, loadedAt: null,
 };
 let sb = null;
@@ -199,7 +243,7 @@ async function loadAll() {
     return;
   }
   try {
-    const [it, po, vo, ex, ch, wi, wl, sh, se] = await Promise.all([
+    const [it, po, vo, ex, ch, wi, wl, sh, wr, rx, se] = await Promise.all([
       sb.from("itinerary").select("*").order("day").order("sort"),
       sb.from("polls").select("*").order("created_at", { ascending: false }),
       sb.from("votes").select("*"),
@@ -208,13 +252,16 @@ async function loadAll() {
       sb.from("wishes").select("*").order("created_at"),
       sb.from("wish_likes").select("*"),
       sb.from("shopping").select("*").order("created_at"),
+      sb.from("wine_ratings").select("*").order("created_at", { ascending: false }),
+      sb.from("reactions").select("*"),
       sb.from("settings").select("*"),
     ]);
-    const bad = [it, po, vo, ex, ch, wi, wl, sh, se].find((r) => r.error);
+    const bad = [it, po, vo, ex, ch, wi, wl, sh, wr, rx, se].find((r) => r.error);
     if (bad) throw bad.error;
     store.itinerary = it.data; store.polls = po.data; store.votes = vo.data;
     store.expenses = ex.data; store.checkins = ch.data;
     store.wishes = wi.data; store.wishLikes = wl.data; store.shopping = sh.data;
+    store.wineRatings = wr.data; store.reactions = rx.data;
     store.settings = Object.fromEntries(se.data.map((r) => [r.key, r.value]));
     store.loadedAt = Date.now();
     localStorage.setItem("kel_mirror", JSON.stringify(store));
@@ -242,7 +289,7 @@ function restoreMirror(silent) {
 function subscribe() {
   if (!sb) return;
   const ch = sb.channel("kel-live");
-  ["checkins", "expenses", "polls", "votes", "itinerary", "wishes", "wish_likes", "shopping"].forEach((t) => {
+  ["checkins", "expenses", "polls", "votes", "itinerary", "wishes", "wish_likes", "shopping", "wine_ratings", "reactions", "sirens"].forEach((t) => {
     ch.on("postgres_changes", { event: "*", schema: "public", table: t }, (p) => onLive(t, p));
   });
   ch.subscribe();
@@ -252,6 +299,8 @@ function onLive(table, payload) {
   scheduleLoad();
   if (payload.eventType !== "INSERT") return;
   const r = payload.new || {};
+  if (table === "sirens") { emergency(); return; }
+  if (table === "reactions") return;
   const actor = r.member || r.payer || r.added_by || r.created_by || "";
   if (actor === me) return;
   let msg = "", tab = "";
@@ -261,6 +310,7 @@ function onLive(table, payload) {
   if (table === "itinerary") { msg = "일정 추가됨: " + r.title; tab = "plan"; }
   if (table === "wishes") { msg = "금요일 제안: " + r.title; tab = "plan"; }
   if (table === "shopping") { msg = "장보기 추가: " + r.item; tab = "ledger"; }
+  if (table === "wine_ratings") { msg = "🍷 " + nameOf(actor) + " — " + r.winery + " ★" + r.stars; tab = "plan"; }
   if (!msg) return;
   toast(msg);
   pushAlert(msg);
@@ -302,31 +352,132 @@ function nowAndNext() {
   return { cur, next };
 }
 
-function heroBeforeHtml() {
+function ddayStampHtml() {
   const d = Math.max(0, Math.ceil((new Date(TRIP.start + "T08:00:00") - new Date()) / 86400000));
+  return '<div class="stamp dday-stamp" style="--c:var(--wine);--rot:8deg"><span class="s-place">D-' + d + '</span><span class="s-when">8/20 목 8:00</span></div>';
+}
+function heroBeforeHtml() {
   return '<div class="hero card" style="padding:0;overflow:hidden;position:relative">' +
-    '<svg viewBox="0 0 360 200" class="route-svg">' +
-    '<polygon points="30,152 70,92 110,152" class="mt"/>' +
-    '<polygon points="80,152 130,72 180,152" class="mt mt2"/>' +
-    '<polygon points="225,152 278,97 330,152" class="mt"/>' +
-    '<ellipse cx="298" cy="152" rx="48" ry="12" class="lake"/>' +
-    '<path id="route" d="M18,166 C70,150 90,106 150,120 C200,132 218,92 258,96 C288,100 300,122 300,140" class="route-path"/>' +
-    '<circle cx="18" cy="166" r="5" class="node"/>' +
-    '<circle cx="300" cy="140" r="5" class="node end"/>' +
-    '<text x="12" y="188" class="rt-label">포트무디 7:30</text>' +
-    '<text x="118" y="110" class="rt-label">🍷 West Kelowna</text>' +
-    '<text x="232" y="180" class="rt-label">🏕️ Hydraulic Lake</text>' +
-    '<text font-size="17" class="rt-car">🚗<animateMotion dur="13s" repeatCount="indefinite"><mpath href="#route"/></animateMotion></text>' +
-    "</svg>" +
-    '<div class="stamp dday-stamp" style="--c:var(--wine);--rot:8deg"><span class="s-place">D-' + d + '</span><span class="s-when">8/20 목 8:00</span></div>' +
-    "</div>";
+    '<div id="home-map" class="hero-map map-paper"></div>' + ddayStampHtml() +
+    '<button class="hero-cap" id="hero-go">여정 — 포트무디 → West Kelowna → Hydraulic Lake</button></div>';
 }
 function heroLiveHtml() {
   return '<div class="hero card" style="padding:0;overflow:hidden">' +
-    '<div id="home-map" class="hero-map"></div>' +
+    '<div id="home-map" class="hero-map map-paper"></div>' +
     '<button class="hero-cap" id="hero-go">📡 실시간 위치 — 무전 탭에서 송신하면 여기 뜸 · 탭하면 크게</button></div>';
 }
 
+/* ---- 홈 자동 전환 엔진 ---- */
+function homeMode() {
+  const isThu = todayStr() === TRIP.days[0].date;
+  if (lastPos) {
+    if (distKm(lastPos.lat, lastPos.lng, COSTCO.lat, COSTCO.lng) <= 0.6) return "costco";
+    if (distKm(lastPos.lat, lastPos.lng, cabinLat(), cabinLng()) <= TRIP.nearCabinKm) return isThu ? "arrival" : "cabin";
+  }
+  const cur = nowAndNext().cur;
+  const t = cur ? cur.title || "" : "";
+  if (/코스트코/.test(t)) return "costco";
+  if (/숙소 도착/.test(t)) return "arrival";
+  if (WINERIES.some((w) => t.indexOf(w.n) >= 0) || /와이너리/.test(t)) return "winery";
+  if (isThu && hm(new Date()) < "12:40") return "drive";
+  return "cabin";
+}
+
+const etaCache = {};
+function fetchETA(a, b, elId) {
+  const ck = elId + "-" + Math.round(a.lat * 300) + "," + Math.round(a.lng * 300);
+  const paint = (v) => {
+    const el = document.getElementById(elId);
+    if (el) el.innerHTML = Math.round(v.sec / 60) + '분 <span class="muted" style="font-size:14px">· ' + (Math.round(v.km * 10) / 10) + "km" + (v.approx ? " · 직선 추정" : "") + "</span>";
+  };
+  const hit = etaCache[ck];
+  if (hit && Date.now() - hit.ts < 120000) { paint(hit); return; }
+  fetch("https://router.project-osrm.org/route/v1/driving/" + a.lng + "," + a.lat + ";" + b.lng + "," + b.lat + "?overview=false")
+    .then((r) => r.json())
+    .then((d) => {
+      const rt = d.routes && d.routes[0];
+      if (!rt) throw 0;
+      etaCache[ck] = { ts: Date.now(), sec: rt.duration, km: rt.distance / 1000 };
+      paint(etaCache[ck]);
+    })
+    .catch(() => { const km = distKm(a.lat, a.lng, b.lat, b.lng); paint({ sec: (km / 75) * 3600, km, approx: true }); });
+}
+
+function navBtn(q, label) {
+  return '<a class="btn ghost small" style="text-decoration:none" href="' + gmapUrl(q) + '" target="_blank" rel="noopener">📍 ' + (label || "구글맵") + "</a>";
+}
+
+function driveCardHtml() {
+  const next = nowAndNext().next;
+  const dest = next ? placeCoord(next.title) : null;
+  let html = '<div class="card navc"><div class="mode-badge">🚗 이동 중</div>';
+  if (dest) {
+    html += '<div class="navc-dest">다음: <b>' + esc(dest.n) + "</b>" + (next && next.t ? ' <span class="muted">(' + esc(next.t) + " 예정)</span>" : "") + "</div>";
+    if (lastPos) html += '<div class="navc-eta" id="nav-eta">계산 중…</div>';
+    else html += '<button class="btn small" id="nav-loc">📍 위치 켜면 남은 시간 계산</button>';
+    html += '<div style="margin-top:8px">' + navBtn(placeQuery(next.title) || dest.n, "구글맵으로 안내 시작") + "</div>";
+  } else {
+    html += '<div class="navc-dest">West Kelowna까지 달리는 중</div>';
+  }
+  html += '<div class="navc-rest"><b>쉬는 곳</b>';
+  for (const r of REST_STOPS) {
+    html += '<div class="rest-row">' + esc(r.n) +
+      (lastPos ? '<span class="muted"> · 약 ' + Math.round(distKm(lastPos.lat, lastPos.lng, r.lat, r.lng)) + "km</span>" : "") +
+      '<a class="rest-map" href="' + gmapUrl(r.q) + '" target="_blank" rel="noopener">📍</a></div>';
+  }
+  html += "</div></div>";
+  return html;
+}
+
+function wineryCardHtml() {
+  const cur = nowAndNext().cur, next = nowAndNext().next;
+  const here = nearestWinery();
+  const curName = here ? here.n : (cur ? cur.title : "와이너리");
+  let html = '<div class="card navc" style="border-color:var(--wine)"><div class="mode-badge" style="color:var(--wine)">🍷 와이너리 타임</div>' +
+    '<div class="navc-dest">지금: <b>' + esc(curName) + "</b></div>";
+  if (next) {
+    const nd = placeCoord(next.title);
+    html += '<div class="muted" style="margin-top:2px">다음 → ' + esc(next.title) + (next.t ? " (" + esc(next.t) + ")" : "") + "</div>";
+    if (nd && lastPos) html += '<div class="navc-eta" id="nav-eta" style="font-size:22px">계산 중…</div>';
+    if (nd) html += '<div style="margin-top:8px">' + navBtn(placeQuery(next.title) || nd.n, "다음 장소 내비") + "</div>";
+  }
+  html += '<div style="margin-top:10px"><button class="btn" id="wine-go" style="width:100%">🍷 이 와이너리 평가 남기기</button></div></div>';
+  return html;
+}
+
+function costcoCardHtml() {
+  const shop = store.shopping;
+  const done = shop.filter((x) => x.done).length;
+  let html = '<div class="card navc" style="border-color:var(--pine)"><div class="mode-badge" style="color:var(--pine)">🛒 코스트코 타임 — 다흰 카드!</div>' +
+    '<div class="muted" style="margin:2px 0 6px">' + done + " / " + shop.length + ' 담음 · 계산 끝나면 장부에 금액 한 줄</div>' +
+    '<div class="checklist" id="home-shop">';
+  const sorted = shop.slice().sort((a, b) => (a.done === b.done ? new Date(a.created_at) - new Date(b.created_at) : a.done ? 1 : -1));
+  if (!sorted.length) html += '<div class="muted">리스트 비어 있음 — 장부 탭에서 추가</div>';
+  for (const it of sorted) {
+    html += '<label><input type="checkbox" class="shop-check" data-id="' + it.id + '"' + (it.done ? " checked" : "") + '><span class="' + (it.done ? "done" : "") + '">' + esc(it.item) + "</span></label>";
+  }
+  html += "</div>" + '<div style="margin-top:8px">' + navBtn("Costco Kelowna BC") + "</div></div>";
+  return html;
+}
+
+function arrivalCardHtml() {
+  const door = store.settings.door_code, wifi = store.settings.wifi_code;
+  return '<div class="card navc" style="border-color:var(--wine)"><div class="mode-badge" style="color:var(--wine)">🏠 숙소 도착</div>' +
+    '<div class="arr-row"><span class="arr-label">도어코드</span><span class="arr-code">' + (door ? esc(door) : "정보 탭에서 입력") + "</span>" + (door ? '<button class="btn ghost small cp" data-copy="' + esc(door) + '" data-lb="도어코드">복사</button>' : "") + "</div>" +
+    '<div class="arr-row"><span class="arr-label">Wi-Fi</span><span class="arr-code" style="font-size:19px">' + (wifi ? esc(wifi) : "숙소 안 QR") + "</span>" + (wifi ? '<button class="btn ghost small cp" data-copy="' + esc(wifi) + '" data-lb="Wi-Fi">복사</button>' : "") + "</div>" +
+    '<div class="muted" style="margin-top:6px">⚠️ 반드시 Hwy 33 · 변기엔 휴지만 · 수돗물 마시지 말기</div>' +
+    '<div style="margin-top:8px">' + navBtn("9995 McCulloch Rd Kelowna BC", "숙소 내비") + "</div></div>";
+}
+
+function nearestWinery() {
+  if (!lastPos) return null;
+  let best = null, bd = 2;
+  for (const w of WINERIES) {
+    const d = distKm(lastPos.lat, lastPos.lng, w.lat, w.lng);
+    if (d < bd) { bd = d; best = w; }
+  }
+  return best;
+}
 function renderHome() {
   const el = $("#tab-home");
   const p = phase();
@@ -342,19 +493,26 @@ function renderHome() {
   }
 
   if (p === "during") {
+    const mode = homeMode();
+    if (mode === "drive") html += driveCardHtml();
+    else if (mode === "winery") html += wineryCardHtml();
+    else if (mode === "costco") html += costcoCardHtml();
+    else if (mode === "arrival") html += arrivalCardHtml();
+    else html += heroLiveHtml();
+
     const { cur, next } = nowAndNext();
-    html += heroLiveHtml();
-    html += '<div class="now-card" style="border-color:' + dayTheme() + '">' +
-      '<div class="now-eyebrow" style="color:' + dayTheme() + '">지금</div>' +
-      '<div class="now-title">' + esc(cur ? cur.title : "자유시간") + "</div>" +
-      (cur && cur.note ? '<div class="now-note">' + esc(cur.note) + "</div>" : "") +
-      (next ? '<div class="now-next">다음 → <b>' + esc(next.t) + " " + esc(next.title) + "</b></div>" : "") +
-      "</div>";
+    if (mode !== "costco") {
+      html += '<div class="now-card" style="border-color:' + dayTheme() + '">' +
+        '<div class="now-eyebrow" style="color:' + dayTheme() + '">지금</div>' +
+        '<div class="now-title">' + esc(cur ? cur.title : "자유시간") + "</div>" +
+        (cur && cur.note ? '<div class="now-note">' + esc(cur.note) + "</div>" : "") +
+        (next ? '<div class="now-next">다음 → <b>' + esc(next.t) + " " + esc(next.title) + "</b></div>" : "") +
+        "</div>";
+    }
     html += '<div class="radio-row">' +
       '<button class="stamp-big alt half" id="home-ping">📻 나 여기야!</button>' +
       '<button class="stamp-big half" id="home-stamp">📮 도장+한마디</button></div>';
     html += '<div id="aq-home">' + aqHtml() + "</div>";
-    html += cabinCardHtml();
   }
 
   if (p === "after") {
@@ -380,12 +538,25 @@ function renderHome() {
   el.innerHTML = html;
 
   if (p === "before") renderChecklist();
-  if ($("#home-map")) drawMap("home-map");
+  if ($("#home-map")) drawMap("home-map", p === "before" ? { route: true } : {});
   const hg = $("#hero-go"); if (hg) hg.onclick = () => switchTab("stamp");
   bindCopies(el);
   const np = $("#new-poll"); if (np) np.onclick = openPollModal;
-  const hp = $("#home-ping"); if (hp) hp.onclick = quickPing;
+  const hp = $("#home-ping"); if (hp) hp.onclick = () => quickPing();
   const hs = $("#home-stamp"); if (hs) hs.onclick = openStampModal;
+  const nl = $("#nav-loc"); if (nl) nl.onclick = () => getPosition().then(() => renderHome());
+  const wg = $("#wine-go"); if (wg) wg.onclick = openWineModal;
+  $$("#home-shop .shop-check", el).forEach((cb) => cb.onchange = async () => {
+    if (needSb()) return;
+    await sb.from("shopping").update({ done: cb.checked }).eq("id", Number(cb.dataset.id));
+    loadAll();
+  });
+  // ETA 계산
+  if (p === "during" && lastPos) {
+    const next = nowAndNext().next;
+    const dest = next ? placeCoord(next.title) : null;
+    if (dest && $("#nav-eta")) fetchETA(lastPos, dest, "nav-eta");
+  }
   bindPolls(el);
 }
 
@@ -509,7 +680,8 @@ function renderPlan() {
       '<span class="plan-time">' + esc(r.t || "") + "</span>" +
       '<span class="plan-title"><span class="' + (tbd ? "tbd" : "") + '">' + esc(r.title) + "</span>" +
       (r.note ? '<span class="plan-note">' + esc(r.note) + "</span>" : "") + "</span>" +
-      '<button class="plan-edit" data-id="' + r.id + '">✎</button></div>';
+      '<span style="white-space:nowrap">' + (placeQuery(r.title) ? '<a class="plan-edit" style="text-decoration:none" href="' + gmapUrl(placeQuery(r.title)) + '" target="_blank" rel="noopener">📍</a>' : "") +
+      '<button class="plan-edit" data-id="' + r.id + '">✎</button></span></div>';
   }
   html += "</div>";
   html += '<button class="btn ghost" id="it-add" style="width:100%">+ 일정 추가</button>';
@@ -517,9 +689,33 @@ function renderPlan() {
   // 목요일: 4번째 와이너리 — 둘 다 보여주기
   if (planDay === TRIP.days[0].date) {
     html += '<h2 class="sec">4번째 와이너리 — 그날 결정</h2><div class="card">' +
-      '<div class="kv"><b>안 1</b><span><b>Volcanic Hills</b> — Boucherie Rd 와인 트레일</span></div>' +
-      '<div class="kv"><b>안 2</b><span><b>Mt. Boucherie</b> — 바로 근처</span></div>' +
+      '<div class="kv"><b>안 1</b><span><b>Volcanic Hills</b> <a href="' + gmapUrl("Volcanic Hills Winery West Kelowna") + '" target="_blank" rel="noopener">📍</a></span></div>' +
+      '<div class="kv"><b>안 2</b><span><b>Mt. Boucherie</b> <a href="' + gmapUrl("Mt Boucherie Estate Winery West Kelowna") + '" target="_blank" rel="noopener">📍</a></span></div>' +
       '<div class="muted">같은 동네라 컨디션 되면 둘 다, 힘들면 패스. 그날 홈 탭에서 투표 하나 걸어도 됨.</div></div>';
+
+    // 와인 노트
+    html += '<h2 class="sec">🍷 와인 노트</h2>';
+    const byW = {};
+    store.wineRatings.forEach((r) => { (byW[r.winery] = byW[r.winery] || []).push(r); });
+    const ranked = Object.keys(byW).map((w) => {
+      const rs = byW[w];
+      return { w, rs, avg: rs.reduce((a, b) => a + b.stars, 0) / rs.length };
+    }).sort((a, b) => b.avg - a.avg);
+    if (!ranked.length) html += '<div class="card muted">첫 잔 마시면 여기서 평가 — 나중에 우리 조 1위 와인 발표.</div>';
+    else {
+      html += '<div class="card">';
+      ranked.forEach((g, i) => {
+        html += '<div class="wine-winery">' + (i === 0 ? '<span class="crown">👑 현재 1위</span> ' : "") + "<b>" + esc(g.w) + '</b><span class="wine-avg">★ ' + (Math.round(g.avg * 10) / 10) + ' <span class="muted">(' + g.rs.length + "명)</span></span></div>";
+        for (const r of g.rs) {
+          html += '<div class="wine-row">' + av(r.member, "mini") +
+            '<span class="wine-stars">' + "★".repeat(r.stars) + "</span>" +
+            '<span class="wine-body">' + (r.wine ? esc(r.wine) : "") + (r.price ? ' <span class="muted">' + money(Number(r.price)) + "</span>" : "") +
+            (r.note ? ' <span class="feed-note">' + esc(r.note) + "</span>" : "") + "</span></div>";
+        }
+      });
+      html += "</div>";
+    }
+    html += '<button class="btn ghost" id="wine-add" style="width:100%">🍷 평가 남기기</button>';
   }
 
   // 금요일: 제안 보드
@@ -550,6 +746,7 @@ function renderPlan() {
     if (row) openItModal(row);
   });
   const wa = $("#wish-add"); if (wa) wa.onclick = openWishModal;
+  const wn = $("#wine-add"); if (wn) wn.onclick = openWineModal;
   $$(".like-btn", el).forEach((b) => b.onclick = async () => {
     if (needSb()) return;
     if (!me) return openWho();
@@ -565,6 +762,26 @@ function renderPlan() {
     await sb.from("wishes").delete().eq("id", Number(b.dataset.id));
     loadAll();
   });
+}
+
+let wineStars = 0, wineWinery = "";
+async function openWineModal() {
+  if (!me) return openWho();
+  wineStars = 0;
+  $("#wine-name").value = ""; $("#wine-price").value = ""; $("#wine-note").value = "";
+  const near = nearestWinery();
+  wineWinery = near ? near.n : "";
+  drawWineChips();
+  $("#wine-modal").hidden = false;
+  if (!near) getPosition().then((p) => { if (p) { const n2 = nearestWinery(); if (n2 && !wineWinery) { wineWinery = n2.n; drawWineChips(); } } });
+}
+function drawWineChips() {
+  $("#wine-winery").innerHTML = WINERIES.map((w) =>
+    '<button class="chip' + (wineWinery === w.n ? " on" : "") + '">' + esc(w.n) + "</button>").join("");
+  $$("#wine-winery .chip").forEach((c) => c.onclick = () => { wineWinery = c.textContent; drawWineChips(); });
+  $("#wine-stars").innerHTML = [1, 2, 3, 4, 5].map((n) =>
+    '<button class="star' + (n <= wineStars ? " on" : "") + '" data-n="' + n + '">★</button>').join("");
+  $$("#wine-stars .star").forEach((st) => st.onclick = () => { wineStars = Number(st.dataset.n); drawWineChips(); });
 }
 
 let wishCat = "액티비티";
@@ -620,13 +837,19 @@ function renderStamp() {
     '<span class="chip">' + (online ? "🟢 신호 있음" : "🔴 오프라인") + "</span>" +
     (myLast ? '<span class="chip">내 마지막 송신 ' + relTime(myLast.created_at) + "</span>" : "") +
     (queue.length ? '<span class="chip" style="color:var(--wine)">대기 ' + queue.length + "건</span>" : "") +
-    "</div></div>" +
-    '<button class="stamp-big" id="do-stamp">📮 도장 찍고 한마디 남기기</button>';
+    "</div></div>";
 
-  html += '<h2 class="sec">교신 — 지금 다들 어디?</h2><div class="board">';
+  html += '<div class="chip-row qp-row">' + QUICK_PHRASES.map((q) => '<button class="chip qp">' + esc(q) + "</button>").join("") + "</div>";
+
+  html += '<div class="radio-row" style="margin-top:8px">' +
+    '<button class="stamp-big half" id="do-stamp">📮 도장+한마디</button>' +
+    '<button class="stamp-big half" id="do-text" style="background:var(--ink)">💬 문자 교신</button></div>' +
+    '<div class="shop-add" id="text-row" hidden><input class="input" id="radio-text" placeholder="짧게 한 마디 (신호 없으면 자동 대기)"><button class="btn" id="radio-send">📨</button></div>';
+
+  html += '<h2 class="sec">교신 — 카드 탭하면 위치 요청</h2><div class="board">';
   for (const m of MEMBERS) {
     const c = latest[m.id];
-    html += '<div class="board-card"><div class="board-name">' + av(m.id, "mini") + esc(m.name) + "</div>" +
+    html += '<div class="board-card" data-mid="' + m.id + '"><div class="board-name">' + av(m.id, "mini") + esc(m.name) + (m.id !== me ? '<span class="board-req">📍</span>' : "") + "</div>" +
       (c ? '<div class="board-place">' + esc(c.place) + (c.audio ? ' <button class="play-btn" data-audio="' + esc(c.audio) + '">▶️</button>' : "") + '</div><div class="board-when">' + relTime(c.created_at) + (c.lat ? " · 📍" : "") + "</div>" +
         (c.note ? '<div class="board-note">' + esc(c.note) + "</div>" : "")
         : '<div class="board-when">아직 소식 없음</div>') +
@@ -636,7 +859,7 @@ function renderStamp() {
 
   html += '<h2 class="sec">지도</h2><div id="map"></div>';
 
-  html += '<h2 class="sec">도장판 — 이번 여행 미션</h2><div class="card">';
+  html += '<h2 class="sec">같이 할 것</h2><div class="card">';
   for (const mi of MISSIONS) {
     const label = mi.e + " " + mi.t;
     const doneBy = MEMBERS.filter((m2) => store.checkins.some((c) => c.member === m2.id && c.place === label));
@@ -645,39 +868,31 @@ function renderStamp() {
       '<span class="mi-badge">' + mi.e + "</span>" +
       '<span class="mi-title">' + esc(mi.t) + "</span>" +
       '<span class="mi-who">' + doneBy.map((m2) => av(m2.id, "mini")).join("") + "</span>" +
-      '<span class="mi-act">' + (mine ? "✔" : "찍기") + "</span></div>";
-  }
-  html += '</div><p class="muted" style="margin:2px 4px">해낸 순간 탭해서 도장 — 도장 수가 곧 MVP</p>';
-
-  html += '<h2 class="sec">여권 — 스탬프 수집</h2><div class="card">';
-  for (const m of MEMBERS) {
-    const n = store.checkins.filter((c) => c.member === m.id).length;
-    html += '<div class="passport-row">' + av(m.id, "mini") + esc(m.name) +
-      '<span class="passport-count">' + n + "개</span></div>";
+      '<span class="mi-act">' + (mine ? "✔" : "완료") + "</span></div>";
   }
   html += "</div>";
-
-  html += '<h2 class="sec">문자 교신</h2>' +
-    '<div class="shop-add"><input class="input" id="radio-text" placeholder="짧게 한 마디 (신호 없으면 자동 대기)"><button class="btn" id="radio-send">📨</button></div>';
 
   html += '<h2 class="sec">교신 기록</h2><div class="card feed">';
   if (!store.checkins.length) html += '<div class="muted">첫 교신의 주인공은?</div>';
   for (const c of store.checkins.slice(0, 40)) {
-    html += '<div class="feed-row">' + av(c.member, "mini") + '<span class="feed-who" style="color:' + colorOf(c.member) + '">' + esc(nameOf(c.member)) + "</span>" +
+    const rx = store.reactions.filter((x) => x.checkin_id === c.id);
+    let rxHtml = "";
+    if (c.id > 0) {
+      rxHtml = '<span class="rx-row">' + REACT_EMOJI.map((e) => {
+        const these = rx.filter((r) => r.emoji === e);
+        const mine = these.some((r) => r.member === me);
+        return '<button class="rx' + (mine ? " on" : "") + '" data-cid="' + c.id + '" data-e="' + e + '">' + e + (these.length ? " " + these.length : "") + "</button>";
+      }).join("") + "</span>";
+    }
+    html += '<div class="feed-item"><div class="feed-row">' + av(c.member, "mini") + '<span class="feed-who" style="color:' + colorOf(c.member) + '">' + esc(nameOf(c.member)) + "</span>" +
       '<span class="feed-body">' + esc(c.place) + (c.audio ? ' <button class="play-btn" data-audio="' + esc(c.audio) + '">▶️</button>' : "") + (c.note ? ' <span class="feed-note">' + esc(c.note) + "</span>" : "") + "</span>" +
-      '<span class="feed-when">' + relTime(c.created_at) + "</span></div>";
+      '<span class="feed-when">' + relTime(c.created_at) + "</span></div>" + rxHtml + "</div>";
   }
   html += "</div>";
 
-  html += '<h2 class="sec">도장첩</h2><div class="stamp-wall">';
-  store.checkins.slice(0, 30).forEach((c, i) => {
-    const rot = (i % 5) * 4 - 8;
-    html += '<div class="stamp" style="--c:' + colorOf(c.member) + ";--rot:" + rot + 'deg">' +
-      '<span class="s-place">' + esc(c.place) + "</span>" +
-      '<span class="s-when">' + relTime(c.created_at) + "</span>" +
-      '<span class="s-who">' + esc(nameOf(c.member)) + "</span></div>";
-  });
-  html += "</div>";
+  html += '<h2 class="sec">긴급</h2><div class="card" style="text-align:center">' +
+    '<button class="siren-btn" id="siren-btn"><span class="siren-ic">🚽</span>화장실 긴급</button>' +
+    '<p class="muted" id="siren-hint" style="margin:8px 0 0">익명 · 10분에 1번 · 두 번 눌러야 발사 (전원 폰에 사이렌)</p></div>';
 
   el.innerHTML = html;
   $("#do-stamp").onclick = openStampModal;
@@ -687,16 +902,48 @@ function renderStamp() {
   ptt.onpointercancel = pttUp;
   ptt.onpointerleave = () => { if (rec.t0) pttUp(); };
   ptt.oncontextmenu = (e) => e.preventDefault();
-  $$(".play-btn", el).forEach((b) => b.onclick = () => playAudio(b.dataset.audio, b));
+  $$(".play-btn", el).forEach((b) => b.onclick = (ev) => { ev.stopPropagation(); playAudio(b.dataset.audio, b); });
+
+  $$(".qp", el).forEach((b) => b.onclick = async () => {
+    if (!me) return openWho();
+    const q = b.textContent;
+    const row = { member: me, place: q, note: null, lat: null, lng: null };
+    if (q.indexOf("위치를 보내라") >= 0) row.target = "all";
+    const r = await qInsert("checkins", row);
+    if (r === true) { toast("📻 전송: " + q); loadAll(); }
+  });
+
+  $$(".board-card", el).forEach((bc) => bc.onclick = async (ev) => {
+    if (ev.target.closest(".play-btn")) return;
+    const mid = bc.dataset.mid;
+    if (!mid || mid === me) return;
+    if (!me) return openWho();
+    if (!confirm(nameOf(mid) + "에게 위치 요청 보낼까?")) return;
+    const r = await qInsert("checkins", { member: me, place: "📍 위치 요청 → " + nameOf(mid), note: null, target: mid, lat: null, lng: null });
+    if (r === true) { toast("요청 보냄 — 응답 오면 알려줄게"); loadAll(); }
+  });
+
+  $$(".rx", el).forEach((b) => b.onclick = async () => {
+    if (needSb()) return;
+    if (!me) return openWho();
+    const cid = Number(b.dataset.cid), e = b.dataset.e;
+    const mine = store.reactions.find((r) => r.checkin_id === cid && r.member === me);
+    if (mine && mine.emoji === e) await sb.from("reactions").delete().eq("checkin_id", cid).eq("member", me);
+    else await sb.from("reactions").upsert({ checkin_id: cid, member: me, emoji: e }, { onConflict: "checkin_id,member" });
+    loadAll();
+  });
+
   $$(".mission-row", el).forEach((r) => r.onclick = async () => {
     if (!me) return openWho();
     const label = r.dataset.label;
-    if (store.checkins.some((c) => c.member === me && c.place === label)) return toast("이미 찍은 미션이야");
-    if (!confirm('"' + label + '" 도장 찍을까?')) return;
-    const res = await qInsert("checkins", { member: me, place: label, note: "미션 클리어", lat: lastPos ? lastPos.lat : null, lng: lastPos ? lastPos.lng : null });
+    if (store.checkins.some((c) => c.member === me && c.place === label)) return toast("이미 완료 체크했어");
+    if (!confirm('"' + label + '" 완료로 체크할까?')) return;
+    const res = await qInsert("checkins", { member: me, place: label, note: "완료", lat: lastPos ? lastPos.lat : null, lng: lastPos ? lastPos.lng : null });
     if (res === true) { stampFx(label); loadAll(); }
   });
-  const rt = $("#radio-text"), rs = $("#radio-send");
+
+  const dt = $("#do-text"), tr = $("#text-row"), rt = $("#radio-text"), rs = $("#radio-send");
+  if (dt) dt.onclick = () => { tr.hidden = !tr.hidden; if (!tr.hidden) rt.focus(); };
   async function sendRadioText() {
     if (!me) return openWho();
     const v = rt.value.trim();
@@ -707,10 +954,80 @@ function renderStamp() {
   }
   if (rs) rs.onclick = sendRadioText;
   if (rt) rt.addEventListener("keydown", (e) => { if (e.key === "Enter") sendRadioText(); });
+
+  wireSiren();
   if (currentTab === "stamp") setTimeout(() => drawMap("map"), 60);
 }
 
-/* ---- 음성 무전 (꾹 누르고 말하기) ---- */
+/* ---- 화장실 긴급 버튼 ---- */
+let sirenArmTimer = null, sirenNodes = null, emgSoundTimer = null;
+function wireSiren() {
+  const b = $("#siren-btn");
+  if (!b) return;
+  b.onclick = async () => {
+    const last = Number(localStorage.getItem("kel_siren") || 0);
+    if (Date.now() - last < 600000) return toast("🚽 10분에 한 번만 — " + Math.ceil((600000 - (Date.now() - last)) / 60000) + "분 뒤 가능");
+    if (!b.classList.contains("armed")) {
+      b.classList.add("armed");
+      $("#siren-hint").textContent = "⚠️ 진짜 급해? 3초 안에 한 번 더 누르면 전원 발사";
+      clearTimeout(sirenArmTimer);
+      sirenArmTimer = setTimeout(() => { b.classList.remove("armed"); $("#siren-hint").textContent = "익명 · 10분에 1번 · 두 번 눌러야 발사 (전원 폰에 사이렌)"; }, 3000);
+      return;
+    }
+    clearTimeout(sirenArmTimer);
+    b.classList.remove("armed");
+    if (needSb()) return;
+    localStorage.setItem("kel_siren", String(Date.now()));
+    emergency();
+    await sb.from("sirens").insert({});
+  };
+}
+function emergency() {
+  const e = $("#emg");
+  if (!e || !e.hidden) return;
+  e.hidden = false;
+  startSirenSound();
+  clearTimeout(emgSoundTimer);
+  emgSoundTimer = setTimeout(stopSirenSound, 12000);
+  pushAlert("🚨 누군가 화장실이 급함 (익명)");
+}
+function startSirenSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "square"; g.gain.value = 0.06;
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 650; o.start();
+    let hi = false;
+    const iv = setInterval(() => { hi = !hi; o.frequency.value = hi ? 980 : 650; }, 340);
+    sirenNodes = { ctx, o, iv };
+  } catch (err) {}
+}
+function stopSirenSound() {
+  if (!sirenNodes) return;
+  clearInterval(sirenNodes.iv);
+  try { sirenNodes.o.stop(); sirenNodes.ctx.close(); } catch (e) {}
+  sirenNodes = null;
+}
+
+/* ---- 위치 요청 배너 ---- */
+function checkRequests() {
+  const b = $("#req-banner");
+  if (!b || !me) return;
+  const tenMin = Date.now() - 600000;
+  const myLastLoc = store.checkins.find((c) => c.member === me && c.lat);
+  const req = store.checkins.find((c) =>
+    c.target && (c.target === me || c.target === "all") && c.member !== me &&
+    new Date(c.created_at).getTime() > tenMin &&
+    (!myLastLoc || new Date(c.created_at) > new Date(myLastLoc.created_at)));
+  if (!req || localStorage.getItem("kel_req_done") === String(req.id)) { b.hidden = true; return; }
+  b.innerHTML = '📻 <b>' + esc(nameOf(req.member)) + '</b>: 위치를 달라! <button class="btn small" id="req-go">바로 응답</button><button class="ib-x" id="req-x">✕</button>';
+  b.hidden = false;
+  $("#req-go").onclick = () => { localStorage.setItem("kel_req_done", String(req.id)); b.hidden = true; quickPing(true); };
+  $("#req-x").onclick = () => { localStorage.setItem("kel_req_done", String(req.id)); b.hidden = true; };
+}
+
+/* ---- 음성 무전/* ---- 음성 무전 (꾹 누르고 말하기) ---- */
 const rec = { mr: null, chunks: [], t0: 0, stream: null, limit: null };
 const REC_MIN = 500, REC_MAX = 30000;
 
@@ -802,9 +1119,10 @@ function playAudio(url, btn) {
   player.onended = () => { btn.textContent = "▶️"; };
 }
 
-async function quickPing() {
+async function quickPing(force) {
   if (!me) return openWho();
-  if (inkDrying()) return;
+  if (!force && inkDrying()) return;
+  lastSend = Date.now();
   toast("📻 위치 잡는 중…");
   const pos = await getPosition();
   const r = await qInsert("checkins", {
@@ -853,7 +1171,8 @@ function distKm(a, b, c, d) {
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 
-function drawMap(id) {
+function drawMap(id, opts) {
+  opts = opts || {};
   const holder = document.getElementById(id);
   if (!holder || typeof L === "undefined") return;
   let m = maps[id];
@@ -866,6 +1185,14 @@ function drawMap(id) {
   }
   (m._mk || []).forEach((x) => x.remove()); m._mk = [];
   const pts = [];
+  if (opts.route) {
+    const wp = WAYPOINTS.concat([{ lat: cabinLat(), lng: cabinLng() }]);
+    const line = L.polyline(wp.map((w) => [w.lat, w.lng]), { color: "#7C2E3E", weight: 3, dashArray: "2 8", lineCap: "round" }).addTo(m);
+    m._mk.push(line);
+    wp.forEach((w) => pts.push([w.lat, w.lng]));
+    const start = L.circleMarker([wp[0].lat, wp[0].lng], { radius: 6, color: "#26241E", fillColor: "#26241E", fillOpacity: 1 }).addTo(m).bindPopup("포트무디 — 7:30 집결");
+    m._mk.push(start);
+  }
   const cabin = L.circleMarker([cabinLat(), cabinLng()], { radius: 8, color: "#26241E", fillColor: "#F3EDE0", fillOpacity: 1 })
     .addTo(m).bindPopup("🏠 숙소");
   m._mk.push(cabin); pts.push([cabinLat(), cabinLng()]);
@@ -1133,8 +1460,8 @@ async function loadWeather() {
 /* ---------------- 튜토리얼 ---------------- */
 const TUT = [
   { ic: "🏕️", t: "홈 — 지금 뭐 할 차례?", d: "일정 따라 '지금' 카드가 자동으로 바뀌어. 급한 결정은 투표 걸면 실시간 집계." },
-  { ic: "📻", t: "무전 — 진짜 무전기임", d: "큰 버튼 꾹 누르고 말하면 음성이 전송돼. 짧게 탭하면 위치만. 카톡 필요 없고, 신호 없어도 위치는 자동 대기 후 송신." },
-  { ic: "📮", t: "도장 — 게임처럼 모아", d: "가는 곳마다 도장 쾅. 여권에 쌓이고, 제일 많이 모은 사람이 이번 여행 MVP." },
+  { ic: "📻", t: "무전 — 진짜 무전기임", d: "큰 버튼 꾹 누르고 말하면 음성 전송, 짧게 탭하면 위치만. \"어디십니까\" 같은 빠른 무전도 원탭. 친구 카드 탭하면 위치 요청이 날아가." },
+  { ic: "🚽", t: "긴급 버튼", d: "화장실 위기엔 무전 탭 맨 아래 빨간 버튼. 익명이고, 전원 폰에 사이렌이 울려. 10분에 한 번만." },
   { ic: "🧾", t: "장부 — 정산은 자동", d: "산 사람이 그 자리에서 한 줄만 적으면 끝. 마지막에 누가 누구한테 얼마 보낼지 자동 계산." },
   { ic: "🎒", t: "준비 끝!", d: "Wi-Fi·도어코드·숙소 규칙은 정보 탭. 금요일에 뭐 할지는 일정 탭 → 제안 보드에서 골라." },
 ];
@@ -1200,6 +1527,24 @@ function wireModals() {
   $("#exp-cancel").onclick = () => $("#exp-modal").hidden = true;
   $("#poll-cancel").onclick = () => $("#poll-modal").hidden = true;
   $("#wish-cancel").onclick = () => $("#wish-modal").hidden = true;
+  $("#wine-cancel").onclick = () => $("#wine-modal").hidden = true;
+  $("#emg-x").onclick = () => { stopSirenSound(); $("#emg").hidden = true; };
+  $("#wine-save").onclick = async () => {
+    if (needSb()) return;
+    if (!wineWinery) return toast("어느 와이너리인지 골라줘");
+    if (!wineStars) return toast("별점을 눌러줘");
+    const price = Number($("#wine-price").value);
+    const { error } = await sb.from("wine_ratings").insert({
+      member: me, winery: wineWinery, stars: wineStars,
+      wine: $("#wine-name").value.trim() || null,
+      price: price > 0 ? price : null,
+      note: $("#wine-note").value.trim() || null,
+    });
+    if (error) return toast("실패 — 다시 시도");
+    $("#wine-modal").hidden = true;
+    toast("🍷 기록됨");
+    loadAll();
+  };
   $("#it-cancel").onclick = () => $("#it-modal").hidden = true;
 
   $("#stamp-save").onclick = async () => {
@@ -1284,6 +1629,7 @@ function rerender() {
   const y = window.scrollY;
   renderTab(currentTab);
   window.scrollTo(0, y);
+  checkRequests();
 }
 
 /* ---------------- 시작 ---------------- */

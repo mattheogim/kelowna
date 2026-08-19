@@ -424,3 +424,61 @@ h2.sec::after{ content:""; flex:1; border-top:1px solid var(--line); }
 :root[data-theme="clean"] #tabbar{background:rgba(255,255,255,.94)}
 :root[data-theme="clean"] .card,:root[data-theme="clean"] .now-card,:root[data-theme="clean"] .plan-list{box-shadow:0 1px 3px rgba(30,37,48,.07),0 5px 16px rgba(30,37,48,.06);border-color:rgba(30,37,48,.06)}
 :root[data-theme="clean"] .stamp{mix-blend-mode:normal}
+
+
+/* ---------- 무전 v2: 빠른 문구 · 요청 배너 · 반응 ---------- */
+.qp-row{justify-content:center;margin:10px 0 0}
+.qp{font-weight:700}
+.req-banner{margin:0 14px 8px;padding:10px 36px 10px 12px;font-size:14px;background:var(--card);border:2px solid var(--lake);border-radius:10px;position:relative;line-height:1.6}
+.req-banner .btn.small{margin-left:6px;vertical-align:middle}
+.board-card{cursor:pointer}
+.board-req{margin-left:auto;font-size:12px;opacity:.6}
+.feed-item{padding:8px 2px;border-bottom:1px solid var(--line)}
+.feed-item:last-child{border:none}
+.feed-item .feed-row{padding:0;border:none}
+.rx-row{display:flex;gap:5px;margin:5px 0 0 30px}
+.rx{border:1px solid var(--line);background:var(--paper-2);border-radius:999px;padding:3px 9px;font-size:12.5px;font-family:inherit;color:var(--ink)}
+.rx.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* ---------- 홈 자동 전환 카드 ---------- */
+.navc{border-width:2px;margin-top:12px}
+.mode-badge{font-size:12px;letter-spacing:.12em;font-weight:700;color:var(--ink-soft)}
+.navc-dest{font-family:"Gowun Batang",serif;font-size:19px;margin-top:4px}
+.navc-eta{font-family:"Gowun Batang",serif;font-weight:700;font-size:30px;margin-top:2px}
+.navc-rest{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;font-size:14px}
+.rest-row{display:flex;align-items:center;gap:6px;padding:4px 0}
+.rest-map{margin-left:auto;text-decoration:none}
+.arr-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.arr-row:last-of-type{border:none}
+.arr-label{font-size:13px;font-weight:700;color:var(--ink-soft);min-width:64px}
+.arr-code{font-family:"Gowun Batang",serif;font-weight:700;font-size:28px;letter-spacing:.1em}
+
+/* ---------- 와인 노트 ---------- */
+.wine-winery{display:flex;align-items:baseline;gap:8px;padding:9px 0 3px;font-size:15.5px}
+.wine-avg{margin-left:auto;font-weight:700;color:var(--wine)}
+.crown{font-size:12px;background:rgba(162,118,42,.15);color:#7a5a20;padding:2px 8px;border-radius:999px;font-weight:700}
+.wine-row{display:flex;align-items:baseline;gap:7px;padding:4px 0 4px 8px;font-size:14px;border-bottom:1px dotted var(--line)}
+.wine-row:last-child{border:none}
+.wine-stars{color:var(--wine);letter-spacing:.05em;white-space:nowrap}
+.star-row{display:flex;gap:4px;margin:6px 0}
+.star{font-size:30px;background:none;border:none;color:var(--line);padding:2px 4px}
+.star.on{color:var(--wine)}
+
+/* ---------- 화장실 긴급 ---------- */
+.siren-btn{width:130px;height:130px;border-radius:50%;border:5px solid rgba(38,36,30,.2);background:var(--danger);color:#FBF7EC;font-family:"Gowun Batang",serif;font-weight:700;font-size:16px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;box-shadow:0 4px 0 rgba(38,36,30,.3)}
+.siren-ic{font-size:32px}
+.siren-btn.armed{animation:armed-pulse .5s ease-in-out infinite;background:#B3261E}
+@keyframes armed-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+#emg{position:fixed;inset:0;z-index:300;background:rgba(16,4,4,.94);display:flex;align-items:center;justify-content:center;text-align:center}
+#emg[hidden]{display:none}
+.emg-inner{color:#F6E8E6;padding:20px}
+.emg-icon{font-size:44px;animation:emg-blink .5s step-end infinite}
+@keyframes emg-blink{50%{opacity:.25}}
+.emg-title{font-family:"Gowun Batang",serif;font-weight:700;font-size:30px;margin:12px 0 6px;color:#FF6B5E}
+.emg-sub{font-size:15px;color:#D8B7B2;margin-bottom:22px}
+.emg-close{background:#FBF7EC;color:#26241E}
+
+/* ---------- 지도 종이 톤 ---------- */
+.map-paper .leaflet-tile{filter:sepia(.35) saturate(.7) contrast(.98)}
+:root[data-theme="clean"] .map-paper .leaflet-tile{filter:none}
+:root[data-theme="dark"] .leaflet-tile{filter:invert(1) hue-rotate(180deg) brightness(.88) saturate(.45)}
