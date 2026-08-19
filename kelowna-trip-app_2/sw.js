@@ -1,5 +1,5 @@
 /* 켈로나 여행수첩 — service worker */
-const CACHE = "kel-v1";
+const CACHE = "kel-v2";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.json", "icon-180.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -18,24 +18,23 @@ self.addEventListener("fetch", (e) => {
   // 데이터/API는 캐시하지 않음 (앱이 자체적으로 마지막 데이터를 저장함)
   if (url.hostname.includes("supabase") || url.hostname.includes("open-meteo") || url.hostname.includes("openstreetmap")) return;
 
-  // 페이지 진입: 네트워크 우선, 실패 시 캐시 (업데이트가 씹히지 않게)
-  if (e.request.mode === "navigate") {
+  // 같은 사이트 파일(페이지·JS·CSS): 항상 네트워크 우선 → 새 버전 즉시 반영, 오프라인일 때만 캐시
+  if (url.origin === location.origin) {
     e.respondWith(
       fetch(e.request).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put("index.html", copy));
+        if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
         return res;
-      }).catch(() => caches.match("index.html"))
+      }).catch(() => caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || caches.match("index.html")))
     );
     return;
   }
 
-  // 나머지 정적 리소스(폰트·leaflet 포함): 캐시 우선, 없으면 받아서 저장
+  // 외부 정적 리소스(폰트·leaflet): 캐시 우선
   e.respondWith(
     caches.match(e.request).then((hit) => {
       if (hit) return hit;
       return fetch(e.request).then((res) => {
-        if (res.ok && (url.origin === location.origin || url.hostname.includes("fonts.g") || url.hostname.includes("unpkg") || url.hostname.includes("jsdelivr"))) {
+        if (res.ok && (url.hostname.includes("fonts.g") || url.hostname.includes("unpkg") || url.hostname.includes("jsdelivr"))) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(e.request, copy));
         }
