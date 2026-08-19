@@ -25,8 +25,9 @@ const WINERIES = [
   { n: "Off the Grid", lat: 49.8686, lng: -119.642 },
 ];
 const COSTCO = { n: "코스트코 켈로나", lat: 49.8829, lng: -119.4266 };
+const RALLY = { n: "Hope McDonald's", lat: 49.3768, lng: -121.4312, q: "McDonald's Hope BC", radiusKm: 0.6 };
 const REST_STOPS = [
-  { n: "호프 — 주유·간식", lat: 49.3792, lng: -121.4419, q: "Hope BC" },
+  { n: "Hope McDonald's — 집결 (필수)", lat: RALLY.lat, lng: RALLY.lng, q: RALLY.q, rally: true },
   { n: "Britton Creek 휴게소", lat: 49.596, lng: -120.868, q: "Britton Creek Rest Area" },
   { n: "메리트 — 마지막 큰 정류", lat: 50.1113, lng: -120.7862, q: "Merritt BC" },
 ];
@@ -38,6 +39,7 @@ const WAYPOINTS = [
 function gmapUrl(q) { return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q); }
 function placeQuery(title) {
   const t = title || "";
+  if (/한번쉬자|맥도|McDonald|호프|Hope/i.test(t)) return RALLY.q;
   const w = WINERIES.find((x) => t.indexOf(x.n) >= 0);
   if (w) return w.n + " Winery West Kelowna";
   if (/코스트코/.test(t)) return "Costco Kelowna BC";
@@ -48,6 +50,7 @@ function placeQuery(title) {
 }
 function placeCoord(title) {
   const t = title || "";
+  if (/한번쉬자|맥도|McDonald|호프|Hope/i.test(t)) return { n: RALLY.n, lat: RALLY.lat, lng: RALLY.lng };
   const w = WINERIES.find((x) => t.indexOf(x.n) >= 0);
   if (w) return { n: w.n, lat: w.lat, lng: w.lng };
   if (/코스트코/.test(t)) return COSTCO;
@@ -606,6 +609,24 @@ function navBtn(q, label) {
   return '<a class="btn ghost small" style="text-decoration:none" href="' + gmapUrl(q) + '" target="_blank" rel="noopener">📍 ' + (label || "구글맵") + "</a>";
 }
 
+function rallyStripHtml() {
+  const since = Date.now() - 3 * 3600000;
+  const arrived = {};
+  for (const c of store.checkins) {
+    if (!c.lat || new Date(c.created_at).getTime() < since) continue;
+    if (distKm(c.lat, c.lng, RALLY.lat, RALLY.lng) <= RALLY.radiusKm) arrived[c.member] = true;
+  }
+  const n = Object.keys(arrived).length;
+  const meNear = lastPos && distKm(lastPos.lat, lastPos.lng, RALLY.lat, RALLY.lng) <= RALLY.radiusKm;
+  return '<div class="card rally"><div class="rally-top"><b>🍟 ' + esc(RALLY.n) + '</b><span class="rally-tag">집결 · 여기서 한 번 쉼</span></div>' +
+    '<div class="rally-avs">' + MEMBERS.map((m) =>
+      '<span class="rally-av' + (arrived[m.id] ? " in" : "") + '" style="border-color:' + m.color + '">' + m.avatar + "</span>").join("") +
+    '<span class="rally-count">' + n + "/" + MEMBERS.length + " 도착</span></div>" +
+    '<div class="stop-acts"><a class="chip" href="' + gmapUrl(RALLY.q) + '" target="_blank" rel="noopener">📍 지도</a>' +
+    '<button class="chip go-set" data-title="한번쉬자">🧭 여기로 출발</button>' +
+    (meNear ? '<button class="chip" id="rally-here">📻 나 도착했다고 알리기</button>' : "") + "</div></div>";
+}
+
 function driveCardHtml() {
   const next = nowAndNext().next;
   let dest = next ? placeCoord(next.title) : null;
@@ -626,9 +647,11 @@ function driveCardHtml() {
     inner += '<div class="band-title">West Kelowna까지 달리는 중</div>';
   }
   let html = band("drive", inner);
+  const passedHope = lastPos && lastPos.lng > -121.2;
+  if (!passedHope) html += rallyStripHtml();
   html += '<div class="row-list" id="rest-list">';
   for (const r of REST_STOPS) {
-    html += '<div class="lrow"><span class="ic">☕️</span>' + esc(r.n) +
+    html += '<div class="lrow"><span class="ic">' + (r.rally ? "🍟" : "☕️") + "</span>" + esc(r.n) +
       (lastPos ? '<span class="rt">' + Math.round(distKm(lastPos.lat, lastPos.lng, r.lat, r.lng)) + " km</span>" : '<span class="rt"></span>') +
       '<a class="rest-map" href="' + gmapUrl(r.q) + '" target="_blank" rel="noopener">📍</a></div>';
   }
@@ -940,6 +963,12 @@ function renderHome() {
   const hp = $("#home-ping"); if (hp) hp.onclick = () => quickPing();
   const hs = $("#home-stamp"); if (hs) hs.onclick = openStampModal;
   const nl = $("#nav-loc"); if (nl) nl.onclick = () => getPosition().then(() => renderHome());
+  const rh = $("#rally-here");
+  if (rh) rh.onclick = async () => {
+    if (!me) return openWho();
+    const r = await qInsert("checkins", { member: me, place: "🍟 " + RALLY.n + " 도착", note: null, lat: lastPos ? lastPos.lat : null, lng: lastPos ? lastPos.lng : null });
+    if (r === true) { toast("도착 알림 보냄"); loadAll(); }
+  };
   const rj = $("#rest-jump"); if (rj) rj.onclick = () => { const t = $("#rest-list"); if (t) t.scrollIntoView({ behavior: "smooth", block: "center" }); };
   const ddn = $("#dest-done"); if (ddn) ddn.onclick = async () => { if (!confirm("목적지 해제할까? (전원 홈에서 사라짐)")) return; await setDest(null); toast("🏁 해제됨"); };
   const wg = $("#wine-go"); if (wg) wg.onclick = openWineModal;
