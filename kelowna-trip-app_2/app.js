@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v16";
-const BUILD_NO = 16;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v17";
+const BUILD_NO = 17;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -792,7 +792,7 @@ async function loadAll() {
       sb.from("polls").select("*").order("created_at", { ascending: false }),
       sb.from("votes").select("*"),
       sb.from("expenses").select("*").order("created_at", { ascending: false }),
-      sb.from("checkins").select("*").order("created_at", { ascending: false }).limit(300),
+      sb.from("checkins").select("*").order("created_at", { ascending: false }).limit(150),
       sb.from("wishes").select("*").order("created_at"),
       sb.from("wish_likes").select("*"),
       sb.from("shopping").select("*").order("created_at"),
