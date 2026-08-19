@@ -957,6 +957,20 @@ function seqNow() {
   const rest = idx >= 0 ? items.slice(idx + 2, idx + 4) : [];
   return { curItem, nextItem, rest, here };
 }
+function pushNudgeHtml() {
+  if (localStorage.getItem("kel_push_x")) return "";
+  const st = pushState();
+  if (st === "granted" && localStorage.getItem("kel_push")) return "";
+  if (st === "unsupported") return "";
+  const need = st === "need-install";
+  return '<div class="card nudge">' +
+    '<div class="nudge-ic">🔔</div>' +
+    '<div class="nudge-body"><b>' + (need ? "홈 화면에 설치하면 알림이 와" : "알림 켜면 앱 꺼져도 무전이 와") + "</b>" +
+    '<span class="muted">' + (need ? "설치 후 알림까지 켜야 무전·사이렌을 놓치지 않아" : "이거 안 켜면 앱 열었을 때만 알 수 있어") + "</span></div>" +
+    '<button class="btn small" id="nudge-go">' + (need ? "설치 방법" : "알림 켜기") + "</button>" +
+    '<button class="ib-x" id="nudge-x" aria-label="닫기">✕</button></div>';
+}
+
 function stopStackHtml() {
   const day = (modeOverride || phase() === "during") ? todayStr() : TRIP.days[0].date;
   let items = itemsFor(day);
@@ -1006,6 +1020,7 @@ function renderHome() {
     if (fd) inner += '<div class="band-note">첫 목적지 <b>' + esc(fd.n) + '</b> · <span id="pre-eta">경로 계산 중…</span></div>' +
       bandBtns([bLink("🧭 경로 미리 보기", fd.q)]);
     html += band("drive", inner);
+    html += pushNudgeHtml();
     html += stopStackHtml();
     html += heroBeforeHtml();
     html += '<div id="aq-home">' + aqHtml() + "</div>";
@@ -1021,6 +1036,7 @@ function renderHome() {
     else if (mode === "arrival") html += arrivalCardHtml();
     else html += heroLiveHtml();
     html += modeSwitchHtml(mode);
+    html += pushNudgeHtml();
     html += stopStackHtml();
 
     const { cur, next } = nowAndNext();
@@ -1062,6 +1078,10 @@ function renderHome() {
 
   if (p === "before") { renderChecklist(); tickDep(); preTripETA(); }
   $$("#mode-switch .chip", el).forEach((c) => c.onclick = () => { modeOverride = c.dataset.pv; renderHome(); });
+  const ng = $("#nudge-go");
+  if (ng) ng.onclick = () => { if (pushState() === "need-install") { fillInstallGuide(); $("#install-modal").hidden = false; } else enablePush(); };
+  const nx = $("#nudge-x");
+  if (nx) nx.onclick = () => { localStorage.setItem("kel_push_x", "1"); renderHome(); };
   $$(".go-set", el).forEach((b) => b.onclick = () => {
     if (!me) return openWho();
     const t = b.dataset.title;
@@ -1928,6 +1948,19 @@ function renderInfo() {
   const myName = me ? nameOf(me) : "미선택";
   let html = "";
 
+  const pst = pushState();
+  html += '<h2 class="sec">알림 · 초대</h2><div class="card">' +
+    '<div class="kv"><b>🔔 알림</b><span class="code-line">' +
+    (pst === "granted" && localStorage.getItem("kel_push")
+      ? '<b style="color:var(--pine)">켜짐 — 앱 꺼져도 옴</b>'
+      : pst === "need-install" ? '<span class="muted">홈 화면 설치 필요</span>'
+      : pst === "denied" ? '<span class="muted">차단됨 — 아이폰 설정 → 알림</span>'
+      : '<span style="color:var(--danger);font-weight:600">꺼짐</span>') +
+    '<button class="btn small" id="push-on">' + (localStorage.getItem("kel_push") ? "다시 등록" : "알림 켜기") + "</button></span></div>" +
+    '<div class="kv"><b>📤 친구 초대</b><span class="code-line"><button class="btn ghost small" id="invite-go">설치 안내 보내기</button></span></div>' +
+    '<div class="kv"><b>📲 설치</b><span class="code-line"><button class="btn ghost small" id="ig-open2">설치 방법 보기</button></span></div>' +
+    "</div>";
+
   html += '<h2 class="sec">숙소</h2><div class="card">' +
     "<b>" + esc(TRIP.cabinName) + "</b>" +
     '<div class="kv"><b>주소</b><span class="code-line"><span style="font-size:13.5px">Unit #1, 9995 McCulloch Rd</span><button class="btn ghost small cp" data-copy="9995 McCulloch Rd, Kelowna, BC" data-lb="주소">복사</button></span></div>' +
@@ -1972,14 +2005,6 @@ function renderInfo() {
     '<div class="kv"><b>공유 앨범</b><span class="code-line">' + (s.album_url ? '<a href="' + esc(s.album_url) + '" target="_blank" rel="noopener">열기</a>' : '<span class="muted">iCloud 공유 앨범 만들어서 링크 넣기</span>') + ' <button class="btn ghost small" id="edit-album">링크</button></span></div>' +
     '<div class="kv"><b>숙소 좌표</b><span class="code-line"><span class="muted">' + esc(String(cabinLat())) + ", " + esc(String(cabinLng())) + '</span><button class="btn ghost small" id="edit-coord">수정</button></span></div>' +
     '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me, "mini") + " " : "") + '<b style="color:' + (me ? colorOf(me) : "inherit") + '">' + esc(myName) + '</b><button class="btn ghost small" id="edit-me">변경</button></span></div>' +
-    '<div class="kv"><b>친구 초대</b><span class="code-line"><button class="btn small" id="invite-go">📤 설치 안내 보내기</button><span class="muted" style="font-size:12px">단톡에 붙여넣기</span></span></div>' +
-    '<div class="kv"><b>알림</b><span class="code-line">' +
-    (pushState() === "granted" && localStorage.getItem("kel_push")
-      ? '<b style="color:var(--pine)">켜짐 — 앱 꺼져도 옴</b>'
-      : pushState() === "need-install" ? '<span class="muted">홈 화면에 설치해야 켤 수 있어</span>'
-      : pushState() === "denied" ? '<span class="muted">차단됨 — 아이폰 설정 → 알림에서 허용</span>'
-      : '<span class="muted">꺼짐</span>') +
-    '<button class="btn ghost small" id="push-on">' + (localStorage.getItem("kel_push") ? "다시 등록" : "알림 켜기") + "</button></span></div>" +
     '<div class="kv"><b>튜토리얼</b><span><button class="btn ghost small" id="tut-again">다시 보기</button></span></div>' +
     '<div class="kv"><b>홈 미리보기</b><span class="chip-row" style="margin:0" id="preview-row">' +
     [["", "자동"], ["drive", "🚗 이동"], ["winery", "🍷 와이너리"], ["costco", "🛒 코스트코"], ["arrival", "🏠 도착"], ["cabin", "🗺️ 지도"]].map((pv) =>
@@ -2002,6 +2027,7 @@ function renderInfo() {
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
   const pon = $("#push-on"); if (pon) pon.onclick = enablePush;
   const inv = $("#invite-go"); if (inv) inv.onclick = shareInvite;
+  const ig2 = $("#ig-open2"); if (ig2) ig2.onclick = () => { fillInstallGuide(); $("#install-modal").hidden = false; };
   $$("#preview-row .chip").forEach((c) => c.onclick = () => {
     modeOverride = c.dataset.pv;
     switchTab("home");
@@ -2064,6 +2090,7 @@ function fillInstallGuide() {
       ["크롬 주소창 오른쪽 <b>공유 버튼</b> 탭 " + shareSvg, ""],
       ['메뉴에서 <b>"홈 화면에 추가"</b> ' + plusSvg, "안 보이면 아래로 스크롤"],
       ["오른쪽 위 <b>추가</b>", "홈 화면에 아이콘 생김"],
+      ["공유 버튼이 안 보이면 <b>⋯ 더보기</b>", "주소창 오른쪽 점 세 개 → 아래로 스크롤 → '홈 화면에 추가'"],
       ["<b>Safari가 더 매끄러워</b>", "사파리로 이 주소를 열어서 같은 방법으로 해도 됨"],
     ];
   } else if (isIOS) {
@@ -2075,9 +2102,10 @@ function fillInstallGuide() {
     ];
   } else {
     steps = [
-      ["주소창 오른쪽 <b>설치 아이콘</b>(⊕ 또는 모니터 모양) 클릭", ""],
-      ["<b>설치</b> 누르기", "안 보이면 ⋮ 메뉴 → '앱으로 설치' 또는 'Install'"],
-      ["창이 앱처럼 떠서 끝", "안드로이드는 홈 화면에 아이콘 생김"],
+      ["주소창 오른쪽 <b>설치 아이콘</b>(⊕ 또는 모니터 모양) 클릭", "안 보이면 다음 단계로"],
+      ["오른쪽 위 <b>⋮ 더보기</b> 클릭", "점 세 개 세로 메뉴"],
+      ["<b>앱으로 설치</b> / <b>홈 화면에 추가</b> 선택", "안드로이드는 '앱 설치' 또는 'Install app'으로 나올 수도 있어"],
+      ["<b>설치</b> 누르면 끝", "앱 아이콘이 생기고, 그걸로 열어야 알림이 와"],
     ];
   }
   box.innerHTML = steps.map((st, i) =>
