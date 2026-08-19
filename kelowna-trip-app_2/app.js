@@ -611,6 +611,71 @@ function goCardHtml() {
   return band("drive", inner);
 }
 
+/* ---- 첫 목적지 · 카운트다운 · 실시간 ETA ---- */
+function firstDestination() {
+  const items = itemsFor(TRIP.days[0].date);
+  for (const r of items) {
+    const w = WINERIES.find((x) => (r.title || "").indexOf(x.n) >= 0);
+    if (w) return { n: w.n, lat: w.lat, lng: w.lng, q: w.n + " Winery West Kelowna" };
+  }
+  for (const r of items) {
+    const c = placeCoord(r.title);
+    if (c) return { n: c.n, lat: c.lat, lng: c.lng, q: placeQuery(r.title) || c.n };
+  }
+  return null;
+}
+function fmtDur(sec) {
+  const h = Math.floor(sec / 3600), m2 = Math.round((sec % 3600) / 60);
+  return (h ? h + "시간 " : "") + m2 + "분";
+}
+function tickDep() {
+  const el = document.querySelector('[data-tick="dep"]');
+  if (!el) return;
+  let ms = new Date(TRIP.start + "T08:00:00") - Date.now();
+  if (ms < 0) ms = 0;
+  const h = Math.floor(ms / 3600000), mnt = Math.floor((ms % 3600000) / 60000), sec = Math.floor((ms % 60000) / 1000);
+  el.textContent = (h ? h + ":" : "") + pad(mnt) + ":" + pad(sec);
+}
+function preTripETA() {
+  const el = document.getElementById("pre-eta");
+  if (!el) return;
+  const fd = firstDestination();
+  if (!fd) { el.textContent = ""; return; }
+  const pm = WAYPOINTS[0];
+  fetch("https://router.project-osrm.org/route/v1/driving/" + pm.lng + "," + pm.lat + ";" + fd.lng + "," + fd.lat + "?overview=false")
+    .then((r) => r.json())
+    .then((d) => {
+      const rt = d.routes && d.routes[0];
+      if (!rt) throw 0;
+      const dep = new Date(TRIP.start + "T08:00:00");
+      const arr = new Date(dep.getTime() + rt.duration * 1000);
+      el.innerHTML = "차로 " + fmtDur(rt.duration) + " · " + Math.round(rt.distance / 1000) + "km · 논스톱이면 " + hm(arr) + " 도착";
+    })
+    .catch(() => {
+      const km = distKm(pm.lat, pm.lng, fd.lat, fd.lng);
+      el.textContent = "약 " + Math.round(km) + "km (직선)";
+    });
+}
+function refreshLiveETA() {
+  if (currentTab !== "home") return;
+  const p = modeOverride ? "during" : phase();
+  if (p !== "during") return;
+  const mode = homeMode();
+  if (mode !== "drive" && mode !== "winery" && mode !== "go") return;
+  if (!navigator.permissions || !navigator.permissions.query) return;
+  navigator.permissions.query({ name: "geolocation" }).then((st) => {
+    if (st.state !== "granted") return;
+    getPosition().then(() => {
+      let dest = null;
+      if (mode === "go") { const dd = getDest(); if (dd && dd.lat) dest = dd; }
+      else if (mode === "winery") { const nx = seqNow().nextItem; dest = nx ? placeCoord(nx.title) : null; }
+      else { const next = nowAndNext().next; dest = next ? placeCoord(next.title) : null; }
+      if (!dest) { const fd = firstDestination(); if (fd) dest = fd; }
+      if (dest && lastPos && document.getElementById("nav-eta")) fetchETA(lastPos, dest, "nav-eta");
+    });
+  }).catch(() => {});
+}
+
 function nearestWinery() {
   if (!lastPos) return null;
   let best = null, bd = 2;
