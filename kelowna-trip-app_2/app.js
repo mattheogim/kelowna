@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v15";
-const BUILD_NO = 15;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v16";
+const BUILD_NO = 16;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2724,6 +2724,7 @@ function a2hsBar() {
 }
 
 /* ---------- 강제 업데이트 (캐시·SW·HTTP캐시 전부) ---------- */
+let appLocked = false;
 function navTo(u) { location.replace(u); }
 async function hardUpdate() {
   const btns = document.querySelectorAll("#vw-go,#force-update");
@@ -2741,6 +2742,11 @@ async function hardUpdate() {
       await Promise.all(regs.map((r) => r.unregister()));
     }
   } catch (e) {}
+  // 2-b) 대기 중인 새 서비스워커가 있으면 즉시 활성화
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller)
+      navigator.serviceWorker.controller.postMessage({ type: "SKIP_WAITING" });
+  } catch (e) {}
   // 3) 브라우저 HTTP 캐시까지 강제로 새로 받기 (이게 없으면 옛 app.js가 그대로 옴)
   try {
     await Promise.all(["app.js", "style.css", "config.js", "index.html", "sw.js"].map((f) =>
@@ -2753,7 +2759,7 @@ async function hardUpdate() {
   setTimeout(() => {
     btns.forEach((b) => { b.disabled = false; b.textContent = "다시 시도"; });
     alert("자동 갱신이 막혔어.\n\n1) 이 화면을 닫고\n2) 앱을 완전히 종료(위로 쓸어올리기)한 뒤\n3) 다시 열어줘\n\n그래도 안 되면 홈 화면 아이콘을 지우고 사파리에서 다시 설치하면 확실해.");
-  }, 4000);
+  }, 2500);
 }
 
 /* ---------- 버전 강제 · 원격 리셋 ---------- */
@@ -2787,11 +2793,21 @@ function showVersionWall(min) {
       '<p class="wall-t">업데이트가 필요해</p>' +
       '<p class="wall-d">이 폰은 <b>v' + BUILD_NO + "</b>, 지금 필요한 건 <b>v" + min + "</b>야.<br>버튼 한 번이면 끝나.</p>" +
       '<button class="btn" id="vw-go" style="width:100%;padding:16px">⬇️ 지금 갱신하기</button>' +
-      '<p class="wall-hint">갱신해도 여행 기록은 그대로 남아.</p>' +
+      '<button class="btn ghost" id="vw-alt" style="width:100%;margin-top:9px">그래도 안 되면 — 주소 새로 열기</button>' +
+      '<p class="wall-hint" style="text-align:left;margin-top:18px">' +
+      '<b>두 번 눌러도 그대로면:</b><br>' +
+      '① 앱을 완전히 종료 (위로 쓸어올려 닫기) 후 다시 열기<br>' +
+      '② 그래도 같으면 홈 화면 아이콘을 <b>길게 눌러 삭제</b> → 사파리로 주소 열기 → 홈 화면에 추가<br>' +
+      '갱신해도 여행 기록·정산은 서버에 그대로 있어.</p>' +
     "</div>";
   g.hidden = false;
+  appLocked = true;
   document.body.classList.add("walled");
+  ["who-modal", "roll-modal", "odds-modal", "tut-modal", "install-modal"].forEach((id) => {
+    const m = document.getElementById(id); if (m) m.hidden = true;
+  });
   $("#vw-go").onclick = hardUpdate;
+  const alt = $("#vw-alt"); if (alt) alt.onclick = () => navTo(location.pathname.replace(/[^/]*$/, "") + "index.html?v=" + Date.now());
 }
 
 /* ---------- 설치 안 하면 앱 잠금 ---------- */
@@ -2932,7 +2948,8 @@ function tutSteps() {
 let tutIdx = 0, tutList = [], tutPaused = false;
 function tutPause() { tutPaused = true; $("#tut-modal").hidden = true; }
 function tutResume() { if (!tutPaused) return; tutPaused = false; $("#tut-modal").hidden = false; drawTut(); }
-function openTut() { tutIdx = 0; tutPaused = false; tutList = tutSteps(); drawTut(); $("#tut-modal").hidden = false; }
+function openTut() {
+  if (appLocked) return; tutIdx = 0; tutPaused = false; tutList = tutSteps(); drawTut(); $("#tut-modal").hidden = false; }
 function drawTut() {
   tutList = tutSteps();
   const st = tutList[tutIdx];
@@ -3170,6 +3187,7 @@ function drawCharacter() {
   return picked;
 }
 function openRoll(skipFx) {
+  if (appLocked) return;
   if (installRequired()) { showInstallWall(); return; }
   if (!me) { toast("먼저 내가 누구인지 골라줘"); return openWho(); }
   if (!notifReady() && !localStorage.getItem("kel_nonotif") && pushState() !== "unsupported") { showNotifWall(); return; }
@@ -3254,6 +3272,7 @@ function openOdds() {
 
 /* ---------------- 나 선택 ---------------- */
 function openWho() {
+  if (appLocked) return;
   const g = $("#who-grid");
   g.innerHTML = MEMBERS.map((m) =>
     '<button class="who-btn" data-id="' + m.id + '" style="border-color:' + m.color + ";color:" + m.color + '">' +

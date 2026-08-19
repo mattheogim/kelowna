@@ -1,5 +1,5 @@
 /* 켈로나 여행수첩 — service worker */
-const CACHE = "kel-v15";
+const CACHE = "kel-v16";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.json", "icon-180.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -68,4 +68,9 @@ self.addEventListener("notificationclick", (e) => {
       if (self.clients.openWindow) return self.clients.openWindow("./");
     })
   );
+});
+
+
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting();
 });
