@@ -527,3 +527,14 @@ body.gated #topbar,body.gated #main,body.gated #tabbar,body.gated #siren-fab,bod
 .nudge-body{display:flex;flex-direction:column;min-width:0;font-size:14px}
 .nudge-body .muted{font-size:12px;margin-top:1px}
 .nudge .btn.small{flex:none;margin-left:auto}
+
+/* ---------- 행동형 튜토리얼 ---------- */
+.tut-act{width:100%;margin-top:4px;padding:13px}
+.tut-act[disabled]{background:transparent;color:var(--pine);border:1px solid var(--pine)}
+.tut-ok{font-size:15px}
+.tut-dot.ok{background:var(--pine)}
+.tut-d b{color:var(--ink)}
+#emg.practice{background:#12100A;animation:none}
+#emg.practice .emg-title{color:#FFD08A;text-shadow:0 0 26px rgba(255,208,138,.6)}
+#emg.practice .emg-icon{animation:none}
+#emg.practice .emg-bars{background:repeating-linear-gradient(45deg,rgba(255,208,138,.12) 0 22px,transparent 22px 44px)}

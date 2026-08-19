@@ -1570,6 +1570,27 @@ function wireSiren(sel) {
     await sb.from("sirens").insert({});
   };
 }
+function emergencyPractice() {
+  const e = $("#emg");
+  if (!e || !e.hidden) return;
+  const t = e.querySelector(".emg-title"), sub = e.querySelector(".emg-sub"), ic = e.querySelector(".emg-icon");
+  const old = [t.textContent, sub.textContent, ic.textContent];
+  e.classList.add("practice");
+  ic.textContent = "🚽 ✨ 🚽";
+  t.textContent = "연습 발사 성공";
+  sub.textContent = "진짜로 누르면 6명 폰이 전부 이렇게 돼. 익명이야.";
+  e.hidden = false;
+  chime();
+  edgeGlow("#FFD08A", true);
+  weatherFx("arrival", 3, "#FFD08A", "이게 화장실 긴급 버튼이야");
+  buzz([40, 60, 40]);
+  setTimeout(() => {
+    e.hidden = true;
+    e.classList.remove("practice");
+    t.textContent = old[0]; sub.textContent = old[1]; ic.textContent = old[2];
+  }, 3600);
+}
+
 function emergency() {
   const e = $("#emg");
   if (!e || !e.hidden) return;
@@ -1626,6 +1647,24 @@ function setPttState(st) {
   const b = $("#do-ping"), h = $("#ptt-state");
   if (b) b.classList.toggle("rec", st === "rec");
   if (h) h.textContent = st === "rec" ? "🔴 녹음 중… 손 떼면 전송" : st === "nomic" ? "마이크를 못 잡았어 — 떼면 위치만 송신" : "";
+}
+
+function chime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = ctx.currentTime;
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "triangle"; o.frequency.value = f;
+      const t0 = now + i * 0.13;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.13, t0 + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t0); o.stop(t0 + 1.2);
+    });
+    setTimeout(() => { try { ctx.close(); } catch (e) {} }, 1900);
+  } catch (e) {}
 }
 
 function beep() {
@@ -2113,31 +2152,50 @@ function fillInstallGuide() {
     (st[1] ? '<br><span class="muted">' + st[1] + "</span>" : "") + "</div></div>").join("");
 }
 
-/* ---------------- 튜토리얼 ---------------- */
-const TUT = [
-  { ic: "🏕️", t: "홈 — 지금 뭐 할 차례?", d: "일정 따라 '지금' 카드가 자동으로 바뀌어. 급한 결정은 투표 걸면 실시간 집계." },
-  { ic: "📻", t: "무전 — 진짜 무전기임", d: "큰 버튼 꾹 누르고 말하면 음성 전송, 짧게 탭하면 위치만. \"어디십니까\" 같은 빠른 무전도 원탭. 친구 카드 탭하면 위치 요청이 날아가." },
-  { ic: "🔔", t: "알림 켜기", d: "홈 화면에 설치하고 정보 탭에서 '알림 켜기'를 누르면, 앱이 꺼져 있어도 무전·사이렌이 알림으로 와." },
-  { ic: "🚽", t: "긴급 버튼", d: "화장실 위기엔 무전 탭 맨 아래 빨간 버튼. 익명이고, 전원 폰에 사이렌이 울려. 10분에 한 번만." },
-  { ic: "🧾", t: "장부 — 정산은 자동", d: "산 사람이 그 자리에서 한 줄만 적으면 끝. 마지막에 누가 누구한테 얼마 보낼지 자동 계산." },
-  { ic: "🎒", t: "준비 끝!", d: "Wi-Fi·도어코드·숙소 규칙은 정보 탭. 금요일에 뭐 할지는 일정 탭 → 제안 보드에서 골라." },
-];
-let tutIdx = 0, tutList = TUT;
-function openTut() {
-  tutList = TUT.slice();
-  if (!isStandalone()) tutList.splice(tutList.length - 1, 0,
-    { ic: "📲", t: "홈 화면에 설치", d: "앱처럼 전체화면으로 쓰려면 설치가 최고야. 상단 배너의 '방법 보기' 누르면 그림으로 알려줘." });
-  tutIdx = 0; drawTut(); $("#tut-modal").hidden = false;
+/* ---------------- 튜토리얼 (행동형) ---------------- */
+function tutSteps() {
+  const installed = isStandalone();
+  const pushOn = pushState() === "granted" && !!localStorage.getItem("kel_push");
+  return [
+    { ic: (me ? avatarOf(me) : "🎮"), t: me ? nameOf(me) + "(으)로 시작" : "캐릭터 선택",
+      d: "이 폰은 이제 " + (me ? nameOf(me) : "네") + "의 수첩이야. 보내는 무전·장부 기록이 다 이 이름으로 남아.",
+      btn: "다른 캐릭터로", run: () => { tutPause(); openWho(); }, done: () => !!me },
+    { ic: "📲", t: "홈 화면에 설치", d: "이거 안 하면 알림이 아예 안 와 (애플 규칙). 사파리 공유 버튼 → 홈 화면에 추가 → 그 아이콘으로 열기.",
+      btn: "설치 방법 보기", run: () => { tutPause(); fillInstallGuide(); $("#install-modal").hidden = false; }, done: () => installed, skipIf: () => installed },
+    { ic: "🔔", t: "알림 켜기", d: "앱이 꺼져 있어도 무전·사이렌이 알림으로 와. 지금 눌러서 켜자.",
+      btn: "알림 켜기", run: async () => { await enablePush(); drawTut(); }, done: () => pushOn },
+    { ic: "📍", t: "위치 한 번 보내보기", d: "여기서 바로 눌러봐. 내 위치가 다들 지도에 뜨고, 이게 둘째 날 흩어져도 서로 찾는 방법이야.",
+      btn: "지금 보내기", run: async () => { await quickPing(true); localStorage.setItem("kel_tut_loc", "1"); drawTut(); }, done: () => !!localStorage.getItem("kel_tut_loc") },
+    { ic: "📻", t: "무전 쓰는 법",
+      d: "<b>꾹 누르면</b> 음성 녹음, 떼면 전송<br><b>짧게 탭</b>하면 위치만 송신<br><b>빠른 무전</b> 칩으로 '어디십니까' 원탭<br><b>친구 카드 탭</b>하면 그 사람에게 위치 요청" },
+    { ic: "🚽", t: "화장실 긴급 버튼", d: "화면 <b>오른쪽 아래</b>에 항상 떠 있어. 한 번 누르면 무장, 3초 안에 한 번 더 누르면 <b>6명 전원 폰에 사이렌</b>. 누가 눌렀는진 아무도 몰라. 10분에 한 번만.",
+      btn: "연습으로 눌러보기", run: () => { tutPause(); emergencyPractice(); setTimeout(() => { $("#tut-modal").hidden = false; localStorage.setItem("kel_tut_siren", "1"); drawTut(); }, 3800); }, done: () => !!localStorage.getItem("kel_tut_siren") },
+    { ic: "🧭", t: "홈은 알아서 바뀐다", d: "이동 중엔 남은 시간, 코스트코 시간엔 장보기, 숙소 도착하면 도어코드가 저절로 떠. 준비 끝!" },
+  ];
 }
+let tutIdx = 0, tutList = [], tutPaused = false;
+function tutPause() { tutPaused = true; $("#tut-modal").hidden = true; }
+function tutResume() { if (!tutPaused) return; tutPaused = false; $("#tut-modal").hidden = false; drawTut(); }
+function openTut() { tutIdx = 0; tutPaused = false; tutList = tutSteps(); drawTut(); $("#tut-modal").hidden = false; }
 function drawTut() {
+  tutList = tutSteps();
   const st = tutList[tutIdx];
-  $("#tut-body").innerHTML = '<div class="tut-ic">' + st.ic + '</div>' +
-    '<p class="modal-title" style="text-align:center">' + st.t + "</p>" +
-    '<p class="tut-d">' + st.d + "</p>";
-  $("#tut-dots").innerHTML = tutList.map((_, i) => '<span class="tut-dot' + (i === tutIdx ? " on" : "") + '"></span>').join("");
-  $("#tut-next").textContent = tutIdx === tutList.length - 1 ? "시작하기" : "다음";
+  if (!st) return closeTut();
+  const isDone = st.done ? st.done() : false;
+  $("#tut-body").innerHTML =
+    '<div class="tut-ic">' + st.ic + "</div>" +
+    '<p class="modal-title" style="text-align:center">' + esc(st.t) + (isDone ? ' <span class="tut-ok">✅</span>' : "") + "</p>" +
+    '<p class="tut-d">' + st.d + "</p>" +
+    (st.btn ? '<button class="btn tut-act" id="tut-act"' + (isDone ? " disabled" : "") + ">" + (isDone ? "완료됨 ✅" : st.btn) + "</button>" : "");
+  $("#tut-dots").innerHTML = tutList.map((x, i) =>
+    '<span class="tut-dot' + (i === tutIdx ? " on" : (x.done && x.done() ? " ok" : "")) + '"></span>').join("");
+  const last = tutIdx === tutList.length - 1;
+  $("#tut-next").textContent = last ? "시작하기" : (st.btn && !isDone ? "나중에" : "다음");
+  $("#tut-skip").textContent = tutIdx === 0 ? "건너뛰기" : "이전";
+  const a = $("#tut-act");
+  if (a && !isDone) a.onclick = () => { try { st.run(); } catch (e) { console.error(e); } };
 }
-function closeTut() { localStorage.setItem("kel_tut", "1"); $("#tut-modal").hidden = true; }
+function closeTut() { localStorage.setItem("kel_tut", "1"); tutPaused = false; $("#tut-modal").hidden = true; rerender(); }
 
 /* ---------------- 나 선택 ---------------- */
 function openWho() {
@@ -2157,7 +2215,8 @@ function openWho() {
       $("#who-modal").hidden = true;
       rerender();
       toast("🎮 " + avatarOf(me) + " " + nameOf(me) + " 선택! 이 폰은 이제 네 수첩이야");
-      if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 400);
+      if (tutPaused) setTimeout(tutResume, 300);
+      else if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 400);
     }, 320);
   });
   $("#who-modal").hidden = false;
@@ -2177,8 +2236,8 @@ function openAlerts() {
 function wireModals() {
   $$(".modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m && m.id !== "who-modal") m.hidden = true; }));
   $("#alert-close").onclick = () => $("#alert-modal").hidden = true;
-  $("#tut-skip").onclick = closeTut;
-  $("#install-close").onclick = () => $("#install-modal").hidden = true;
+  $("#tut-skip").onclick = () => { if (tutIdx === 0) closeTut(); else { tutIdx--; drawTut(); } };
+  $("#install-close").onclick = () => { $("#install-modal").hidden = true; tutResume(); };
   $("#tut-next").onclick = () => { if (tutIdx >= tutList.length - 1) closeTut(); else { tutIdx++; drawTut(); } };
   $("#stamp-cancel").onclick = () => $("#stamp-modal").hidden = true;
   $("#exp-cancel").onclick = () => $("#exp-modal").hidden = true;
