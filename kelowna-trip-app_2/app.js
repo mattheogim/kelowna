@@ -2194,7 +2194,8 @@ function renderInfo() {
 
   html += '<h2 class="sec">운명</h2><div class="card"><div class="fate">' +
     '<div><div style="font-weight:700;font-size:15px">운명 거스르기</div>' +
-    '<div class="muted" style="margin-top:3px">다른 이름으로 다시 뽑기</div></div>' +
+    '<div class="muted" style="margin-top:3px">뽑기 20번을 새로 받아</div>' +
+    (Number(localStorage.getItem("kel_fate") || 0) ? '<div class="muted" style="font-size:11px;margin-top:2px">지금까지 ' + localStorage.getItem("kel_fate") + '번 거슬렀음</div>' : "") + "</div>" +
     '<div style="margin-left:auto;text-align:right"><div class="fate-price">$10.99</div>' +
     '<div class="muted" style="font-size:11px">사실 공짜</div></div></div>' +
     '<button class="btn" id="fate-btn" style="width:100%;margin-top:12px">뽑기</button></div>';
@@ -2210,8 +2211,12 @@ function renderInfo() {
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
   const oo = $("#open-odds"); if (oo) oo.onclick = openOdds;
   const fb = $("#fate-btn"); if (fb) fb.onclick = () => {
-    if (!confirm("$10.99 — 진짜로 결제되진 않아. 다시 뽑을까?")) return;
-    rollResult = drawCharacter(); openRoll();
+    if (!confirm("$10.99 — 진짜 결제는 아니야.\n뽑기 20번을 새로 받고 다시 굴릴까?")) return;
+    localStorage.setItem("kel_rolls", "0");
+    localStorage.setItem("kel_fate", String(Number(localStorage.getItem("kel_fate") || 0) + 1));
+    rollResult = drawCharacter();
+    toast("💸 결제 완료(가짜). 20번 새로 받았어");
+    openRoll();
   };
   const pon = $("#push-on"); if (pon) pon.onclick = enablePush;
   const pt = $("#push-test");
@@ -2345,9 +2350,12 @@ function igDraw() {
   box.innerHTML = '<div class="ig-stage">' + phoneSvg(st.svg) +
     '<div class="ig-text"><p class="ig-t">' + st.t + '</p><p class="ig-d">' + st.d + "</p></div></div>" +
     '<div class="tut-dots">' + igSteps.map((_, i) => '<span class="tut-dot' + (i === igIdx ? " on" : "") + '"></span>').join("") + "</div>" +
+    (igIdx === 0 ? '<button class="btn" id="ig-point" style="width:100%;margin-bottom:8px">👆 화면에서 직접 가리켜 줘</button>' : "") +
     '<div class="btn-row" style="justify-content:space-between">' +
     '<button class="btn ghost" id="ig-prev">' + (igIdx === 0 ? "닫기" : "이전") + "</button>" +
     '<button class="btn" id="ig-next">' + (igIdx === igSteps.length - 1 ? "다 했어" : "다음") + "</button></div>";
+  const pb = $("#ig-point");
+  if (pb) pb.onclick = () => { $("#install-modal").hidden = true; pointToShare(); };
   $("#ig-prev").onclick = () => { if (igIdx === 0) { $("#install-modal").hidden = true; tutResume(); } else { igIdx--; igDraw(); } };
   $("#ig-next").onclick = () => {
     if (igIdx < igSteps.length - 1) { igIdx++; igDraw(); return; }
@@ -2368,11 +2376,35 @@ function a2hsBar() {
     '<button class="ib-x" id="a2hs-x" aria-label="닫기">✕</button>';
   b.hidden = false;
   document.body.classList.add("has-a2hs");
-  $("#a2hs-go").onclick = () => { fillInstallGuide(); $("#install-modal").hidden = false; };
+  $("#a2hs-go").onclick = () => { pointToShare(); };
   $("#a2hs-x").onclick = () => {
     localStorage.setItem("kel_a2hs_snooze", String(Date.now() + 86400000));
     b.hidden = true; document.body.classList.remove("has-a2hs");
   };
+}
+
+/* ---------- 설치: 실제 화면 위에 화살표 오버레이 ---------- */
+function pointToShare() {
+  const o = document.getElementById("point");
+  if (!o) return;
+  const ua = navigator.userAgent || "";
+  const isIOS = /iphone|ipad|ipod/i.test(ua);
+  const chromeIOS = isIOS && /CriOS/i.test(ua);
+  const top = chromeIOS || !isIOS;   // 크롬은 위쪽, 사파리는 아래쪽
+  o.innerHTML =
+    '<div class="pt-msg" style="' + (top ? "top:22%" : "bottom:30%") + '">' +
+      '<div class="pt-t">' + (top ? "주소창 오른쪽" : "화면 맨 아래") + " <b>공유 버튼</b>을 눌러</div>" +
+      '<div class="pt-d">' + (top ? "안 보이면 ⋯ 더보기 안에 있어" : "안 보이면 화면을 아래로 살짝 스크롤하면 나타나") + "</div>" +
+      '<button class="btn" id="pt-done" style="width:100%;margin-top:14px">눌렀어 / 닫기</button>' +
+    "</div>" +
+    '<svg class="pt-arrow" style="' + (top ? "top:52px;right:34px" : "bottom:64px;left:50%;transform:translateX(-50%)") + '" width="70" height="120" viewBox="0 0 70 120">' +
+      '<path d="M35,' + (top ? "104 C35,60 30,40 35,14" : "16 C35,60 40,80 35,106") + '" fill="none" stroke="#C8503C" stroke-width="4" stroke-linecap="round" stroke-dasharray="7 9"/>' +
+      '<path d="' + (top ? "M35,6 l-11,16 h22Z" : "M35,114 l-11,-16 h22Z") + '" fill="#C8503C"/></svg>' +
+    '<div class="pt-ring" style="' + (top ? "top:14px;right:22px" : "bottom:14px;left:50%;transform:translateX(-50%)") + '"></div>';
+  o.hidden = false;
+  document.body.classList.add("pointing");
+  const d = document.getElementById("pt-done");
+  if (d) d.onclick = () => { o.hidden = true; document.body.classList.remove("pointing"); tutResume(); };
 }
 
 /* ---------------- 튜토리얼 (행동형) ---------------- */
@@ -2383,8 +2415,8 @@ function tutSteps() {
     { ic: (me ? avatarOf(me) : "🎲"), t: me && charOf(me) ? fullName(me) : "캐릭터 뽑기",
       d: me && charOf(me) ? ("등급 <b>" + tierById[tierOf(me)].name + "</b>. 이 이모지가 지도·무전·장부에서 계속 나를 대신해.") : "주사위를 굴려서 이름을 받아. 20번까지 다시 굴릴 수 있어.",
       btn: charOf(me) ? "다시 뽑기" : "지금 뽑기", run: () => { tutPause(); rollResult = drawCharacter(); openRoll(); }, done: () => !!charOf(me) },
-    { ic: "📲", t: "홈 화면에 설치", d: "이거 안 하면 알림이 아예 안 와 (애플 규칙). 사파리 공유 버튼 → 홈 화면에 추가 → 그 아이콘으로 열기.",
-      btn: "설치 방법 보기", run: () => { tutPause(); fillInstallGuide(); $("#install-modal").hidden = false; }, done: () => installed, skipIf: () => installed },
+    { ic: "📲", t: "홈 화면에 설치", d: "이거 안 하면 알림이 아예 안 와 (애플 규칙).<br><b>버튼을 누르면 화면에서 직접 어디를 눌러야 하는지 화살표로 가리켜 줄게.</b>",
+      btn: "어디 누르는지 보여줘", run: () => { tutPause(); pointToShare(); }, done: () => installed, skipIf: () => installed },
     { ic: "🔔", t: "알림 켜기", d: "앱이 꺼져 있어도 무전·사이렌이 알림으로 와. 지금 눌러서 켜자.",
       btn: "알림 켜기", run: async () => { await enablePush(); drawTut(); }, done: () => pushOn },
     { ic: "📍", t: "위치 한 번 보내보기", d: "여기서 바로 눌러봐. 내 위치가 다들 지도에 뜨고, 이게 둘째 날 흩어져도 서로 찾는 방법이야.",
