@@ -1087,7 +1087,6 @@ function urgentPollsHtml() {
 }
 
 function pushNudgeHtml() {
-  if (localStorage.getItem("kel_push_x")) return "";
   const st = pushState();
   if (st === "granted" && localStorage.getItem("kel_push")) return "";
   if (st === "unsupported") return "";
@@ -1096,8 +1095,7 @@ function pushNudgeHtml() {
     '<div class="nudge-ic">🔔</div>' +
     '<div class="nudge-body"><b>' + (need ? "홈 화면에 설치하면 알림이 와" : "알림 켜면 앱 꺼져도 무전이 와") + "</b>" +
     '<span class="muted">' + (need ? "설치 후 알림까지 켜야 무전·사이렌을 놓치지 않아" : "이거 안 켜면 앱 열었을 때만 알 수 있어") + "</span></div>" +
-    '<button class="btn small" id="nudge-go">' + (need ? "설치 방법" : "알림 켜기") + "</button>" +
-    '<button class="ib-x" id="nudge-x" aria-label="닫기">✕</button></div>';
+    '<button class="btn small" id="nudge-go">' + (need ? "설치 방법" : "알림 켜기") + "</button></div>";
 }
 
 function stopStackHtml() {
@@ -1213,8 +1211,7 @@ function renderHome() {
   });
   const ng = $("#nudge-go");
   if (ng) ng.onclick = () => { if (pushState() === "need-install") { fillInstallGuide(); $("#install-modal").hidden = false; } else enablePush(); };
-  const nx = $("#nudge-x");
-  if (nx) nx.onclick = () => { localStorage.setItem("kel_push_x", "1"); renderHome(); };
+
   $$(".go-set", el).forEach((b) => b.onclick = () => {
     if (!me) return openWho();
     const t = b.dataset.title;
@@ -2418,6 +2415,47 @@ function showInstallWall() {
   return true;
 }
 
+/* ---------- 알림 안 켜면 뽑기 잠금 ---------- */
+function notifReady() { return pushState() === "granted" && !!localStorage.getItem("kel_push"); }
+function showNotifWall() {
+  const g = document.getElementById("wall");
+  if (!g) return false;
+  const denied = pushState() === "denied";
+  g.innerHTML =
+    '<div class="wall-card">' +
+      '<div class="wall-ic">🔔</div>' +
+      '<p class="wall-t">' + (denied ? "알림이 꺼져 있어" : "알림을 켜야<br>뽑을 수 있어") + "</p>" +
+      '<p class="wall-d">' + (denied
+        ? '아이폰 <b>설정 → 알림 → 켈로나 수첩</b>에서 "알림 허용"을 켜고 돌아와.'
+        : '무전·사이렌이 앱 꺼져 있을 때도 오게 하려면 필요해.<br>딱 한 번만 누르면 돼.') + "</p>" +
+      (denied
+        ? '<button class="btn" id="wall-recheck" style="width:100%;padding:16px">켰어 — 다시 확인</button>'
+        : '<button class="btn" id="wall-notif" style="width:100%;padding:16px">🔔 알림 켜기</button>') +
+      '<p class="wall-hint">이거 안 켜면 다른 사람이 무전을 보내도<br>앱을 직접 열기 전엔 알 수 없어.</p>' +
+      '<button class="wall-skip" id="wall-skip2">알림 없이 그냥 할래 →</button>' +
+    "</div>";
+  g.hidden = false;
+  document.body.classList.add("walled");
+  const nb = $("#wall-notif");
+  if (nb) nb.onclick = async () => {
+    await enablePush();
+    if (notifReady()) { g.hidden = true; document.body.classList.remove("walled"); openRoll(); }
+    else showNotifWall();
+  };
+  const rc = $("#wall-recheck");
+  if (rc) rc.onclick = () => {
+    if (pushState() === "granted") { enablePush().then(() => { g.hidden = true; document.body.classList.remove("walled"); openRoll(); }); }
+    else toast("아직 꺼져 있어 — 설정에서 켜고 다시");
+  };
+  $("#wall-skip2").onclick = () => {
+    if (!confirm("알림 없이 진행하면 무전을 놓칠 수 있어. 그래도 할까?")) return;
+    localStorage.setItem("kel_nonotif", "1");
+    g.hidden = true; document.body.classList.remove("walled");
+    openRoll();
+  };
+  return true;
+}
+
 /* ---------- 설치: 실제 화면 위에 화살표 오버레이 ---------- */
 function pointToShare() {
   const o = document.getElementById("point");
@@ -2514,6 +2552,7 @@ function drawCharacter() {
 function openRoll() {
   if (installRequired()) { showInstallWall(); return; }
   if (!me) return openWho();
+  if (!notifReady() && !localStorage.getItem("kel_nonotif") && pushState() !== "unsupported") { showNotifWall(); return; }
   rollResult = rollResult || drawCharacter();
   drawRoll();
   $("#roll-modal").hidden = false;
