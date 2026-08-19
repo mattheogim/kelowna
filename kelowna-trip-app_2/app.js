@@ -244,6 +244,52 @@ const DEMO_ITINERARY = [
 const DEMO_WISHES = ["Kalala Organic Estate|와이너리", "Off the Grid Organic Winery|와이너리", "다운타운에서 점심|음식", "늦잠 + 호수 (카약·패들보드)|액티비티", "체리 · 과일 U-pick|액티비티", "저녁 캠프파이어 (파이어밴 확인)|액티비티"]
   .map((s, i) => { const p = s.split("|"); return { id: -1 - i, member: null, title: p[0], category: p[1], created_at: new Date().toISOString() }; });
 
+/* ---------------- 인앱 브라우저 차단 게이트 ---------------- */
+function isInApp() {
+  const ua = (navigator.userAgent || "").toLowerCase();
+  const marks = ["kakaotalk", "naver(inapp", "instagram", "fban", "fbav", "line/", "daumapps", "everytimeapp", "kakaostory", "whale/"];
+  for (const m of marks) if (ua.indexOf(m) >= 0) return true;
+  return false;
+}
+function inAppName() {
+  const ua = (navigator.userAgent || "").toLowerCase();
+  if (ua.indexOf("kakaotalk") >= 0) return "카카오톡";
+  if (ua.indexOf("naver(inapp") >= 0) return "네이버";
+  if (ua.indexOf("instagram") >= 0) return "인스타그램";
+  if (ua.indexOf("fban") >= 0 || ua.indexOf("fbav") >= 0) return "페이스북";
+  if (ua.indexOf("line/") >= 0) return "라인";
+  return "앱 내 브라우저";
+}
+function showGate() {
+  const g = document.getElementById("gate");
+  if (!g) return false;
+  const ua = navigator.userAgent || "";
+  const isIOS = /iphone|ipad|ipod/i.test(ua);
+  const url = location.href.split("#")[0];
+  g.innerHTML =
+    '<div class="gate-card">' +
+    '<div class="gate-ic">🚫📱</div>' +
+    '<p class="gate-t">' + esc(inAppName()) + ' 브라우저에선 못 써</p>' +
+    '<p class="gate-d">여기선 앱 설치도, 알림도, 마이크(음성 무전)도 안 돼.<br>' +
+    (isIOS ? "<b>Safari</b>" : "<b>Chrome</b>") + '로 열어야 제대로 돌아가.</p>' +
+    '<button class="btn gate-btn" id="gate-open">' + (isIOS ? "Safari로 열기" : "Chrome으로 열기") + "</button>" +
+    '<button class="btn ghost gate-btn" id="gate-copy">주소 복사해서 직접 열기</button>' +
+    '<p class="gate-hint">버튼이 안 먹으면: 오른쪽 위 <b>⋯</b> 또는 <b>공유</b> → ' +
+    (isIOS ? '"Safari로 열기"' : '"다른 브라우저로 열기"') + " 선택</p>" +
+    '<p class="gate-url">' + esc(url) + "</p></div>";
+  g.hidden = false;
+  document.body.classList.add("gated");
+  const ob = document.getElementById("gate-open");
+  if (ob) ob.onclick = () => {
+    if (ua.toLowerCase().indexOf("kakaotalk") >= 0) { location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(url); return; }
+    if (isIOS) { location.href = "x-safari-" + url; return; }
+    location.href = "intent://" + url.replace(/^https?:\/\//, "") + "#Intent;scheme=https;package=com.android.chrome;end";
+  };
+  const cb = document.getElementById("gate-copy");
+  if (cb) cb.onclick = () => copyText(url, "주소");
+  return true;
+}
+
 /* ---------------- 푸시 알림 ---------------- */
 const VAPID_PUBLIC = "BLOZAjhNhQZ6pgfmjHWxNjGkK-7605WHrMgIGmjkgsmTGbJ5cws-oZKSgAwd6J26ahK6QAZ05Z4lsGUcfx-gyKo";
 function b64ToU8(b64) {
@@ -290,6 +336,24 @@ function sendPush(title, body, tag) {
       body: JSON.stringify({ title: title, body: body, tag: tag || "kel", exclude: me }),
     }).catch(() => {});
   } catch (e) {}
+}
+
+function inviteText() {
+  return "🏕️ 켈로나 여행수첩 (우리 여행 앱)\n" +
+    location.href.split("#")[0] + "\n\n" +
+    "📲 설치 3단계 (2분, 꼭 해줘)\n" +
+    "1. 위 링크를 사파리로 열기\n" +
+    "   (카톡에서 바로 열면 설치가 안 돼요. 카톡 브라우저면 화면 위 'Safari로 열기' 버튼 누르기)\n" +
+    "2. 아래 공유 버튼 ⬆️ → '홈 화면에 추가' → 추가\n" +
+    "3. 홈 화면 아이콘으로 앱 열고 → 정보 탭 → '알림 켜기'\n\n" +
+    "이거 해야 앱 꺼져 있어도 무전이랑 위치 알림이 옵니다 📻";
+}
+async function shareInvite() {
+  const text = inviteText();
+  try {
+    if (navigator.share) { await navigator.share({ title: "켈로나 여행수첩", text: text }); return; }
+  } catch (e) { if (e && e.name === "AbortError") return; }
+  copyText(text, "초대 메시지");
 }
 
 /* ---------------- 설치 유도 ---------------- */
@@ -1908,6 +1972,7 @@ function renderInfo() {
     '<div class="kv"><b>공유 앨범</b><span class="code-line">' + (s.album_url ? '<a href="' + esc(s.album_url) + '" target="_blank" rel="noopener">열기</a>' : '<span class="muted">iCloud 공유 앨범 만들어서 링크 넣기</span>') + ' <button class="btn ghost small" id="edit-album">링크</button></span></div>' +
     '<div class="kv"><b>숙소 좌표</b><span class="code-line"><span class="muted">' + esc(String(cabinLat())) + ", " + esc(String(cabinLng())) + '</span><button class="btn ghost small" id="edit-coord">수정</button></span></div>' +
     '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me, "mini") + " " : "") + '<b style="color:' + (me ? colorOf(me) : "inherit") + '">' + esc(myName) + '</b><button class="btn ghost small" id="edit-me">변경</button></span></div>' +
+    '<div class="kv"><b>친구 초대</b><span class="code-line"><button class="btn small" id="invite-go">📤 설치 안내 보내기</button><span class="muted" style="font-size:12px">단톡에 붙여넣기</span></span></div>' +
     '<div class="kv"><b>알림</b><span class="code-line">' +
     (pushState() === "granted" && localStorage.getItem("kel_push")
       ? '<b style="color:var(--pine)">켜짐 — 앱 꺼져도 옴</b>'
@@ -1936,6 +2001,7 @@ function renderInfo() {
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
   const pon = $("#push-on"); if (pon) pon.onclick = enablePush;
+  const inv = $("#invite-go"); if (inv) inv.onclick = shareInvite;
   $$("#preview-row .chip").forEach((c) => c.onclick = () => {
     modeOverride = c.dataset.pv;
     switchTab("home");
@@ -2209,6 +2275,7 @@ function rerender() {
 
 /* ---------------- 시작 ---------------- */
 function boot() {
+  if (isInApp() && showGate()) return;
   const th = localStorage.getItem("kel_theme");
   if (th) document.documentElement.setAttribute("data-theme", th);
   initSb();

@@ -507,3 +507,16 @@ h2.sec{
 .rally-av{width:28px;height:28px;border-radius:50%;border:2px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-size:14px;opacity:.32;filter:grayscale(1)}
 .rally-av.in{opacity:1;filter:none;box-shadow:0 0 0 2px rgba(31,110,122,.18)}
 .rally-count{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+
+
+/* ---------- 인앱 브라우저 차단 게이트 ---------- */
+body.gated #topbar,body.gated #main,body.gated #tabbar,body.gated #siren-fab,body.gated .install-banner{display:none!important}
+#gate{position:fixed;inset:0;z-index:400;background:var(--paper);display:flex;align-items:center;justify-content:center;padding:24px}
+#gate[hidden]{display:none}
+.gate-card{max-width:400px;text-align:center}
+.gate-ic{font-size:46px}
+.gate-t{font-size:22px;font-weight:700;margin:14px 0 8px;letter-spacing:-.02em}
+.gate-d{font-size:15px;color:var(--ink-soft);line-height:1.65;margin:0 0 20px}
+.gate-btn{width:100%;margin-bottom:8px;padding:14px}
+.gate-hint{font-size:12.5px;color:var(--pencil);margin:14px 0 0;line-height:1.6}
+.gate-url{font-size:11.5px;color:var(--pencil);margin-top:10px;word-break:break-all;background:var(--paper-2);border-radius:8px;padding:8px}
