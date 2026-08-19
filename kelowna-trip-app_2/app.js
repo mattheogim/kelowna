@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v13";
-const BUILD_NO = 13;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v14";
+const BUILD_NO = 14;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2723,7 +2723,9 @@ function a2hsBar() {
 /* ---------- 강제 업데이트 (캐시·SW·HTTP캐시 전부) ---------- */
 function navTo(u) { location.replace(u); }
 async function hardUpdate() {
-  toast("갱신 중…");
+  const btns = document.querySelectorAll("#vw-go,#force-update");
+  btns.forEach((b) => { b.disabled = true; b.textContent = "갱신 중… 잠시만"; });
+  toast("갱신 중… 화면이 한 번 새로고침돼");
   const stamp = Date.now();
   // 1) 서비스워커 캐시
   try {
@@ -2741,8 +2743,14 @@ async function hardUpdate() {
     await Promise.all(["app.js", "style.css", "config.js", "index.html", "sw.js"].map((f) =>
       fetch(f + "?bust=" + stamp, { cache: "reload" }).catch(() => {})));
   } catch (e) {}
-  // 4) 주소에 표식을 붙여 재진입
-  navTo(location.pathname + "?v=" + stamp);
+  // 4) 주소에 표식을 붙여 재진입 (index.html을 명시해 확실히 새로 받음)
+  const base = location.pathname.replace(/[^/]*$/, "");
+  navTo(base + "index.html?v=" + stamp);
+  // 혹시 이동이 막히면 수동 안내
+  setTimeout(() => {
+    btns.forEach((b) => { b.disabled = false; b.textContent = "다시 시도"; });
+    alert("자동 갱신이 막혔어.\n\n1) 이 화면을 닫고\n2) 앱을 완전히 종료(위로 쓸어올리기)한 뒤\n3) 다시 열어줘\n\n그래도 안 되면 홈 화면 아이콘을 지우고 사파리에서 다시 설치하면 확실해.");
+  }, 4000);
 }
 
 /* ---------- 버전 강제 · 원격 리셋 ---------- */
@@ -3158,7 +3166,7 @@ function drawCharacter() {
 }
 function openRoll(skipFx) {
   if (installRequired()) { showInstallWall(); return; }
-  if (!me) return openWho();
+  if (!me) { toast("먼저 내가 누구인지 골라줘"); return openWho(); }
   if (!notifReady() && !localStorage.getItem("kel_nonotif") && pushState() !== "unsupported") { showNotifWall(); return; }
   const fresh = !rollResult;
   rollResult = rollResult || drawCharacter();
@@ -3187,7 +3195,8 @@ function drawRoll() {
       '<button class="btn" id="roll-ok" style="flex:1">이걸로 확정</button></div>' +
     (taken.length ? '<div class="field-label">이미 뽑힌 이름</div><div class="taken">' +
       taken.map((x) => "<span>" + x.em + " " + esc(x.ko) + "</span>").join("") + "</div>" : "") +
-    '<button class="btn ghost" id="roll-odds" style="width:100%;margin-top:14px">확률표 보기</button>';
+    '<button class="btn ghost" id="roll-odds" style="width:100%;margin-top:14px">확률표 보기</button>' +
+    '<p class="muted" style="text-align:center;margin:12px 0 0;font-size:12.5px">확정 후에도 <b>INFO 탭 → 운명 거스르기</b>에서 다시 뽑을 수 있어</p>';
   $("#roll-again").onclick = () => {
     if (myRolls() >= MAX_ROLLS) return toast("20번 다 썼어 — 정보 탭에서 운명 거스르기");
     bumpRolls();
@@ -3219,7 +3228,8 @@ async function confirmRoll() {
   } else if (c.t === 4) {
     sendPush("🏅 전설 등장", nameOf(me) + " → " + c.em + " " + c.ko, "legend");
   }
-  if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 500);
+  if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 2600);
+  else setTimeout(() => toast("다시 뽑고 싶으면 INFO 탭 → 운명 거스르기"), 3000);
 }
 function openOdds() {
   const box = $("#odds-body");
@@ -3433,8 +3443,8 @@ function boot() {
   wireSiren("#siren-fab");
   const mc = $("#me-chip"); if (mc) mc.onclick = openWho;
   $$("#tabbar .tb").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
-  if (!me) openWho();
-  else setTimeout(() => { if (sb && !charOf(me)) openRoll(); }, 900);
+  if (!me) openWho();                       // 1단계: 내가 누구인지
+  else setTimeout(() => { if (sb && !charOf(me)) openRoll(); }, 900);   // 2단계: 캐릭터 뽑기
   loadAll();
   subscribe();
   loadAQ();
