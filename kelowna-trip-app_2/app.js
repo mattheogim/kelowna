@@ -2773,9 +2773,12 @@ function packTone(tier) {
     setTimeout(() => { try { ctx.close(); } catch (e) {} }, 2800);
   } catch (e) {}
 }
+function reduceMotion() {
+  return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+}
 function openPack(c, done) {
   const pack = document.getElementById("pack");
-  if (!pack) { done && done(); return; }
+  if (!pack || reduceMotion()) { done && done(); return; }
   packClear();
   const tier = tierById[c.t];
   const myth = c.t === 5;
@@ -2784,7 +2787,7 @@ function openPack(c, done) {
   pack.style.setProperty("--rc", tier.color);
   const c3d = $("#c3d"), front = $("#p-front");
   front.style.setProperty("--rc", tier.color);
-  front.classList.remove("on"); c3d.className = "card3d";
+  front.classList.remove("on"); c3d.className = "card3d"; c3d.style.transform = ""; c3d.style.opacity = "";
   document.body.classList.remove("quake");
   $("#p-em").textContent = c.em;
   $("#p-nm").textContent = c.last + " " + nameOf(me) + " " + c.first;
@@ -2806,7 +2809,9 @@ function openPack(c, done) {
     buzz(c.t >= 5 ? [60,40,60,40,140] : c.t >= 4 ? [40,50,90] : [30]);
   }, tBeam);
   if (c.t >= 4) PT(() => { const f = $("#p-flash"); f.className = "flash"; void f.offsetWidth; f.className = "flash go"; }, tFlip - Math.round(200 * scale));
-  PT(() => c3d.classList.add("flip"), tFlip);
+  PT(() => { c3d.classList.add("flip", "shown"); }, tFlip);
+  // 안전장치: 애니메이션이 죽어도 3.2초 뒤엔 무조건 카드가 보이게
+  PT(() => { c3d.classList.add("shown"); c3d.style.transform = "rotateY(0)"; c3d.style.opacity = "1"; front.classList.add("on"); }, tFlip + Math.round(900 * scale));
   PT(() => {
     front.classList.add("on");
     if (c.t >= 4) {
