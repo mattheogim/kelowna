@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v11";
-const BUILD_NO = 11;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v12";
+const BUILD_NO = 12;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2489,17 +2489,7 @@ function renderInfo() {
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
   const oo = $("#open-odds"); if (oo) oo.onclick = openOdds;
   const fu = $("#force-update");
-  if (fu) fu.onclick = async () => {
-    toast("갱신 중…");
-    try {
-      if ("caches" in window) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
-      if (navigator.serviceWorker) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-      }
-    } catch (e) {}
-    location.href = location.pathname + "?v=" + Date.now();
-  };
+  if (fu) fu.onclick = hardUpdate;
   const rl = $("#reset-local");
   if (rl) rl.onclick = () => {
     const pw = prompt("초기화 비밀번호를 입력해");
@@ -2717,6 +2707,31 @@ function a2hsBar() {
   };
 }
 
+/* ---------- 강제 업데이트 (캐시·SW·HTTP캐시 전부) ---------- */
+function navTo(u) { location.replace(u); }
+async function hardUpdate() {
+  toast("갱신 중…");
+  const stamp = Date.now();
+  // 1) 서비스워커 캐시
+  try {
+    if ("caches" in window) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
+  } catch (e) {}
+  // 2) 서비스워커 등록 해제
+  try {
+    if (navigator.serviceWorker) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+  } catch (e) {}
+  // 3) 브라우저 HTTP 캐시까지 강제로 새로 받기 (이게 없으면 옛 app.js가 그대로 옴)
+  try {
+    await Promise.all(["app.js", "style.css", "config.js", "index.html", "sw.js"].map((f) =>
+      fetch(f + "?bust=" + stamp, { cache: "reload" }).catch(() => {})));
+  } catch (e) {}
+  // 4) 주소에 표식을 붙여 재진입
+  navTo(location.pathname + "?v=" + stamp);
+}
+
 /* ---------- 버전 강제 · 원격 리셋 ---------- */
 function setting(k) {
   const st = store.settings;
@@ -2750,17 +2765,7 @@ function showVersionWall(min) {
     "</div>";
   g.hidden = false;
   document.body.classList.add("walled");
-  $("#vw-go").onclick = async () => {
-    toast("갱신 중…");
-    try {
-      if ("caches" in window) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
-      if (navigator.serviceWorker) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-      }
-    } catch (e) {}
-    location.href = location.pathname + "?v=" + Date.now();
-  };
+  $("#vw-go").onclick = hardUpdate;
 }
 
 /* ---------- 설치 안 하면 앱 잠금 ---------- */
