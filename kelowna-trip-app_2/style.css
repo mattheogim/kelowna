@@ -504,12 +504,7 @@ body.has-a2hs #fab-tip{bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom)
 .fate{display:flex;align-items:center;gap:12px}
 .fate-price{font-size:19px;font-weight:800;font-family:"Archivo",sans-serif}
 
-@media (prefers-reduced-motion:reduce){
-  *{animation:none!important;transition:none!important}
-  .card3d{opacity:1!important;transform:none!important}
-  .card3d .front{opacity:1!important;z-index:2}
-  .card3d .back{display:none}
-}
+
 .together{font-size:11px;font-weight:700;color:var(--ok);background:var(--ok-10);padding:6px 11px;border-radius:99px;margin-left:auto;margin-right:6px}
 .together.split{color:#8A5A17;background:rgba(199,154,62,.14)}
 .together[hidden]{display:none}
@@ -610,7 +605,7 @@ body.quake{animation:qk .5s cubic-bezier(.36,.07,.19,.97) 2}
 @keyframes burstx{0%{transform:translate(0,0) scale(.4);opacity:0}15%{opacity:.8}100%{transform:translate(var(--bx),var(--by)) scale(1);opacity:0}}
 
 /* ===== 전체 화면 특수 연출 ===== */
-#sfx{position:fixed;inset:0;z-index:212;pointer-events:none;overflow:hidden;transform:translateZ(0)}
+#sfx{position:fixed;inset:0;z-index:206;pointer-events:none;overflow:hidden;transform:translateZ(0)}
 #sfx[hidden]{display:none}
 /* 화면 전체 물들이기 */
 .sfx-wash{position:absolute;inset:0;
@@ -625,9 +620,9 @@ body.quake{animation:qk .5s cubic-bezier(.36,.07,.19,.97) 2}
 .sfx-rings i:nth-child(3){animation-delay:1s;border-width:2px}
 @keyframes ringout{0%{opacity:0;transform:scale(.2)}18%{opacity:.95}100%{opacity:0;transform:scale(7)}}
 /* 초대형 글리프 */
-.sfx-big{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-size:min(46vw,190px);line-height:1;
+.sfx-big{position:absolute;left:50%;top:32%;transform:translate(-50%,-50%);font-size:min(46vw,190px);line-height:1;
   filter:drop-shadow(0 0 40px var(--sc)) drop-shadow(0 12px 26px rgba(0,0,0,.5));
-  opacity:1;animation:bigin 4.2s cubic-bezier(.2,1.3,.3,1) forwards}
+  opacity:.92;animation:bigin 4.2s cubic-bezier(.2,1.3,.3,1) forwards}
 @keyframes bigin{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-12deg)}
   10%{opacity:1;transform:translate(-50%,-50%) scale(1.2) rotate(5deg)}
   20%{transform:translate(-50%,-50%) scale(1) rotate(0)}
@@ -766,13 +761,7 @@ body.quake{animation:qk .5s cubic-bezier(.36,.07,.19,.97) 2}
 #pack.calm{background:radial-gradient(120% 80% at 50% 50%,#3A332C 0%,#171512 60%,#0B0A09 100%)}
 #pack.calm .cardwrap::after{content:"";position:absolute;inset:-40px;border-radius:50%;
   background:radial-gradient(circle,var(--rc,#fff) 0%,transparent 68%);opacity:.32;filter:blur(30px);z-index:-1}
-@media (prefers-reduced-motion:reduce){
-  #pack .card3d{opacity:1!important;transform:none!important}
-  #pack .card3d .front{opacity:0}
-  #pack .card3d.shown .front,#pack .card3d.flip .front{opacity:1!important;z-index:2}
-  #pack .card3d.shown .back,#pack .card3d.flip .back{opacity:0!important;z-index:1}
-  #pack .card3d .back{display:flex!important}
-}
+
 
 
 /* ---------- 강화된 특수 연출 ---------- */

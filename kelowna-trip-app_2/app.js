@@ -16,7 +16,7 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v9";   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v10";   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -393,7 +393,7 @@ function specialFx(kind, color, tier) {
 
   o.className = T.cls;
   o.removeAttribute("hidden");
-  o.style.cssText = "position:fixed;inset:0;z-index:212;pointer-events:none;overflow:hidden;opacity:1;visibility:visible;display:block";
+  o.style.cssText = "position:fixed;inset:0;z-index:206;pointer-events:none;overflow:hidden;opacity:1;visibility:visible;display:block";
   o.style.setProperty("--sc", T.wash);
   o.innerHTML =
     '<div class="sfx-wash"></div>' +
@@ -2938,7 +2938,9 @@ function packTone(tier) {
   } catch (e) {}
 }
 function reduceMotion() {
-  return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  // 이 앱은 연출이 핵심이라 시스템 '동작 줄이기'를 따르지 않는다.
+  // 정말 끄고 싶으면 localStorage.setItem("kel_calm","1")
+  return localStorage.getItem("kel_calm") === "1";
 }
 function openPack(c, done) {
   const pack = document.getElementById("pack");
