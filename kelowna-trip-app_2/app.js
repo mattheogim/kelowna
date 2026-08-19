@@ -351,42 +351,64 @@ function charFx(memberId, level) {
   weatherFx._t = setTimeout(() => { layer.hidden = true; layer.innerHTML = ""; }, 5200);
   if (f.quake) { document.body.classList.add("quake"); setTimeout(() => document.body.classList.remove("quake"), 1100); }
   if (c.t >= 3) edgeGlow(f.c || colorOf(memberId), c.t >= 4);
-  if (f.special) specialFx(f.special, f.c);
+  if (f.special) specialFx(f.special, f.c, c.t);
   return true;
 }
-function specialFx(kind, color) {
+function specialFx(kind, color, tier) {
   const o = document.getElementById("sfx");
   if (!o) return;
-  const bolt = (cls, w, hgt) => '<svg class="sfx-bolt ' + cls + '" viewBox="0 0 120 400" width="' + w + '" height="' + hgt +
-    '" preserveAspectRatio="none"><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#F7E27A" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>' +
-    '<path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>';
-  let h = "", shake = false;
-  if (kind === "bolt") {
-    h = '<div class="sfx-white"></div>' + bolt("", 170, 560) + bolt("b2", 130, 430) + bolt("b3", 110, 380);
-    shake = true;
-  }
-  if (kind === "skull") {
-    h = '<div class="sfx-dark"></div><div class="sfx-smoke"></div>' +
-        '<div class="sfx-eyes"><i></i><i></i></div><div class="sfx-skull">💀</div>';
-    shake = true;
-  }
-  if (kind === "phoenix") {
-    h = '<div class="sfx-rays"></div><div class="sfx-glow"></div>' +
-        '<div class="sfx-phoenix">🦅</div><div class="sfx-feather">🪶</div>';
-  }
-  if (kind === "patronus") h = '<div class="sfx-patronus"></div><div class="sfx-patronus" style="top:56%;animation-delay:.35s;width:120px;opacity:.7"></div>';
-  if (kind === "chess")    { h = '<div class="sfx-chess">♜</div><div class="sfx-crack"></div>'; shake = true; }
-  if (kind === "book")     h = '<div class="sfx-glow" style="--sc:#C9A87C"></div><div class="sfx-book">📖</div>' +
-    '<span class="sfx-page p1">📄</span><span class="sfx-page p2">📄</span><span class="sfx-page p3">📄</span>';
-  if (kind === "dog")      h = '<div class="sfx-dog">🐕‍🦺</div><span class="sfx-paw w1">🐾</span><span class="sfx-paw w2">🐾</span><span class="sfx-paw w3">🐾</span>';
-  if (kind === "cat")      h = '<div class="sfx-cateyes"><i></i><i></i></div><div class="sfx-catring"></div><div class="sfx-cat">🐈‍⬛</div>';
-  if (kind === "curse")    { h = '<div class="sfx-curse c1"></div><div class="sfx-curse c2"></div><div class="sfx-curse c3"></div><div class="sfx-redflash"></div>'; shake = true; }
-  if (!h) return;
-  if (shake) { document.body.classList.add("sfx-shake"); setTimeout(() => document.body.classList.remove("sfx-shake"), 1500); }
-  o.innerHTML = h; o.hidden = false;
-  o.style.setProperty("--sc", color || "#fff");
+  const T = {
+    bolt:     { wash:"#F2C744", glyph:"⚡", cls:"w-bolt" },
+    skull:    { wash:"#2E9650", glyph:"💀", cls:"w-skull" },
+    phoenix:  { wash:"#E8B54A", glyph:"🔥", cls:"w-phoenix" },
+    patronus: { wash:"#8FD4F0", glyph:"🦌", cls:"w-patronus" },
+    book:     { wash:"#C9A87C", glyph:"📖", cls:"w-book" },
+    chess:    { wash:"#5A5A5A", glyph:"♜", cls:"w-chess" },
+    dog:      { wash:"#3A3A44", glyph:"🐾", cls:"w-dog" },
+    cat:      { wash:"#C7B26A", glyph:"🐈‍⬛", cls:"w-cat" },
+    curse:    { wash:"#D8453C", glyph:"🗡️", cls:"w-curse" },
+  }[kind];
+  if (!T) return;
+
+  let extra = "";
+  if (kind === "bolt")
+    extra = boltSvg("", 190, 620) + boltSvg("b2", 140, 470) + boltSvg("b3", 120, 400) + '<div class="sfx-white"></div>';
+  if (kind === "skull")
+    extra = '<div class="sfx-dark"></div><div class="sfx-smoke"></div><div class="sfx-eyes"><i></i><i></i></div>';
+  if (kind === "phoenix")
+    extra = '<div class="sfx-rays"></div><div class="sfx-phoenix">🦅</div>';
+  if (kind === "patronus")
+    extra = '<div class="sfx-patronus"></div><div class="sfx-patronus" style="top:58%;animation-delay:.3s;width:150px"></div>';
+  if (kind === "book")
+    extra = '<span class="sfx-page p1">📄</span><span class="sfx-page p2">📄</span><span class="sfx-page p3">📄</span>';
+  if (kind === "chess")
+    extra = '<div class="sfx-crack"></div>';
+  if (kind === "dog")
+    extra = '<div class="sfx-dog">🐕‍🦺</div><span class="sfx-paw w1">🐾</span><span class="sfx-paw w2">🐾</span><span class="sfx-paw w3">🐾</span>';
+  if (kind === "cat")
+    extra = '<div class="sfx-cateyes"><i></i><i></i></div><div class="sfx-catring"></div>';
+  if (kind === "curse")
+    extra = '<div class="sfx-curse c1"></div><div class="sfx-curse c2"></div><div class="sfx-curse c3"></div>' +
+            '<div class="sfx-curse c4"></div><div class="sfx-redflash"></div><div class="sfx-slash"></div>';
+
+  o.className = T.cls;
+  o.style.setProperty("--sc", T.wash);
+  o.innerHTML =
+    '<div class="sfx-wash"></div>' +
+    '<div class="sfx-rings"><i></i><i></i><i></i></div>' +
+    extra +
+    '<div class="sfx-big">' + T.glyph + "</div>";
+  o.hidden = false;
+
+  document.body.classList.add("sfx-shake");
+  setTimeout(() => document.body.classList.remove("sfx-shake"), 1600);
   clearTimeout(specialFx._t);
-  specialFx._t = setTimeout(() => { o.hidden = true; o.innerHTML = ""; }, 3600);
+  specialFx._t = setTimeout(() => { o.hidden = true; o.innerHTML = ""; o.className = ""; }, 3400);
+}
+function boltSvg(cls, w, h) {
+  return '<svg class="sfx-bolt ' + cls + '" viewBox="0 0 120 400" width="' + w + '" height="' + h +
+    '" preserveAspectRatio="none"><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#F7E27A" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/></svg>';
 }
 
 /* level: 1 은은 · 2 보통 · 3 강함 */
