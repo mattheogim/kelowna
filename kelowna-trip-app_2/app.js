@@ -2,54 +2,185 @@
 "use strict";
 
 /* ============================================================
-   캐릭터 뽑기 — 등급/확률/명단
-   tier 1 일반 58% · 2 희귀 25% · 3 영웅 12% · 4 전설 4.4% · 5 신화 0.5% · 6 초월 0.1%
-   이름 표기: last + 한글이름 + first  (예: Snape 재민 Severus)
+   캐릭터 뽑기 — 100명 · 5등급
+   t5 신화 0.3%(각 0.1%) · t4 전설 6% · t3 영웅 18% · t2 희귀 30% · t1 일반 45.7%
+   이름 표기: last + 한글이름 + first
+   fx = 무전 보낼 때 받는 사람 화면에 뜨는 시그니처 이펙트
    ============================================================ */
 const TIERS = [
-  { t: 1, name: "일반",  en: "COMMON",    p: 58,  color: "#7E9A6F" },
-  { t: 2, name: "희귀",  en: "RARE",      p: 25,  color: "#5B7FA8" },
-  { t: 3, name: "영웅",  en: "EPIC",      p: 12,  color: "#8A6BA8" },
-  { t: 4, name: "전설",  en: "LEGENDARY", p: 4.4, color: "#C79A3E" },
-  { t: 5, name: "신화",  en: "MYTHIC",    p: 0.5, color: "#C8503C" },
-  { t: 6, name: "초월",  en: "BEYOND",    p: 0.1, color: "#C8503C" },
+  { t: 1, name: "일반",  en: "COMMON",    p: 45.7, color: "#7E9A6F" },
+  { t: 2, name: "희귀",  en: "RARE",      p: 30,   color: "#5B7FA8" },
+  { t: 3, name: "영웅",  en: "EPIC",      p: 18,   color: "#8A6BA8" },
+  { t: 4, name: "전설",  en: "LEGENDARY", p: 6,    color: "#C79A3E" },
+  { t: 5, name: "신화",  en: "MYTHIC",    p: 0.3,  color: "#C8503C" },
 ];
-
-const ROSTER = [
-  // tier 1
-  { id:"longbottom", last:"Longbottom", first:"Neville", em:"🌱", t:1, ko:"롱보텀" },
-  { id:"finnigan",   last:"Finnigan",   first:"Seamus",  em:"🔥", t:1, ko:"피니간" },
-  { id:"percy",      last:"Weasley",    first:"Percy",   em:"📏", t:1, ko:"퍼시" },
-  { id:"wood",       last:"Wood",       first:"Oliver",  em:"🧹", t:1, ko:"우드" },
-  { id:"creevey",    last:"Creevey",    first:"Colin",   em:"📷", t:1, ko:"크리비" },
-  { id:"thomas",     last:"Thomas",     first:"Dean",    em:"🎨", t:1, ko:"딘" },
-  // tier 2
-  { id:"granger",    last:"Granger",    first:"Hermione",em:"📚", t:2, ko:"그레인저" },
-  { id:"ron",        last:"Weasley",    first:"Ron",     em:"🍗", t:2, ko:"론" },
-  { id:"ginny",      last:"Weasley",    first:"Ginny",   em:"🦅", t:2, ko:"지니" },
-  { id:"lovegood",   last:"Lovegood",   first:"Luna",    em:"🌙", t:2, ko:"러브굿" },
-  { id:"malfoy",     last:"Malfoy",     first:"Draco",   em:"🐍", t:2, ko:"말포이" },
-  { id:"diggory",    last:"Diggory",    first:"Cedric",  em:"🏆", t:2, ko:"디고리" },
-  // tier 3
-  { id:"potter",     last:"Potter",     first:"Harry",   em:"⚡", t:3, ko:"포터" },
-  { id:"snape",      last:"Snape",      first:"Severus", em:"🧪", t:3, ko:"스네이프" },
-  { id:"mcgonagall", last:"McGonagall", first:"Minerva", em:"🐈", t:3, ko:"맥고나걸" },
-  { id:"hagrid",     last:"Hagrid",     first:"Rubeus",  em:"🗝️", t:3, ko:"해그리드" },
-  { id:"black",      last:"Black",      first:"Sirius",  em:"🐕", t:3, ko:"블랙" },
-  // tier 4
-  { id:"dumbledore", last:"Dumbledore", first:"Albus",   em:"🧙", t:4, ko:"덤블도어" },
-  { id:"voldemort",  last:"Riddle",     first:"Tom",     em:"💀", t:4, ko:"볼드모트" },
-  { id:"bellatrix",  last:"Lestrange",  first:"Bellatrix",em:"🗡️",t:4, ko:"벨라트릭스" },
-  { id:"dobby",      last:"Dobby",      first:"the Elf", em:"🧦", t:4, ko:"도비" },
-  // tier 5 — 부엉이
-  { id:"hedwig",     last:"Hedwig",     first:"the Owl", em:"🦉", t:5, ko:"헤드위그" },
-  { id:"errol",      last:"Errol",      first:"the Owl", em:"🪶", t:5, ko:"에롤" },
-  // tier 6 — 다른 세계
-  { id:"gollum",     last:"Gollum",     first:"Sméagol", em:"💍", t:6, ko:"골룸" },
-  { id:"grey",       last:"Grey",       first:"Pilgrim", em:"🧙‍♂️", t:6, ko:"회색의 순례자" },
-];
-
 const MAX_ROLLS = 20;
+const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
+
+/* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
+const FX = {
+  bolt:     { shape:"bolt",  motion:"burst", c:"#F2C744", n:8,  special:"bolt" },
+  skull:    { shape:"grape", motion:"rise",  c:"#4FBF6A", n:14, special:"skull" },
+  phoenix:  { shape:"leaf",  motion:"rise",  c:"#F0C36A", n:14, special:"phoenix" },
+  patronus: { shape:"streak",motion:"sweep", c:"#BFE4F5", n:10, special:"patronus" },
+  book:     { shape:"leaf",  motion:"fall",  c:"#C9A87C", n:10 },
+  chess:    { shape:"grape", motion:"fall",  c:"#3B3B3B", n:9 },
+  paw:      { shape:"grape", motion:"fall",  c:"#4A4A4A", n:10 },
+  cat:      { shape:"star",  motion:"burst", c:"#C7B26A", n:8 },
+  curse:    { shape:"streak",motion:"burst", c:"#D8453C", n:12 },
+  star:     { shape:"star",  motion:"rise",  c:"#9DBBE8", n:12 },
+  snake:    { shape:"streak",motion:"sweep", c:"#5FA86B", n:8 },
+  stomp:    { shape:"grape", motion:"fall",  c:"#8A6A4A", n:10, quake:true },
+  feather:  { shape:"leaf",  motion:"fall",  c:"#D07A5C", n:10 },
+  sock:     { shape:"leaf",  motion:"fall",  c:"#E0D2B8", n:8 },
+  gold:     { shape:"star",  motion:"burst", c:"#E3B457", n:12 },
+  owl:      { shape:"streak",motion:"sweep", c:"#C8B18A", n:7 },
+  wolf:     { shape:"grape", motion:"rise",  c:"#8FA0B5", n:9 },
+  heart:    { shape:"grape", motion:"rise",  c:"#E38AA8", n:10 },
+  eye:      { shape:"ring",  motion:"burst", c:"#7FB2C8", n:5 },
+  sand:     { shape:"grape", motion:"fall",  c:"#D9C08A", n:14 },
+  charm:    { shape:"star",  motion:"burst", c:"#B9A2E0", n:10 },
+  leaf:     { shape:"leaf",  motion:"fall",  c:"#7E9A6F", n:8 },
+  fire:     { shape:"grape", motion:"rise",  c:"#E07A3C", n:10 },
+  paint:    { shape:"grape", motion:"fall",  c:"#6FA0D0", n:8 },
+  bird:     { shape:"leaf",  motion:"sweep", c:"#A8C8E0", n:8 },
+  spark:    { shape:"star",  motion:"burst", c:"#F0A63C", n:12 },
+  ruler:    { shape:"streak",motion:"fall",  c:"#8A8A8A", n:6 },
+  dragon:   { shape:"grape", motion:"rise",  c:"#C85A3C", n:10 },
+  soup:     { shape:"grape", motion:"rise",  c:"#D9A05C", n:8 },
+  bolt2:    { shape:"streak",motion:"fall",  c:"#E0C05C", n:8 },
+  broom:    { shape:"streak",motion:"sweep", c:"#A87F4A", n:6 },
+  crystal:  { shape:"ring",  motion:"rise",  c:"#B49AD8", n:6 },
+  ghost:    { shape:"grape", motion:"rise",  c:"#C8D4E0", n:10 },
+  ring:     { shape:"ring",  motion:"fall",  c:"#E3B457", n:5 },
+  dust:     { shape:"grape", motion:"fall",  c:"#B0A894", n:12 },
+  water:    { shape:"grape", motion:"fall",  c:"#7FB2C8", n:12 },
+  candy:    { shape:"grape", motion:"fall",  c:"#D07AA0", n:10 },
+  coin:     { shape:"star",  motion:"fall",  c:"#D9B45C", n:10 },
+  train:    { shape:"streak",motion:"sweep", c:"#8A5A4A", n:6 },
+  bubble:   { shape:"ring",  motion:"rise",  c:"#9EC8D8", n:8 },
+};
+
+function C(id, last, first, em, t, ko, fx) { return { id, last, first, em, t, ko, fx }; }
+const ROSTER = [
+  /* ---------- 신화 0.1% × 3 ---------- */
+  C("potter","Potter","Harry","⚡",5,"해리 포터","bolt"),
+  C("voldemort","Riddle","Tom","💀",5,"볼드모트","skull"),
+  C("dumbledore","Dumbledore","Albus","🧙",5,"덤블도어","phoenix"),
+  /* ---------- 전설 1% × 6 ---------- */
+  C("snape","Snape","Severus","🧪",4,"스네이프","patronus"),
+  C("granger","Granger","Hermione","📚",4,"헤르미온느","book"),
+  C("ron","Weasley","Ron","🍗",4,"론 위즐리","chess"),
+  C("sirius","Black","Sirius","🐕",4,"시리우스","paw"),
+  C("mcgonagall","McGonagall","Minerva","🐈",4,"맥고나걸","cat"),
+  C("bellatrix","Lestrange","Bellatrix","🗡️",4,"벨라트릭스","curse"),
+  /* ---------- 영웅 18% ---------- */
+  C("luna","Lovegood","Luna","🌙",3,"루나 러브굿","star"),
+  C("draco","Malfoy","Draco","🐍",3,"드레이코","snake"),
+  C("hagrid","Hagrid","Rubeus","🗝️",3,"해그리드","stomp"),
+  C("ginny","Weasley","Ginny","🦅",3,"지니","feather"),
+  C("dobby","Dobby","the Elf","🧦",3,"도비","sock"),
+  C("cedric","Diggory","Cedric","🏆",3,"세드릭","gold"),
+  C("hedwig","Hedwig","the Owl","🦉",3,"헤드위그","owl"),
+  C("lupin","Lupin","Remus","🐺",3,"리무스 루핀","wolf"),
+  C("tonks","Tonks","Nymphadora","💗",3,"톤크스","heart"),
+  C("moody","Moody","Alastor","👁️",3,"매드아이 무디","eye"),
+  C("slughorn","Slughorn","Horace","⏳",3,"슬러그혼","sand"),
+  C("flitwick","Flitwick","Filius","🪄",3,"플리트윅","charm"),
+  /* ---------- 희귀 30% ---------- */
+  C("neville","Longbottom","Neville","🌱",2,"네빌","leaf"),
+  C("seamus","Finnigan","Seamus","🔥",2,"시무스","fire"),
+  C("dean","Thomas","Dean","🎨",2,"딘 토마스","paint"),
+  C("cho","Chang","Cho","🐦",2,"초 챙","bird"),
+  C("fred","Weasley","Fred","🎇",2,"프레드","spark"),
+  C("george","Weasley","George","🎆",2,"조지","spark"),
+  C("percy","Weasley","Percy","📏",2,"퍼시","ruler"),
+  C("bill","Weasley","Bill","💇",2,"빌 위즐리","gold"),
+  C("charlie","Weasley","Charlie","🐉",2,"찰리 위즐리","dragon"),
+  C("molly","Weasley","Molly","🍲",2,"몰리","soup"),
+  C("arthur","Weasley","Arthur","🔌",2,"아서","bolt2"),
+  C("wood","Wood","Oliver","🧹",2,"올리버 우드","broom"),
+  C("angelina","Johnson","Angelina","🏑",2,"안젤리나","spark"),
+  C("katie","Bell","Katie","🥅",2,"케이티 벨","gold"),
+  C("colin","Creevey","Colin","📷",2,"콜린","spark"),
+  C("lavender","Brown","Lavender","💜",2,"라벤더","heart"),
+  C("parvati","Patil","Parvati","🔮",2,"파바티","crystal"),
+  C("padma","Patil","Padma","📖",2,"파드마","book"),
+  C("ernie","Macmillan","Ernie","📢",2,"어니","charm"),
+  C("hannah","Abbott","Hannah","🌼",2,"한나","leaf"),
+  C("justin","Finch","Justin","🎻",2,"저스틴","charm"),
+  C("zacharias","Smith","Zacharias","📣",2,"자카리아스","charm"),
+  C("michael","Corner","Michael","🎧",2,"마이클","star"),
+  C("terry","Boot","Terry","🧮",2,"테리","ruler"),
+  C("anthony","Goldstein","Anthony","🗺️",2,"앤서니","dust"),
+  C("kingsley","Shacklebolt","Kingsley","🛡️",2,"킹슬리","charm"),
+  C("firenze","Firenze","the Centaur","🏹",2,"피렌체","star"),
+  C("grubbly","Grubbly-Plank","Wilhelmina","🌿",2,"그러블리플랭크","leaf"),
+  C("sprout","Sprout","Pomona","🪴",2,"스프라우트","leaf"),
+  C("pomfrey","Pomfrey","Poppy","💊",2,"폼프리","charm"),
+  /* ---------- 일반 45.7% ---------- */
+  C("gollum","Gollum","Sméagol","💍",1,"골룸 (배송 사고)","ring"),
+  C("filch","Filch","Argus","🧹",1,"필치","dust"),
+  C("peeves","Peeves","the Poltergeist","👻",1,"피브스","ghost"),
+  C("trelawney","Trelawney","Sybill","🔮",1,"트릴로니","crystal"),
+  C("lockhart","Lockhart","Gilderoy","💇‍♂️",1,"록하트","gold"),
+  C("crabbe","Crabbe","Vincent","🍰",1,"크랩","candy"),
+  C("goyle","Goyle","Gregory","🍩",1,"고일","candy"),
+  C("trevor","Trevor","the Toad","🐸",1,"트레버","leaf"),
+  C("scabbers","Scabbers","the Rat","🐀",1,"스캐버스","dust"),
+  C("crookshanks","Crookshanks","the Cat","🐈‍⬛",1,"크룩섕스","cat"),
+  C("norbert","Norbert","the Dragon","🐲",1,"노버트","dragon"),
+  C("aragog","Aragog","the Spider","🕷️",1,"아라고그","dust"),
+  C("hat","Sorting","Hat","🎩",1,"분류 모자","charm"),
+  C("stairs","Moving","Staircase","🪜",1,"움직이는 계단","dust"),
+  C("fatlady","Fat","Lady","🖼️",1,"뚱뚱한 부인","paint"),
+  C("nick","Nick","the Ghost","👻",1,"목이 나간 닉","ghost"),
+  C("greylady","Grey","Lady","🩶",1,"회색 숙녀","ghost"),
+  C("baron","Bloody","Baron","🩸",1,"피의 남작","curse"),
+  C("friar","Fat","Friar","🍺",1,"통통한 수사","bubble"),
+  C("howler","Howler","the Letter","📣",1,"하울러","charm"),
+  C("frog","Chocolate","Frog","🍫",1,"초콜릿 개구리","candy"),
+  C("beans","Bertie","Botts","🫘",1,"버티봇 젤리","candy"),
+  C("butterbeer","Butter","Beer","🍺",1,"버터맥주","bubble"),
+  C("pumpkin","Pumpkin","Juice","🎃",1,"호박 주스","bubble"),
+  C("tie","House","Tie","👔",1,"기숙사 넥타이","dust"),
+  C("broom","Nimbus","the Broom","🧹",1,"님부스 빗자루","broom"),
+  C("wand","Spare","Wand","🪄",1,"여분의 지팡이","charm"),
+  C("quill","Owl","Feather","🪶",1,"부엉이 깃털","feather"),
+  C("cauldron","Spare","Cauldron","⚗️",1,"솥단지","bubble"),
+  C("mandrake","Mandrake","the Root","🌿",1,"만드레이크","leaf"),
+  C("boggart","Boggart","the Fear","🫥",1,"보가트","ghost"),
+  C("timeturner","Time","Turner","⏳",1,"시간 여행기","sand"),
+  C("cloak","Invisibility","Cloak","🫥",1,"투명 망토","dust"),
+  C("map","Old","Map","🗺️",1,"낡은 지도","dust"),
+  C("trophy","Dusty","Trophy","🏆",1,"먼지 쌓인 트로피","gold"),
+  C("hoop","Quidditch","Hoop","🥅",1,"퀴디치 골대","gold"),
+  C("snitch","Golden","Snitch","🟡",1,"스니치","gold"),
+  C("bludger","Bludger","the Ball","⚫",1,"블러저","stomp"),
+  C("quaffle","Quaffle","the Ball","🔴",1,"쿼플","spark"),
+  C("choir","Frog","Choir","🎵",1,"개구리 합창단","charm"),
+  C("express","Hogwarts","Express","🚂",1,"급행열차","train"),
+  C("platform","Platform","Nine¾","🚉",1,"9와 4분의 3","train"),
+  C("knightbus","Knight","Bus","🚌",1,"나이트 버스","train"),
+  C("flyingcar","Flying","Car","🚗",1,"하늘을 나는 차","train"),
+  C("postbox","Owl","Post","📮",1,"부엉이 우편함","owl"),
+  C("chess2","Wizard","Chess","♟️",1,"마법사 체스","chess"),
+  C("snap","Exploding","Snap","💥",1,"폭발 스냅","spark"),
+  C("goblin","Gringotts","Goblin","🪙",1,"고블린","coin"),
+  C("elf","House","Elf","🧝",1,"집요정","sock"),
+  C("merman","Merperson","of the Lake","🧜",1,"인어","water"),
+  C("hippogriff","Hippogriff","the Beast","🦅",1,"히포그리프","feather"),
+  C("werewolf","Full","Moon","🌕",1,"보름달","wolf"),
+  C("pixie","Cornish","Pixie","🧚",1,"코니시 픽시","charm"),
+  C("gnome","Garden","Gnome","🍄",1,"정원 노움","leaf"),
+  C("thestral","Thestral","the Horse","🖤",1,"세스트랄","wolf"),
+  C("kettle","Portkey","Kettle","🫖",1,"포트키 주전자","bubble"),
+  C("newspaper","Daily","Prophet","📰",1,"예언자일보","dust"),
+  C("acid","Acid","Pops","🍬",1,"애시드 팝","candy"),
+  C("cake","Cauldron","Cake","🧁",1,"솥단지 케이크","candy"),
+  C("liquorice","Liquorice","Wand","🥢",1,"감초 지팡이","candy"),
+  C("owlpellet","Owl","Pellet","💩",1,"부엉이 배설물","dust"),
+];
 
 
 /* ---------------- 기본 도구 ---------------- */
@@ -182,6 +313,59 @@ function shapeHtml(shape, color, i) {
   if (shape === "warn") return '<i class="p p-warn" style="' + style + '"></i>';
   return '<i class="p p-grape" style="' + style + '"></i>';
 }
+/* 캐릭터 시그니처 이펙트 */
+function charFx(memberId, level) {
+  const c = charOf(memberId);
+  if (!c || !FX[c.fx]) return false;
+  const f = FX[c.fx];
+  const layer = document.getElementById("fx");
+  if (!layer) return false;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+  const n = Math.round((f.n || 10) * (level >= 3 ? 1.6 : level >= 2 ? 1 : 0.6));
+  let html = "";
+  for (let i = 0; i < n; i++) {
+    const dur = (2.4 + Math.random() * 2).toFixed(2) + "s";
+    const delay = (Math.random() * .8).toFixed(2) + "s";
+    const size = (f.shape === "ring" ? 18 : 7) + Math.round(Math.random() * 9);
+    const drift = (Math.random() * 44 - 22).toFixed(0) + "px";
+    if (f.motion === "sweep") {
+      const top = Math.round(12 + Math.random() * 64) + "%";
+      html += '<span class="pw sweep" style="top:' + top + ";animation-duration:" + dur + ";animation-delay:" + delay +
+        ";--sz:" + size + 'px">' + shapeHtml(f.shape, f.c, i) + "</span>";
+    } else if (f.motion === "burst") {
+      const dx = Math.round((Math.random() * 2 - 1) * 180), dy = Math.round((Math.random() * 2 - 1) * 300);
+      html += '<span class="pw burst" style="left:50%;top:44%;animation-duration:' + dur + ";animation-delay:" + delay +
+        ";--sz:" + size + "px;--bx:" + dx + "px;--by:" + dy + 'px">' + shapeHtml(f.shape, f.c, i) + "</span>";
+    } else {
+      const left = Math.round(Math.random() * 94) + "%";
+      html += '<span class="pw' + (f.motion === "rise" ? " up" : "") + '" style="left:' + left +
+        ";animation-duration:" + dur + ";animation-delay:" + delay + ";--sz:" + size + "px;--drift:" + drift + '">' +
+        shapeHtml(f.shape, f.c, i) + "</span>";
+    }
+  }
+  layer.innerHTML = html;
+  layer.hidden = false;
+  clearTimeout(weatherFx._t);
+  weatherFx._t = setTimeout(() => { layer.hidden = true; layer.innerHTML = ""; }, 5200);
+  if (f.quake) { document.body.classList.add("quake"); setTimeout(() => document.body.classList.remove("quake"), 1100); }
+  if (f.special) specialFx(f.special, f.c);
+  return true;
+}
+function specialFx(kind, color) {
+  const o = document.getElementById("sfx");
+  if (!o) return;
+  let h = "";
+  if (kind === "bolt")     h = '<svg class="sfx-bolt" viewBox="0 0 120 400"><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#F7E27A" stroke-width="7" stroke-linejoin="round"/><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#fff" stroke-width="2.5"/></svg>';
+  if (kind === "skull")    h = '<div class="sfx-smoke"></div><div class="sfx-skull">💀</div>';
+  if (kind === "phoenix")  h = '<div class="sfx-glow"></div><div class="sfx-feather">🪶</div>';
+  if (kind === "patronus") h = '<div class="sfx-patronus"></div>';
+  if (!h) return;
+  o.innerHTML = h; o.hidden = false;
+  o.style.setProperty("--sc", color || "#fff");
+  clearTimeout(specialFx._t);
+  specialFx._t = setTimeout(() => { o.hidden = true; o.innerHTML = ""; }, 3200);
+}
+
 /* level: 1 은은 · 2 보통 · 3 강함 */
 function weatherFx(kind, level, tintOverride, ribbonText) {
   const layer = document.getElementById("fx");
@@ -251,7 +435,9 @@ function incoming(opts) {
   incoming._t = setTimeout(() => { box.hidden = true; }, 7000);
   edgeGlow(opts.color || "#7FE3D2");
   const lvl = opts.level || 1;
-  weatherFx(opts.fx || (opts.audio ? "voice" : fxModeNow()), lvl, opts.color, opts.ribbon);
+  if (!(opts.who && charFx(opts.who, lvl)))
+    weatherFx(opts.fx || (opts.audio ? "voice" : fxModeNow()), lvl, opts.color, opts.ribbon);
+  else if (opts.ribbon) showRibbon(opts.ribbon, opts.color);
   buzz();
   beep();
 }
@@ -2177,7 +2363,8 @@ function renderInfo() {
     '<div class="kv"><b>숙소 좌표</b><span class="code-line"><span class="muted">' + esc(String(cabinLat())) + ", " + esc(String(cabinLng())) + '</span><button class="btn ghost small" id="edit-coord">수정</button></span></div>' +
     '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me, "mini") + " " : "") + '<b style="color:' + (me ? colorOf(me) : "inherit") + '">' + esc(myName) + '</b><button class="btn ghost small" id="edit-me">변경</button></span></div>' +
     '<div class="kv"><b>내 캐릭터</b><span class="code-line">' + (me && charOf(me) ? av(me) + " <b>" + esc(fullName(me)) + '</b> <span class="muted" style="font-size:12px">' + esc(tierById[tierOf(me)].name) + "</span>" : '<span class="muted">아직 없음</span>') +
-    '<button class="btn ghost small" id="open-odds">확률표</button></span></div>' +
+    '<button class="btn ghost small" id="open-odds">확률표</button>' +
+    (charOf(me) ? '<button class="btn ghost small" id="fx-demo">내 이펙트</button>' : "") + "</span></div>" +
     '<div class="kv"><b>튜토리얼</b><span><button class="btn ghost small" id="tut-again">다시 보기</button></span></div>' +
     '<div class="kv"><b>홈 미리보기</b><span class="chip-row" style="margin:0" id="preview-row">' +
     [["", "자동"], ["drive", "🚗 이동"], ["winery", "🍷 와이너리"], ["costco", "🛒 코스트코"], ["arrival", "🏠 도착"], ["cabin", "🗺️ 지도"]].map((pv) =>
@@ -2188,6 +2375,19 @@ function renderInfo() {
       '<button class="chip' + ((localStorage.getItem("kel_theme") || "") === td[0] ? " on" : "") + '" data-th="' + td[0] + '">' + td[1] + "</button>").join("") +
     "</span></div>" +
     "</div>";
+
+  const hall = MEMBERS.map((m) => ({ m, c: charOf(m.id) })).filter((x) => x.c).sort((a, b) => b.c.t - a.c.t);
+  if (hall.length) {
+    html += '<h2 class="sec">명예의 전당</h2><div class="card" style="padding:4px 18px">';
+    for (const x of hall) {
+      const t = tierById[x.c.t];
+      html += '<div class="rowline">' + av(x.m.id) +
+        '<div><div style="font-weight:700;font-size:14px">' + esc(x.c.last + " " + x.m.name + " " + x.c.first) + "</div>" +
+        '<div class="muted" style="font-size:12px;margin-top:2px">' + x.c.em + " " + esc(x.c.ko) + "</div></div>" +
+        '<span style="margin-left:auto;font-weight:800;font-size:12px;color:' + t.color + '">' + t.en + "</span></div>";
+    }
+    html += "</div>";
+  }
 
   html += '<h2 class="sec">운명</h2><div class="card"><div class="fate">' +
     '<div><div style="font-weight:700;font-size:15px">운명 거스르기</div>' +
@@ -2207,6 +2407,7 @@ function renderInfo() {
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
   const oo = $("#open-odds"); if (oo) oo.onclick = openOdds;
+  const fd = $("#fx-demo"); if (fd) fd.onclick = () => { charFx(me, 3); showRibbon(charOf(me).ko + "의 시그니처", colorOf(me)); };
   const fb = $("#fate-btn"); if (fb) fb.onclick = () => {
     if (!confirm("$10.99 — 진짜 결제는 아니야.\n뽑기 20번을 새로 받고 다시 굴릴까?")) return;
     localStorage.setItem("kel_rolls", "0");
@@ -2529,32 +2730,122 @@ function drawTut() {
 }
 function closeTut() { localStorage.setItem("kel_tut", "1"); tutPaused = false; $("#tut-modal").hidden = true; rerender(); }
 
+/* ---------------- 팩 오프닝 연출 ---------------- */
+let packT = [];
+function packClear() { packT.forEach(clearTimeout); packT = []; }
+function PT(fn, ms) { packT.push(setTimeout(fn, ms)); }
+function packTone(tier) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(), now = ctx.currentTime;
+    const notes = tier >= 5 ? [261,329,392,523,659,784] : tier >= 4 ? [261,329,392,523] : tier >= 3 ? [329,415,523] : [392,494];
+    notes.forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = tier >= 4 ? "triangle" : "sine"; o.frequency.value = f;
+      const t0 = now + i * 0.16;
+      g.gain.setValueAtTime(.0001, t0); g.gain.linearRampToValueAtTime(tier >= 4 ? .16 : .1, t0 + .03);
+      g.gain.exponentialRampToValueAtTime(.0001, t0 + .9);
+      o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0 + 1);
+    });
+    if (tier >= 5) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sawtooth"; o.frequency.value = 55;
+      g.gain.setValueAtTime(.0001, now); g.gain.linearRampToValueAtTime(.2, now + .05);
+      g.gain.exponentialRampToValueAtTime(.0001, now + 1.5);
+      o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now + 1.6);
+    }
+    setTimeout(() => { try { ctx.close(); } catch (e) {} }, 2800);
+  } catch (e) {}
+}
+function openPack(c, done) {
+  const pack = document.getElementById("pack");
+  if (!pack) { done && done(); return; }
+  packClear();
+  const tier = tierById[c.t];
+  const myth = c.t === 5;
+  const dur = myth ? 5500 : 4000, scale = dur / 4000;
+  pack.hidden = false;
+  pack.style.setProperty("--rc", tier.color);
+  const c3d = $("#c3d"), front = $("#p-front");
+  front.style.setProperty("--rc", tier.color);
+  front.classList.remove("on"); c3d.className = "card3d";
+  document.body.classList.remove("quake");
+  $("#p-em").textContent = c.em;
+  $("#p-nm").textContent = c.last + " " + nameOf(me) + " " + c.first;
+  $("#p-ko").textContent = c.ko + " · " + tier.name;
+  $("#p-rk").textContent = tier.en + " · " + (myth ? "0.1%" : tier.p + "%");
+  $("#p-beams").innerHTML = ""; $("#p-conf").innerHTML = "";
+  const tBeam = Math.round(500 * scale), tFlip = Math.round(2200 * scale), tEnd = Math.round(4000 * scale);
+  c3d.classList.add("enter");
+  PT(() => {
+    const n = myth ? 8 : c.t >= 4 ? 6 : c.t >= 3 ? 4 : c.t >= 2 ? 3 : 2;
+    let h = "";
+    for (let i = 0; i < n; i++)
+      h += '<span class="beam go" style="--rc:' + tier.color + ";--rot:" + (i * (180 / n)) +
+        "deg;--dur:" + ((tFlip - tBeam) / 1000) + "s;--bw:" + (c.t >= 4 ? 150 : 100) + "px;--bl:" +
+        (c.t >= 4 ? 10 : 16) + "px;animation-delay:" + (i * 0.05) + 's"></span>';
+    h += '<span class="halo go" style="--rc:' + tier.color + ";--dur:" + ((tFlip - tBeam) / 1000) + 's"></span>';
+    $("#p-beams").innerHTML = h;
+    packTone(c.t);
+    buzz(c.t >= 5 ? [60,40,60,40,140] : c.t >= 4 ? [40,50,90] : [30]);
+  }, tBeam);
+  if (c.t >= 4) PT(() => { const f = $("#p-flash"); f.className = "flash"; void f.offsetWidth; f.className = "flash go"; }, tFlip - Math.round(200 * scale));
+  PT(() => c3d.classList.add("flip"), tFlip);
+  PT(() => {
+    front.classList.add("on");
+    if (c.t >= 4) {
+      document.body.classList.add("quake");
+      let h = "";
+      const n = c.t >= 5 ? 40 : 24;
+      for (let i = 0; i < n; i++) {
+        const dx = (Math.random() * 2 - 1) * 260, dy = 200 + Math.random() * 420, dr = Math.random() * 720 - 360;
+        h += '<span class="conf go" style="left:50%;top:34%;background:' + (i % 3 ? tier.color : "#F4E4B8") +
+          ";--dx:" + dx + "px;--dy:" + dy + "px;--dr:" + dr + "deg;--cd:" + (1.2 + Math.random() * .9) +
+          "s;animation-delay:" + (Math.random() * .3) + 's"></span>';
+      }
+      $("#p-conf").innerHTML = h;
+    }
+  }, tFlip + Math.round(300 * scale));
+  const finish = () => { packClear(); pack.hidden = true; document.body.classList.remove("quake"); done && done(); };
+  PT(finish, tEnd + Math.round(1200 * scale));
+  pack.onclick = finish;
+}
+
 /* ---------------- 캐릭터 뽑기 ---------------- */
 let rollResult = null;
 function myRolls() { return Number(localStorage.getItem("kel_rolls") || 0); }
 function bumpRolls() { localStorage.setItem("kel_rolls", String(myRolls() + 1)); }
+function dryStreak() { return Number(localStorage.getItem("kel_dry") || 0); }
 function drawCharacter() {
   const taken = takenIds();
   const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0);
   if (!pool.length) return null;
-  // 등급 가중 추첨 → 해당 등급에 남은 캐릭터가 없으면 아래 등급으로
-  let roll = Math.random() * 100, picked = null;
-  const order = TIERS.slice().sort((a, b) => a.p - b.p); // 희귀한 것부터 검사
-  let acc = 0;
-  for (const t of order) { acc += t.p; if (roll <= acc) { picked = t.t; break; } }
-  if (!picked) picked = 1;
-  let cands = pool.filter((c) => c.t === picked);
-  if (!cands.length) {
-    for (let t = picked - 1; t >= 1 && !cands.length; t--) cands = pool.filter((c) => c.t === t);
-    if (!cands.length) cands = pool;
+  let picked = null;
+  // 천장: 12번 연속 영웅 미만이면 영웅 이상 확정
+  if (dryStreak() >= PITY_AT) {
+    const hi = pool.filter((c) => c.t >= 3);
+    if (hi.length) picked = hi[Math.floor(Math.random() * hi.length)];
   }
-  return cands[Math.floor(Math.random() * cands.length)];
+  if (!picked) {
+    const roll = Math.random() * 100;
+    let acc = 0, tier = 1;
+    const order = TIERS.slice().sort((a, b) => a.p - b.p); // 희귀한 것부터
+    for (const t of order) { acc += t.p; if (roll <= acc) { tier = t.t; break; } }
+    let cands = pool.filter((c) => c.t === tier);
+    for (let t = tier - 1; t >= 1 && !cands.length; t--) cands = pool.filter((c) => c.t === t);
+    if (!cands.length) cands = pool;
+    picked = cands[Math.floor(Math.random() * cands.length)];
+  }
+  localStorage.setItem("kel_dry", picked.t >= 3 ? "0" : String(dryStreak() + 1));
+  return picked;
 }
-function openRoll() {
+function openRoll(skipFx) {
   if (installRequired()) { showInstallWall(); return; }
   if (!me) return openWho();
   if (!notifReady() && !localStorage.getItem("kel_nonotif") && pushState() !== "unsupported") { showNotifWall(); return; }
+  const fresh = !rollResult;
   rollResult = rollResult || drawCharacter();
+  if (!rollResult) return toast("남은 캐릭터가 없어");
+  if (fresh && !skipFx) { openPack(rollResult, () => { drawRoll(); $("#roll-modal").hidden = false; }); return; }
   drawRoll();
   $("#roll-modal").hidden = false;
 }
@@ -2579,7 +2870,14 @@ function drawRoll() {
     (taken.length ? '<div class="field-label">이미 뽑힌 이름</div><div class="taken">' +
       taken.map((x) => "<span>" + x.em + " " + esc(x.ko) + "</span>").join("") + "</div>" : "") +
     '<button class="btn ghost" id="roll-odds" style="width:100%;margin-top:14px">확률표 보기</button>';
-  $("#roll-again").onclick = () => { if (myRolls() >= MAX_ROLLS) return toast("20번 다 썼어"); bumpRolls(); rollResult = drawCharacter(); drawRoll(); };
+  $("#roll-again").onclick = () => {
+    if (myRolls() >= MAX_ROLLS) return toast("20번 다 썼어 — 정보 탭에서 운명 거스르기");
+    bumpRolls();
+    const next = drawCharacter();
+    if (!next) return toast("남은 캐릭터가 없어");
+    $("#roll-modal").hidden = true;
+    openPack(next, () => { rollResult = next; drawRoll(); $("#roll-modal").hidden = false; });
+  };
   $("#roll-ok").onclick = confirmRoll;
   $("#roll-odds").onclick = openOdds;
 }
@@ -2596,6 +2894,12 @@ async function confirmRoll() {
   await loadAll();
   stampFx(c.em + " " + c.ko);
   toast(fullName(me) + " 확정!");
+  if (c.t >= 5) {
+    sendPush("✦ 0.1% 등장", nameOf(me) + "이(가) " + c.em + " " + c.ko + "를 뽑았다", "myth");
+    await qInsert("checkins", { member: me, place: "✦ " + c.em + " " + c.ko + " (0.1%) 뽑음", note: null, lat: null, lng: null });
+  } else if (c.t === 4) {
+    sendPush("🏅 전설 등장", nameOf(me) + " → " + c.em + " " + c.ko, "legend");
+  }
   if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 500);
 }
 function openOdds() {
