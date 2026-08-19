@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v12";
-const BUILD_NO = 12;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v13";
+const BUILD_NO = 13;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -316,6 +316,18 @@ function shapeHtml(shape, color, i) {
   if (shape === "warn") return '<i class="p p-warn" style="' + style + '"></i>';
   return '<i class="p p-grape" style="' + style + '"></i>';
 }
+/* 보낼 때 나도 내 시그니처를 본다 */
+function selfFx(strong) {
+  if (!me) return;
+  const c = charOf(me);
+  if (!c) return;
+  const now = Date.now();
+  if (!strong && now - (selfFx._t || 0) < 8000) return;   // 연타 방지
+  selfFx._t = now;
+  if (c.t >= 4) charFx(me, strong ? 3 : 2);
+  else if (c.t === 3) edgeGlow(colorOf(me), false);
+}
+
 /* 캐릭터 시그니처 이펙트 */
 function charFx(memberId, level) {
   const c = charOf(memberId);
@@ -1193,7 +1205,7 @@ function setDestFromTitle(title) {
     by: me, ts: Date.now(),
   };
   return setDest(d).then((ok) => {
-    if (ok) { toast("🧭 전원 홈에 띄웠어: " + d.n); sendPush("🧭 다음 목적지", nameOf(me) + ": 우리 다 같이 → " + d.n, "dest"); switchTab("home"); }
+    if (ok) { toast("🧭 전원 홈에 띄웠어: " + d.n); selfFx(true); sendPush("🧭 다음 목적지", nameOf(me) + ": 우리 다 같이 → " + d.n, "dest"); switchTab("home"); }
   });
 }
 function goCardHtml() {
@@ -1866,7 +1878,7 @@ function renderStamp() {
     const row = { member: me, place: q, note: null, lat: null, lng: null };
     if (q.indexOf("위치를 보내라") >= 0) row.target = "all";
     const r = await qInsert("checkins", row);
-    if (r === true) { toast("📻 전송: " + q); sendPush(nameOf(me), q, "radio"); loadAll(); }
+    if (r === true) { toast("📻 전송: " + q); selfFx(); sendPush(nameOf(me), q, "radio"); loadAll(); }
   });
 
   $$(".board-card", el).forEach((bc) => bc.onclick = async (ev) => {
@@ -1906,7 +1918,7 @@ function renderStamp() {
     if (!v) return;
     const res = await qInsert("checkins", { member: me, place: "💬", note: v, lat: null, lng: null });
     rt.value = "";
-    if (res === true) { sendPush(nameOf(me), v, "radio"); loadAll(); }
+    if (res === true) { selfFx(); sendPush(nameOf(me), v, "radio"); loadAll(); }
   }
   if (rs) rs.onclick = sendRadioText;
   if (rt) rt.addEventListener("keydown", (e) => { if (e.key === "Enter") sendRadioText(); });
@@ -2119,6 +2131,7 @@ async function sendVoice(blob, mime) {
     });
     if (ins.error) throw ins.error;
     beep(); stampFx("📻 음성 교신");
+    selfFx(true);
     sendPush(nameOf(me), "🎙️ 음성 무전이 도착했어", "voice");
     loadAll();
   } catch (err) {
@@ -3199,6 +3212,7 @@ async function confirmRoll() {
   await loadAll();
   stampFx(c.em + " " + c.ko);
   toast(fullName(me) + " 확정!");
+  if (c.t >= 3) setTimeout(() => { selfFx._t = 0; charFx(me, 3); showRibbon(c.ko + " 등장!", tierById[c.t].color); }, 700);
   if (c.t >= 5) {
     sendPush("✦ 0.1% 등장", nameOf(me) + "이(가) " + c.em + " " + c.ko + "를 뽑았다", "myth");
     await qInsert("checkins", { member: me, place: "✦ " + c.em + " " + c.ko + " (0.1%) 뽑음", note: null, lat: null, lng: null });
