@@ -15,16 +15,17 @@ const TIERS = [
   { t: 5, name: "신화",  en: "MYTHIC",    p: 0.3,  color: "#C8503C" },
 ];
 const MAX_ROLLS = 20;
+const RESET_PW = "0909";   // 초기화 비밀번호
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
 const FX = {
-  bolt:     { shape:"bolt",  motion:"burst", c:"#F2C744", n:8,  special:"bolt" },
-  skull:    { shape:"grape", motion:"rise",  c:"#4FBF6A", n:14, special:"skull" },
-  phoenix:  { shape:"leaf",  motion:"rise",  c:"#F0C36A", n:14, special:"phoenix" },
+  bolt:     { shape:"streak",motion:"burst", c:"#F2C744", n:22, special:"bolt", quake:true },
+  skull:    { shape:"grape", motion:"rise",  c:"#4FBF6A", n:26, special:"skull", quake:true },
+  phoenix:  { shape:"leaf",  motion:"rise",  c:"#F0C36A", n:26, special:"phoenix" },
   patronus: { shape:"streak",motion:"sweep", c:"#BFE4F5", n:10, special:"patronus" },
   book:     { shape:"leaf",  motion:"fall",  c:"#C9A87C", n:10 },
-  chess:    { shape:"grape", motion:"fall",  c:"#3B3B3B", n:9 },
+  chess:    { shape:"grape", motion:"fall",  c:"#3B3B3B", n:16, special:"chess", quake:true },
   paw:      { shape:"grape", motion:"fall",  c:"#4A4A4A", n:10 },
   cat:      { shape:"star",  motion:"burst", c:"#C7B26A", n:8 },
   curse:    { shape:"streak",motion:"burst", c:"#D8453C", n:12 },
@@ -354,16 +355,31 @@ function charFx(memberId, level) {
 function specialFx(kind, color) {
   const o = document.getElementById("sfx");
   if (!o) return;
-  let h = "";
-  if (kind === "bolt")     h = '<svg class="sfx-bolt" viewBox="0 0 120 400" width="160" height="520" preserveAspectRatio="none"><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#F7E27A" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></svg>';
-  if (kind === "skull")    h = '<div class="sfx-smoke"></div><div class="sfx-skull">💀</div>';
-  if (kind === "phoenix")  h = '<div class="sfx-glow"></div><div class="sfx-feather">🪶</div>';
-  if (kind === "patronus") h = '<div class="sfx-patronus"></div>';
+  const bolt = (cls, w, hgt) => '<svg class="sfx-bolt ' + cls + '" viewBox="0 0 120 400" width="' + w + '" height="' + hgt +
+    '" preserveAspectRatio="none"><path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#F7E27A" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<path d="M70,0 L40,170 L74,160 L34,400" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>';
+  let h = "", shake = false;
+  if (kind === "bolt") {
+    h = '<div class="sfx-white"></div>' + bolt("", 170, 560) + bolt("b2", 130, 430) + bolt("b3", 110, 380);
+    shake = true;
+  }
+  if (kind === "skull") {
+    h = '<div class="sfx-dark"></div><div class="sfx-smoke"></div>' +
+        '<div class="sfx-eyes"><i></i><i></i></div><div class="sfx-skull">💀</div>';
+    shake = true;
+  }
+  if (kind === "phoenix") {
+    h = '<div class="sfx-rays"></div><div class="sfx-glow"></div>' +
+        '<div class="sfx-phoenix">🦅</div><div class="sfx-feather">🪶</div>';
+  }
+  if (kind === "patronus") h = '<div class="sfx-patronus"></div><div class="sfx-patronus" style="top:56%;animation-delay:.35s;width:120px;opacity:.7"></div>';
+  if (kind === "chess")    { h = '<div class="sfx-chess">♜</div><div class="sfx-crack"></div>'; shake = true; }
   if (!h) return;
+  if (shake) { document.body.classList.add("sfx-shake"); setTimeout(() => document.body.classList.remove("sfx-shake"), 1500); }
   o.innerHTML = h; o.hidden = false;
   o.style.setProperty("--sc", color || "#fff");
   clearTimeout(specialFx._t);
-  specialFx._t = setTimeout(() => { o.hidden = true; o.innerHTML = ""; }, 3200);
+  specialFx._t = setTimeout(() => { o.hidden = true; o.innerHTML = ""; }, 3600);
 }
 
 /* level: 1 은은 · 2 보통 · 3 강함 */
@@ -2381,7 +2397,8 @@ function renderInfo() {
     '<div class="kv"><b>나</b><span class="code-line">' + (me ? av(me, "mini") + " " : "") + '<b style="color:' + (me ? colorOf(me) : "inherit") + '">' + esc(myName) + '</b><button class="btn ghost small" id="edit-me">변경</button></span></div>' +
     '<div class="kv"><b>내 캐릭터</b><span class="code-line">' + (me && charOf(me) ? av(me) + " <b>" + esc(fullName(me)) + '</b> <span class="muted" style="font-size:12px">' + esc(tierById[tierOf(me)].name) + "</span>" : '<span class="muted">아직 없음</span>') +
     '<button class="btn ghost small" id="open-odds">확률표</button>' +
-    (charOf(me) ? '<button class="btn ghost small" id="fx-demo">내 이펙트</button>' : "") + "</span></div>" +
+    (charOf(me) ? '<button class="btn ghost small" id="fx-demo">내 이펙트</button>' : "") +
+    '<button class="btn ghost small" id="pack-demo">뽑기 연출 테스트</button></span></div>' +
     '<div class="kv"><b>튜토리얼</b><span><button class="btn ghost small" id="tut-again">다시 보기</button></span></div>' +
     '<div class="kv"><b>홈 미리보기</b><span class="chip-row" style="margin:0" id="preview-row">' +
     [["", "자동"], ["drive", "🚗 이동"], ["winery", "🍷 와이너리"], ["costco", "🛒 코스트코"], ["arrival", "🏠 도착"], ["cabin", "🗺️ 지도"]].map((pv) =>
@@ -2415,6 +2432,7 @@ function renderInfo() {
     '<button class="btn" id="fate-btn" style="width:100%;margin-top:12px">뽑기</button></div>';
 
   html += '<p class="muted" style="margin:14px 4px">Safari 공유 버튼 → "홈 화면에 추가" 하면 앱처럼 열려. 6명 다 해두자.</p>';
+  html += '<button class="btn ghost" id="reset-local" style="width:100%;margin:6px 0 20px;color:var(--pencil)">🔒 이 폰 초기화 (비밀번호 필요)</button>';
 
   el.innerHTML = html;
   $("#edit-door").onclick = () => editSetting("door_code", "도어코드 (호스트 메시지에 있음)");
@@ -2424,7 +2442,20 @@ function renderInfo() {
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
   const oo = $("#open-odds"); if (oo) oo.onclick = openOdds;
+  const rl = $("#reset-local");
+  if (rl) rl.onclick = () => {
+    const pw = prompt("초기화 비밀번호를 입력해");
+    if (pw === null) return;
+    if (pw.trim() !== RESET_PW) return toast("비밀번호가 틀렸어");
+    if (!confirm("이 폰의 캐릭터·뽑기 횟수·튜토리얼·알림 등록을 모두 지울까?\n(다른 사람 데이터는 그대로)")) return;
+    ["kel_me","kel_rolls","kel_dry","kel_fate","kel_tut","kel_tut_loc","kel_tut_siren","kel_push","kel_nonotif",
+     "kel_bypass","kel_a2hs","kel_a2hs_snooze","kel_push_x","kel_check","kel_alerts","kel_queue","kel_mirror",
+     "kel_theme","kel_siren","kel_req_done","kel_aq"].forEach((k) => localStorage.removeItem(k));
+    location.reload();
+  };
   const fd = $("#fx-demo"); if (fd) fd.onclick = () => { charFx(me, 3); showRibbon(charOf(me).ko + "의 시그니처", colorOf(me)); };
+  const pd = $("#pack-demo");
+  if (pd) pd.onclick = () => { const pick = ROSTER[Math.floor(Math.random() * ROSTER.length)]; openPack(pick, () => toast(pick.em + " " + pick.ko + " — 연출 끝")); };
   const fb = $("#fate-btn"); if (fb) fb.onclick = () => {
     if (!confirm("$10.99 — 진짜 결제는 아니야.\n뽑기 20번을 새로 받고 다시 굴릴까?")) return;
     localStorage.setItem("kel_rolls", "0");
@@ -2602,8 +2633,7 @@ function a2hsBar() {
 function isMobileUA() { return /iphone|ipad|ipod|android/i.test(navigator.userAgent || ""); }
 function installRequired() {
   if (localStorage.getItem("kel_bypass")) return false;
-  if (!isMobileUA()) return false;          // 데스크탑은 통과
-  return !isStandalone();
+  return !isStandalone();     // 데스크탑 포함 전 기기
 }
 function showInstallWall() {
   const g = document.getElementById("wall");
@@ -2618,15 +2648,26 @@ function showInstallWall() {
       '<button class="btn" id="wall-point" style="width:100%;padding:16px">👆 어디 누르는지 보여줘</button>' +
       '<button class="btn ghost" id="wall-guide" style="width:100%;margin-top:9px">그림으로 4단계 보기</button>' +
       '<p class="wall-hint">설치 후에는 <b>홈 화면 아이콘</b>으로 열어야 해.<br>사파리 탭으로 들어오면 이 화면이 계속 떠.</p>' +
-      '<button class="wall-skip" id="wall-skip">이미 설치했는데 안 넘어가 →</button>' +
+      '<button class="wall-skip" id="wall-skip">🔒 관리자 우회 →</button>' +
     "</div>";
   g.hidden = false;
   document.body.classList.add("walled");
+  const wi = $("#wall-install");
+  if (wi) wi.onclick = async () => {
+    if (!deferredPrompt) return pointToShare();
+    deferredPrompt.prompt();
+    const res = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (res && res.outcome === "accepted") { toast("설치했으면 새 창(앱 아이콘)에서 열어줘"); setTimeout(() => location.reload(), 1200); }
+  };
   $("#wall-point").onclick = pointToShare;
   $("#wall-guide").onclick = () => { fillInstallGuide(); $("#install-modal").hidden = false; };
   // 벽 위에서 열리는 모달이 가려지지 않게 (스타일에서 처리)
   $("#wall-skip").onclick = () => {
-    if (!confirm("홈 화면 아이콘으로 연 게 맞아?\n(사파리 탭이면 알림이 안 와)")) return;
+    const pw = prompt("우회하려면 관리자 비밀번호가 필요해");
+    if (pw === null) return;
+    if (pw.trim() !== RESET_PW) { alert("비밀번호가 틀렸어"); return; }
+    if (!confirm("설치 없이 계속할까? (알림·음성 무전은 안 될 수 있어)")) return;
     localStorage.setItem("kel_bypass", "1");
     g.hidden = true; document.body.classList.remove("walled");
     location.reload();
@@ -2778,11 +2819,12 @@ function reduceMotion() {
 }
 function openPack(c, done) {
   const pack = document.getElementById("pack");
-  if (!pack || reduceMotion()) { done && done(); return; }
+  if (!pack) { done && done(); return; }
   packClear();
   const tier = tierById[c.t];
   const myth = c.t === 5;
-  const dur = myth ? 5500 : 4000, scale = dur / 4000;
+  const calm = reduceMotion();
+  const dur = calm ? 1600 : (myth ? 5500 : 4000), scale = dur / 4000;
   pack.hidden = false;
   pack.style.setProperty("--rc", tier.color);
   const c3d = $("#c3d"), front = $("#p-front");
@@ -2795,6 +2837,7 @@ function openPack(c, done) {
   $("#p-rk").textContent = tier.en + " · " + (myth ? "0.1%" : tier.p + "%");
   $("#p-beams").innerHTML = ""; $("#p-conf").innerHTML = "";
   const tBeam = Math.round(500 * scale), tFlip = Math.round(2200 * scale), tEnd = Math.round(4000 * scale);
+  pack.classList.toggle("calm", calm);
   c3d.classList.add("enter");
   PT(() => {
     const n = myth ? 8 : c.t >= 4 ? 6 : c.t >= 3 ? 4 : c.t >= 2 ? 3 : 2;
