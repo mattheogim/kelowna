@@ -416,10 +416,19 @@ function edgeGlow(color, strong) {
 function buzz(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern || [35, 60, 35]); } catch (e) {} }
 
 /* 도착한 교신을 '메시지'처럼 보여주는 배너 */
+function auraClass(memberId) {
+  const c = charOf(memberId);
+  if (!c) return { cls: "", color: "" };
+  const f = FX[c.fx] || {};
+  const fam = f.special ? f.special : (f.shape || "grape") + "-" + (f.motion || "fall");
+  return { cls: " aura aura-" + fam, color: f.c || colorOf(memberId) };
+}
 function incoming(opts) {
   const box = document.getElementById("incoming");
   if (!box) return;
-  box.innerHTML = '<div class="inc-card">' +
+  const au = auraClass(opts.who);
+  box.innerHTML = '<div class="inc-card' + au.cls + '" style="--ac:' + (au.color || opts.color || "#C8503C") + '">' +
+    '<span class="aura-veil"></span>' +
     '<span class="inc-av">' + (opts.who ? avatarOf(opts.who) : "📻") + "</span>" +
     '<span class="inc-body"><span class="inc-name">' + esc(opts.name || "무전") + '</span>' +
     '<span class="inc-text">' + esc(opts.text || "") + "</span></span>" +
@@ -773,7 +782,7 @@ function onLive(table, payload) {
   scheduleLoad();
   if (payload.eventType !== "INSERT") return;
   const r = payload.new || {};
-  if (table === "sirens") { emergency(); return; }
+  if (table === "sirens") { emergency(r.note || null); return; }
   if (table === "reactions" || table === "characters") return;
   if (table === "settings") {
     const r2 = payload.new || {};
@@ -1881,9 +1890,11 @@ function wireSiren(sel) {
     b.classList.remove("armed");
     if (needSb()) return;
     localStorage.setItem("kel_siren", String(Date.now()));
-    emergency();
-    sendPush("🚨 화장실 긴급", "누군가 한계에 도달했다. 길을 비켜라", "siren");
-    await sb.from("sirens").insert({});
+    const leak = Math.random() < 0.15;
+    const note = leak ? "절대 " + nameOf(me) + " 아님" : null;
+    emergency(note);
+    sendPush("🚨 화장실 긴급", note || "누군가 한계에 도달했다. 길을 비켜라", "siren");
+    await sb.from("sirens").insert(note ? { note } : {});
   };
 }
 function emergencyPractice() {
@@ -1891,6 +1902,7 @@ function emergencyPractice() {
   if (!e || !e.hidden) return;
   const t = e.querySelector(".emg-title"), sub = e.querySelector(".emg-sub"), ic = e.querySelector(".emg-icon");
   const old = [t.textContent, sub.textContent, ic.textContent];
+  sub.classList.remove("leak");
   e.classList.add("practice");
   ic.textContent = "🚽 ✨ 🚽";
   t.textContent = "연습 발사 성공";
@@ -1907,9 +1919,14 @@ function emergencyPractice() {
   }, 3600);
 }
 
-function emergency() {
+function emergency(note) {
   const e = $("#emg");
   if (!e || !e.hidden) return;
+  const sub = e.querySelector(".emg-sub");
+  if (sub) {
+    if (note) { sub.textContent = note; sub.classList.add("leak"); }
+    else { sub.textContent = "익명 · 길을 비켜라"; sub.classList.remove("leak"); }
+  }
   e.hidden = false;
   edgeGlow("#FF5E4D", true);
   weatherFx("siren", 3, "#FF5E4D", "화장실 긴급 — 길을 비켜라");

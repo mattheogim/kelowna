@@ -612,3 +612,48 @@ body.quake{animation:qk .5s cubic-bezier(.36,.07,.19,.97) 2}
 .sfx-patronus{position:absolute;top:42%;left:-20%;width:180px;height:70px;border-radius:50%;
   background:radial-gradient(circle,rgba(191,228,245,.9),rgba(191,228,245,0) 70%);filter:blur(3px);animation:patf 1.8s ease-in-out}
 @keyframes patf{0%{opacity:0;transform:translateX(0) scale(.6)}20%{opacity:1}100%{opacity:0;transform:translateX(140vw) scale(1.2)}}
+
+/* ---------- 메시지 카드 캐릭터 아우라 ---------- */
+.inc-card{position:relative;overflow:hidden}
+.aura{box-shadow:0 18px 48px rgba(26,26,24,.28),0 0 0 2px var(--ac),0 0 28px -4px var(--ac)}
+.aura-veil{position:absolute;inset:0;pointer-events:none;border-radius:20px;opacity:.9}
+.aura::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:20px;
+  background:linear-gradient(105deg,transparent 36%,rgba(255,255,255,.55) 47%,transparent 58%);
+  transform:translateX(-130%);animation:auraShine 2.6s ease-in-out infinite}
+@keyframes auraShine{0%{transform:translateX(-130%)}55%{transform:translateX(130%)}100%{transform:translateX(130%)}}
+
+/* 신화 3인 — 완전 전용 */
+.aura-bolt{background:linear-gradient(160deg,#FFFCEC,#FFF6D2)}
+.aura-bolt .aura-veil{background:
+  repeating-linear-gradient(74deg,rgba(247,226,122,.28) 0 2px,transparent 2px 9px);
+  animation:auraFlick .9s steps(2,end) infinite}
+@keyframes auraFlick{0%,100%{opacity:.35}50%{opacity:.85}}
+.aura-skull{background:linear-gradient(160deg,#1D2B22,#111A15);color:#DFF2E4}
+.aura-skull .inc-name{color:rgba(223,242,228,.6)}
+.aura-skull .aura-veil{background:radial-gradient(80% 120% at 20% 120%,rgba(79,191,106,.45),transparent 62%),
+  radial-gradient(70% 100% at 85% 130%,rgba(46,150,80,.4),transparent 60%);animation:auraDrift 3.4s ease-in-out infinite alternate}
+@keyframes auraDrift{from{transform:translateY(6px)}to{transform:translateY(-6px)}}
+.aura-phoenix{background:linear-gradient(160deg,#FFF8E8,#FBEBC8)}
+.aura-phoenix .aura-veil{background:radial-gradient(60% 90% at 50% 120%,rgba(240,195,106,.55),transparent 68%);animation:auraGlow 2.2s ease-in-out infinite}
+@keyframes auraGlow{0%,100%{opacity:.5}50%{opacity:1}}
+.aura-patronus{background:linear-gradient(160deg,#F4FBFF,#E6F4FC)}
+.aura-patronus .aura-veil{background:linear-gradient(100deg,transparent 30%,rgba(191,228,245,.85) 50%,transparent 70%);
+  transform:translateX(-100%);animation:auraSweep 2.4s ease-in-out infinite}
+@keyframes auraSweep{0%{transform:translateX(-100%)}60%{transform:translateX(100%)}100%{transform:translateX(100%)}}
+
+/* 프리셋 계열별 아우라 */
+.aura-star-rise .aura-veil,.aura-star-burst .aura-veil{background:radial-gradient(circle at 22% 20%,var(--ac) 0 2px,transparent 3px),
+  radial-gradient(circle at 72% 68%,var(--ac) 0 2px,transparent 3px),radial-gradient(circle at 44% 84%,var(--ac) 0 1.5px,transparent 3px);
+  opacity:.5;animation:auraTwinkle 1.8s ease-in-out infinite}
+@keyframes auraTwinkle{0%,100%{opacity:.25}50%{opacity:.7}}
+.aura-leaf-fall .aura-veil,.aura-leaf-rise .aura-veil{background:radial-gradient(60% 80% at 90% 10%,color-mix(in srgb,var(--ac) 40%,transparent),transparent 70%)}
+.aura-streak-sweep .aura-veil{background:linear-gradient(100deg,transparent 40%,color-mix(in srgb,var(--ac) 55%,transparent) 52%,transparent 64%);
+  transform:translateX(-100%);animation:auraSweep 2.8s ease-in-out infinite}
+.aura-grape-rise .aura-veil{background:radial-gradient(70% 100% at 30% 120%,color-mix(in srgb,var(--ac) 45%,transparent),transparent 66%);animation:auraDrift 3s ease-in-out infinite alternate}
+.aura-grape-fall .aura-veil{background:radial-gradient(70% 100% at 70% -20%,color-mix(in srgb,var(--ac) 40%,transparent),transparent 66%)}
+.aura-ring-burst .aura-veil,.aura-ring-rise .aura-veil{background:radial-gradient(circle at 50% 50%,transparent 52%,color-mix(in srgb,var(--ac) 45%,transparent) 54%,transparent 60%);animation:auraGlow 2s ease-in-out infinite}
+.aura-streak-burst .aura-veil,.aura-streak-fall .aura-veil{background:repeating-linear-gradient(112deg,color-mix(in srgb,var(--ac) 30%,transparent) 0 2px,transparent 2px 12px);opacity:.5}
+.aura-grape-burst .aura-veil,.aura-star-fall .aura-veil{background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--ac) 40%,transparent),transparent 65%);animation:auraGlow 2.4s ease-in-out infinite}
+
+/* 긴급 이름 유출 */
+.emg-sub.leak{font-size:20px;font-weight:800;color:#fff;background:rgba(0,0,0,.22);padding:9px 18px;border-radius:99px;display:inline-block}
