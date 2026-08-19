@@ -962,6 +962,34 @@ function seqNow() {
   const rest = idx >= 0 ? items.slice(idx + 2, idx + 4) : [];
   return { curItem, nextItem, rest, here };
 }
+function urgentPollsHtml() {
+  const open = store.polls.filter((x) => !x.closed);
+  if (!open.length) return "";
+  let html = "";
+  for (const poll of open) {
+    const votes = store.votes.filter((v) => v.poll_id === poll.id);
+    const mine = votes.find((v) => v.member === me);
+    if (mine) {
+      const labels = poll.options || [];
+      html += '<div class="card poll-mini" data-poll="' + poll.id + '">' +
+        '<span class="pm-q">' + esc(poll.question) + "</span>" +
+        '<span class="pm-me">내 표: ' + esc(labels[mine.option_idx] || "") + "</span>" +
+        '<span class="pm-n">' + votes.length + "/" + MEMBERS.length + "</span>" +
+        '<button class="chip pm-x" data-poll="' + poll.id + '">바꾸기</button></div>';
+    } else {
+      html += '<div class="card poll urgent">' +
+        '<div class="urgent-tag">🗳️ 아직 투표 안 했어</div>' +
+        '<div class="poll-q">' + esc(poll.question) + '<span class="poll-by">' + esc(poll.created_by || "") + "</span></div>" +
+        (poll.options || []).map((label, i) => {
+          const these = votes.filter((v) => v.option_idx === i);
+          return '<button class="opt" data-poll="' + poll.id + '" data-i="' + i + '">' +
+            '<span class="opt-label">' + esc(label) + '<span class="opt-count">' + these.length + "표</span></span></button>";
+        }).join("") + "</div>";
+    }
+  }
+  return html;
+}
+
 function pushNudgeHtml() {
   if (localStorage.getItem("kel_push_x")) return "";
   const st = pushState();
@@ -1025,6 +1053,7 @@ function renderHome() {
     if (fd) inner += '<div class="band-note">첫 목적지 <b>' + esc(fd.n) + '</b> · <span id="pre-eta">경로 계산 중…</span></div>' +
       bandBtns([bLink("🧭 경로 미리 보기", fd.q)]);
     html += band("drive", inner);
+    html += urgentPollsHtml();
     html += pushNudgeHtml();
     html += stopStackHtml();
     html += heroBeforeHtml();
@@ -1041,6 +1070,7 @@ function renderHome() {
     else if (mode === "arrival") html += arrivalCardHtml();
     else html += heroLiveHtml();
     html += modeSwitchHtml(mode);
+    html += urgentPollsHtml();
     html += pushNudgeHtml();
     html += stopStackHtml();
 
@@ -1068,11 +1098,8 @@ function renderHome() {
     if (alb) html += '<div class="card linkline"><a href="' + esc(alb) + '" target="_blank" rel="noopener">📸 공유 앨범 열기</a></div>';
   }
 
-  html += '<h2 class="sec">투표 — 그날그날 급한 결정</h2>';
-  const open = store.polls.filter((x) => !x.closed);
   const closed = store.polls.filter((x) => x.closed);
-  if (!open.length) html += '<div class="card muted">열린 투표 없음. "4번째 와이너리 갈까 말까" 같은 건 여기서 바로.</div>';
-  for (const poll of open) html += pollHtml(poll, false);
+  html += '<h2 class="sec">투표</h2>';
   html += '<button class="btn ghost" id="new-poll" style="width:100%">+ 새 투표 걸기</button>';
   if (closed.length) {
     html += '<h2 class="sec">끝난 투표</h2>';
@@ -1083,6 +1110,11 @@ function renderHome() {
 
   if (p === "before") { renderChecklist(); tickDep(); preTripETA(); }
   $$("#mode-switch .chip", el).forEach((c) => c.onclick = () => { modeOverride = c.dataset.pv; renderHome(); });
+  $$(".pm-x", el).forEach((b) => b.onclick = async () => {
+    if (needSb()) return;
+    await sb.from("votes").delete().eq("poll_id", Number(b.dataset.poll)).eq("member", me);
+    loadAll();
+  });
   const ng = $("#nudge-go");
   if (ng) ng.onclick = () => { if (pushState() === "need-install") { fillInstallGuide(); $("#install-modal").hidden = false; } else enablePush(); };
   const nx = $("#nudge-x");
@@ -2127,41 +2159,110 @@ async function loadWeather() {
   } catch (e) { el.textContent = "날씨는 신호 잡히면 다시 떠."; }
 }
 
-function fillInstallGuide() {
-  const ua = navigator.userAgent;
+function phoneSvg(kind) {
+  const F = '<rect x="6" y="4" width="128" height="212" rx="20" fill="var(--card)" stroke="var(--line-2)" stroke-width="2"/>';
+  if (kind === "share") {
+    return '<svg viewBox="0 0 140 230" class="ig-svg">' + F +
+      '<rect x="18" y="26" width="104" height="150" rx="8" fill="var(--paper-2)"/>' +
+      '<rect x="12" y="186" width="116" height="24" rx="12" fill="var(--paper-2)" stroke="var(--line-2)"/>' +
+      '<g transform="translate(64,190)"><rect x="0" y="6" width="14" height="12" rx="2.5" fill="none" stroke="var(--lake)" stroke-width="2"/>' +
+      '<path d="M7 10 V1 M7 1 L3.6 4.4 M7 1 L10.4 4.4" stroke="var(--lake)" stroke-width="2" fill="none" stroke-linecap="round"/></g>' +
+      '<circle cx="71" cy="198" r="17" fill="none" stroke="var(--lake)" stroke-width="2" opacity=".9"><animate attributeName="r" values="14;22;14" dur="1.6s" repeatCount="indefinite"/><animate attributeName="opacity" values=".9;0;.9" dur="1.6s" repeatCount="indefinite"/></circle>' +
+      "</svg>";
+  }
+  if (kind === "sheet") {
+    return '<svg viewBox="0 0 140 230" class="ig-svg">' + F +
+      '<rect x="14" y="70" width="112" height="140" rx="14" fill="var(--paper-2)"/>' +
+      '<rect x="24" y="84" width="92" height="16" rx="5" fill="var(--line)"/>' +
+      '<rect x="24" y="108" width="92" height="16" rx="5" fill="var(--line)"/>' +
+      '<rect x="24" y="132" width="92" height="16" rx="5" fill="var(--line)"/>' +
+      '<rect x="20" y="154" width="100" height="26" rx="7" fill="rgba(31,110,122,.16)" stroke="var(--lake)" stroke-width="2"/>' +
+      '<rect x="27" y="161" width="12" height="12" rx="3" fill="none" stroke="var(--lake)" stroke-width="2"/>' +
+      '<path d="M33 164 v6 M30 167 h6" stroke="var(--lake)" stroke-width="2" stroke-linecap="round"/>' +
+      '<rect x="46" y="164" width="52" height="7" rx="3.5" fill="var(--lake)" opacity=".55"/>' +
+      '<path d="M70 196 v10" stroke="var(--pencil)" stroke-width="2" stroke-linecap="round"/>' +
+      '<path d="M66 202 l4 5 l4 -5" fill="none" stroke="var(--pencil)" stroke-width="2" stroke-linecap="round"/>' +
+      "</svg>";
+  }
+  if (kind === "add") {
+    return '<svg viewBox="0 0 140 230" class="ig-svg">' + F +
+      '<rect x="14" y="28" width="112" height="40" rx="10" fill="var(--paper-2)"/>' +
+      '<rect x="86" y="38" width="34" height="20" rx="10" fill="var(--lake)"/>' +
+      '<rect x="94" y="45" width="18" height="6" rx="3" fill="#fff"/>' +
+      '<circle cx="103" cy="48" r="24" fill="none" stroke="var(--lake)" stroke-width="2"><animate attributeName="r" values="20;28;20" dur="1.6s" repeatCount="indefinite"/><animate attributeName="opacity" values=".9;0;.9" dur="1.6s" repeatCount="indefinite"/></circle>' +
+      '<rect x="24" y="86" width="60" height="10" rx="5" fill="var(--line)"/>' +
+      '<rect x="24" y="104" width="92" height="8" rx="4" fill="var(--line)"/>' +
+      "</svg>";
+  }
+  return '<svg viewBox="0 0 140 230" class="ig-svg">' + F +
+    '<rect x="22" y="40" width="30" height="30" rx="8" fill="var(--line)"/>' +
+    '<rect x="60" y="40" width="30" height="30" rx="8" fill="var(--line)"/>' +
+    '<rect x="98" y="40" width="24" height="30" rx="8" fill="var(--line)"/>' +
+    '<rect x="22" y="86" width="30" height="30" rx="8" fill="var(--wine)"/>' +
+    '<circle cx="37" cy="101" r="9" fill="none" stroke="#fff" stroke-width="2"/>' +
+    '<rect x="22" y="122" width="30" height="7" rx="3.5" fill="var(--line)"/>' +
+    '<circle cx="37" cy="101" r="24" fill="none" stroke="var(--wine)" stroke-width="2"><animate attributeName="r" values="20;30;20" dur="1.6s" repeatCount="indefinite"/><animate attributeName="opacity" values=".9;0;.9" dur="1.6s" repeatCount="indefinite"/></circle>' +
+    '<rect x="60" y="86" width="30" height="30" rx="8" fill="var(--line)"/>' +
+    "</svg>";
+}
+
+let igIdx = 0, igSteps = [];
+function igBuild() {
+  const ua = navigator.userAgent || "";
   const isIOS = /iphone|ipad|ipod/i.test(ua);
   const chromeIOS = isIOS && /CriOS/i.test(ua);
-  const box = $("#ig-body");
-  if (!box) return;
-  const shareSvg = '<svg class="ig-ic" width="20" height="24" viewBox="0 0 22 26"><rect x="2" y="9" width="18" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 14 V2 M11 2 L6.5 6.5 M11 2 L15.5 6.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const plusSvg = '<svg class="ig-ic" width="20" height="20" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7 v10 M7 12 h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-  let steps;
-  if (chromeIOS) {
-    steps = [
-      ["크롬 주소창 오른쪽 <b>공유 버튼</b> 탭 " + shareSvg, ""],
-      ['메뉴에서 <b>"홈 화면에 추가"</b> ' + plusSvg, "안 보이면 아래로 스크롤"],
-      ["오른쪽 위 <b>추가</b>", "홈 화면에 아이콘 생김"],
-      ["공유 버튼이 안 보이면 <b>⋯ 더보기</b>", "주소창 오른쪽 점 세 개 → 아래로 스크롤 → '홈 화면에 추가'"],
-      ["<b>Safari가 더 매끄러워</b>", "사파리로 이 주소를 열어서 같은 방법으로 해도 됨"],
-    ];
-  } else if (isIOS) {
-    steps = [
-      ["Safari로 열려 있는지 확인", "카톡 브라우저면 위 배너의 'Safari로 열기'부터"],
-      ["하단 가운데 <b>공유 버튼</b> 탭 " + shareSvg, ""],
-      ['아래로 스크롤 → <b>"홈 화면에 추가"</b> ' + plusSvg, ""],
-      ["오른쪽 위 <b>추가</b>", "끝! 홈 화면에 아이콘 생김"],
-    ];
-  } else {
-    steps = [
-      ["주소창 오른쪽 <b>설치 아이콘</b>(⊕ 또는 모니터 모양) 클릭", "안 보이면 다음 단계로"],
-      ["오른쪽 위 <b>⋮ 더보기</b> 클릭", "점 세 개 세로 메뉴"],
-      ["<b>앱으로 설치</b> / <b>홈 화면에 추가</b> 선택", "안드로이드는 '앱 설치' 또는 'Install app'으로 나올 수도 있어"],
-      ["<b>설치</b> 누르면 끝", "앱 아이콘이 생기고, 그걸로 열어야 알림이 와"],
+  if (isIOS) {
+    return [
+      { svg: "share", t: "1. 화면 맨 아래 공유 버튼", d: chromeIOS
+          ? "크롬은 <b>주소창 오른쪽</b>에 있어. 안 보이면 <b>⋯ 더보기</b>를 눌러."
+          : "네모에서 화살표 올라가는 아이콘이야.<br><b>안 보이면 화면을 아래로 살짝 스크롤</b>하면 나타나." },
+      { svg: "sheet", t: '2. "홈 화면에 추가" 찾기', d: "메뉴가 뜨면 <b>한참 아래로 스크롤</b>해야 나와.<br>여기서 포기하는 사람이 제일 많아. 스크롤 계속!" },
+      { svg: "add", t: "3. 오른쪽 위 '추가'", d: "이름은 그대로 두고 <b>추가</b>만 누르면 돼." },
+      { svg: "home", t: "4. 이제 이 아이콘으로만 열기", d: "홈 화면에 아이콘이 생겼어.<br><b>사파리 탭으로 들어오면 알림이 안 와.</b> 꼭 아이콘으로." },
     ];
   }
-  box.innerHTML = steps.map((st, i) =>
-    '<div class="ig-step"><span class="ig-num">' + (i + 1) + "</span><div>" + st[0] +
-    (st[1] ? '<br><span class="muted">' + st[1] + "</span>" : "") + "</div></div>").join("");
+  return [
+    { svg: "add", t: "1. 주소창 오른쪽 설치 아이콘", d: "⊕ 또는 모니터 모양 아이콘을 눌러. 안 보이면 다음 단계로." },
+    { svg: "sheet", t: "2. 오른쪽 위 ⋮ 더보기", d: "점 세 개 메뉴 → <b>앱으로 설치</b> 또는 <b>홈 화면에 추가</b>" },
+    { svg: "home", t: "3. 설치 완료", d: "앱 아이콘이 생겨. <b>그 아이콘으로 열어야 알림이 와.</b>" },
+  ];
+}
+function fillInstallGuide() { igIdx = 0; igSteps = igBuild(); igDraw(); }
+function igDraw() {
+  const box = $("#ig-body");
+  if (!box) return;
+  const st = igSteps[igIdx];
+  box.innerHTML = '<div class="ig-stage">' + phoneSvg(st.svg) +
+    '<div class="ig-text"><p class="ig-t">' + st.t + '</p><p class="ig-d">' + st.d + "</p></div></div>" +
+    '<div class="tut-dots">' + igSteps.map((_, i) => '<span class="tut-dot' + (i === igIdx ? " on" : "") + '"></span>').join("") + "</div>" +
+    '<div class="btn-row" style="justify-content:space-between">' +
+    '<button class="btn ghost" id="ig-prev">' + (igIdx === 0 ? "닫기" : "이전") + "</button>" +
+    '<button class="btn" id="ig-next">' + (igIdx === igSteps.length - 1 ? "다 했어" : "다음") + "</button></div>";
+  $("#ig-prev").onclick = () => { if (igIdx === 0) { $("#install-modal").hidden = true; tutResume(); } else { igIdx--; igDraw(); } };
+  $("#ig-next").onclick = () => {
+    if (igIdx < igSteps.length - 1) { igIdx++; igDraw(); return; }
+    $("#install-modal").hidden = true;
+    if (isStandalone()) { toast("설치 완료! 이제 알림도 켜자"); } else { toast("아직 사파리 탭이야 — 홈 화면 아이콘으로 열어줘"); }
+    tutResume();
+  };
+}
+
+/* 설치 전 하단 상시 바 */
+function a2hsBar() {
+  const b = document.getElementById("a2hs-bar");
+  if (!b) return;
+  const snooze = Number(localStorage.getItem("kel_a2hs_snooze") || 0);
+  if (isStandalone() || Date.now() < snooze || pushState() === "unsupported") { b.hidden = true; return; }
+  b.innerHTML = '<span>📲 <b>홈 화면에 설치</b>해야 알림이 와</span>' +
+    '<button class="btn small" id="a2hs-go">방법 보기</button>' +
+    '<button class="ib-x" id="a2hs-x" aria-label="닫기">✕</button>';
+  b.hidden = false;
+  document.body.classList.add("has-a2hs");
+  $("#a2hs-go").onclick = () => { fillInstallGuide(); $("#install-modal").hidden = false; };
+  $("#a2hs-x").onclick = () => {
+    localStorage.setItem("kel_a2hs_snooze", String(Date.now() + 86400000));
+    b.hidden = true; document.body.classList.remove("has-a2hs");
+  };
 }
 
 /* ---------------- 튜토리얼 (행동형) ---------------- */
@@ -2390,6 +2491,7 @@ function boot() {
   loadAQ();
   flushQueue();
   showInstall();
+  a2hsBar();
 
   // 위치 권한이 이미 있으면 조용히 한 번 받아서 '숙소 근처 모드' 판단
   if (navigator.permissions && navigator.permissions.query) {

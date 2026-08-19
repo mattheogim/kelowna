@@ -538,3 +538,30 @@ body.gated #topbar,body.gated #main,body.gated #tabbar,body.gated #siren-fab,bod
 #emg.practice .emg-title{color:#FFD08A;text-shadow:0 0 26px rgba(255,208,138,.6)}
 #emg.practice .emg-icon{animation:none}
 #emg.practice .emg-bars{background:repeating-linear-gradient(45deg,rgba(255,208,138,.12) 0 22px,transparent 22px 44px)}
+
+
+/* ---------- 투표 승격 ---------- */
+.poll.urgent{border:2px solid var(--wine);position:relative}
+.urgent-tag{font-size:11.5px;font-weight:700;color:var(--wine);letter-spacing:.06em;margin-bottom:6px}
+.poll-mini{display:flex;align-items:center;gap:8px;padding:11px 14px;font-size:13.5px}
+.pm-q{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44%}
+.pm-me{color:var(--lake);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-n{margin-left:auto;color:var(--pencil);font-size:12px;font-variant-numeric:tabular-nums}
+.pm-x{padding:4px 10px;font-size:12px}
+
+/* ---------- 설치 워크스루 ---------- */
+.ig-stage{display:flex;gap:14px;align-items:center;margin:6px 0 10px}
+.ig-svg{width:118px;flex:none}
+.ig-text{min-width:0}
+.ig-t{font-size:17px;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
+.ig-d{font-size:14px;color:var(--ink-soft);line-height:1.65;margin:0}
+.ig-d b{color:var(--ink)}
+
+/* ---------- 설치 상시 바 ---------- */
+#a2hs-bar{position:fixed;left:10px;right:10px;bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 10px);z-index:60;
+  display:flex;align-items:center;gap:8px;padding:10px 32px 10px 13px;
+  background:var(--card);border:1.5px solid var(--lake);border-radius:14px;box-shadow:0 8px 24px rgba(23,24,26,.14);font-size:13px}
+#a2hs-bar[hidden]{display:none}
+#a2hs-bar .btn.small{margin-left:auto;flex:none}
+body.has-a2hs #siren-fab{bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 68px)}
+body.has-a2hs #fab-tip{bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 82px)}
