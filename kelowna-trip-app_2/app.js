@@ -327,13 +327,13 @@ async function enablePush() {
   }
 }
 /* 보낸 사람이 나머지에게 푸시를 쏜다 (서버 트리거 없이 동작) */
-function sendPush(title, body, tag) {
+function sendPush(title, body, tag, includeSelf) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
   try {
     fetch(SUPABASE_URL + "/functions/v1/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
-      body: JSON.stringify({ title: title, body: body, tag: tag || "kel", exclude: me }),
+      body: JSON.stringify({ title: title, body: body, tag: tag || "kel", exclude: includeSelf ? null : me }),
     }).catch(() => {});
   } catch (e) {}
 }
@@ -560,7 +560,12 @@ function onLive(table, payload) {
     return;
   }
   if (table === "expenses") { msg = nameOf(actor) + "가 장부에 적음: " + r.title + " " + money(Number(r.amount)); tab = "ledger"; }
-  if (table === "polls") { msg = "새 투표: " + r.question; tab = "home"; }
+  if (table === "polls") {
+    incoming({ who: null, name: "🗳️ 새 투표 · " + (r.created_by || ""), text: r.question, tab: "home", color: "#7FE3D2", level: 2, ribbon: "투표가 올라왔다" });
+    pushAlert("🗳️ 새 투표: " + r.question);
+    if (currentTab !== "home") badge("home", true);
+    return;
+  }
   if (table === "itinerary") { msg = "일정 추가됨: " + r.title; tab = "plan"; }
   if (table === "wishes") { msg = "금요일 제안: " + r.title; tab = "plan"; }
   if (table === "shopping") { msg = "장보기 추가: " + r.item; tab = "ledger"; }
@@ -1995,7 +2000,9 @@ function renderInfo() {
       : pst === "need-install" ? '<span class="muted">홈 화면 설치 필요</span>'
       : pst === "denied" ? '<span class="muted">차단됨 — 아이폰 설정 → 알림</span>'
       : '<span style="color:var(--danger);font-weight:600">꺼짐</span>') +
-    '<button class="btn small" id="push-on">' + (localStorage.getItem("kel_push") ? "다시 등록" : "알림 켜기") + "</button></span></div>" +
+    '<button class="btn small" id="push-on">' + (localStorage.getItem("kel_push") ? "다시 등록" : "알림 켜기") + "</button>" +
+    (pst === "granted" && localStorage.getItem("kel_push") ? '<button class="btn ghost small" id="push-test">내 폰으로 테스트</button>' : "") +
+    "</span></div>" +
     '<div class="kv"><b>📤 친구 초대</b><span class="code-line"><button class="btn ghost small" id="invite-go">설치 안내 보내기</button></span></div>' +
     '<div class="kv"><b>📲 설치</b><span class="code-line"><button class="btn ghost small" id="ig-open2">설치 방법 보기</button></span></div>' +
     "</div>";
@@ -2065,6 +2072,11 @@ function renderInfo() {
   $("#edit-me").onclick = openWho;
   const ta = $("#tut-again"); if (ta) ta.onclick = openTut;
   const pon = $("#push-on"); if (pon) pon.onclick = enablePush;
+  const pt = $("#push-test");
+  if (pt) pt.onclick = () => {
+    sendPush("🔔 테스트 알림", "이렇게 오면 성공! 앱을 닫고 다시 눌러봐도 와.", "test", true);
+    toast("보냈어 — 몇 초 안에 알림이 뜰 거야");
+  };
   const inv = $("#invite-go"); if (inv) inv.onclick = shareInvite;
   const ig2 = $("#ig-open2"); if (ig2) ig2.onclick = () => { fillInstallGuide(); $("#install-modal").hidden = false; };
   $$("#preview-row .chip").forEach((c) => c.onclick = () => {
@@ -2296,6 +2308,7 @@ function wireModals() {
     if (!q || opts.length < 2) return toast("질문 + 선택지 2개 이상");
     const { error } = await sb.from("polls").insert({ question: q, options: opts, created_by: nameOf(me) });
     if (error) return toast("실패 — 다시 시도");
+    sendPush("🗳️ 새 투표 — " + nameOf(me), q, "poll");
     $("#poll-modal").hidden = true; loadAll();
   };
 
