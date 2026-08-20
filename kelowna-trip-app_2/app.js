@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v26";
-const BUILD_NO = 26;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v27";
+const BUILD_NO = 27;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2576,6 +2576,18 @@ function renderInfo() {
     '<button class="btn ghost" id="quiz-btn" style="flex:1">🧠 퀴즈 만점 = 확률 2배</button>' +
     '<button class="btn ghost" id="ad-btn" style="flex:1">📺 광고 보고 10번</button></div>' +
     '<button class="btn" id="fate-btn" style="width:100%;margin-top:8px">$10.99 결제 (가짜)</button>' +
+    '<div class="shop">' +
+      '<button class="shop-item' + (canBuy100() ? "" : " off") + '" id="buy100">' +
+        '<span class="shop-price">$100</span>' +
+        '<span class="shop-t">프리미엄 팩</span>' +
+        '<span class="shop-d">카드 5장 · 확률 3배 · 하루 1번</span>' +
+        '<span class="shop-s">' + (canBuy100() ? "구매 가능" : "오늘 사용함") + "</span></button>" +
+      '<button class="shop-item ultra' + (canBuy1000() ? "" : " off") + '" id="buy1000">' +
+        '<span class="shop-price">$1,000</span>' +
+        '<span class="shop-t">울트라 팩</span>' +
+        '<span class="shop-d">카드 3장 · 확률 10배 · 평생 1번</span>' +
+        '<span class="shop-s">' + (canBuy1000() ? "아직 안 씀" : "이미 사용함") + "</span></button>" +
+    "</div>" +
     '<p class="muted" style="font-size:11.5px;margin:9px 0 0;text-align:center">퀴즈 ' + Math.max(0, MAX_QUIZ - quizDone()) + '회 · 광고 ' + (MAX_ADS - adsWatched()) + '회 남음</p></div>';
 
   html += '<p class="muted" style="margin:14px 4px">Safari 공유 버튼 → "홈 화면에 추가" 하면 앱처럼 열려. 6명 다 해두자.</p>';
@@ -2653,6 +2665,18 @@ function renderInfo() {
   };
   const ab = $("#ad-btn");
   if (ab) ab.onclick = () => showAd(() => { rollResult = drawCharacter(); openRoll(); });
+  const b100 = $("#buy100");
+  if (b100) b100.onclick = () => {
+    if (!canBuy100()) return toast("오늘은 이미 열었어. 내일 다시");
+    if (!confirm("$100 프리미엄 팩\n카드 5장 · 확률 3배 · 하루 한 번\n\n(진짜 결제 아님)")) return;
+    openMulti(100);
+  };
+  const b1000 = $("#buy1000");
+  if (b1000) b1000.onclick = () => {
+    if (!canBuy1000()) return toast("평생 한 번인데 이미 썼어");
+    if (!confirm("$1,000 울트라 팩\n카드 3장 · 확률 10배\n\n평생 딱 한 번뿐이야. 진짜 열까?")) return;
+    openMulti(1000);
+  };
   const qb = $("#quiz-btn");
   if (qb) qb.onclick = () => showQuiz(() => { rollResult = drawCharacter(); openRoll(); });
   const pon = $("#push-on"); if (pon) pon.onclick = enablePush;
@@ -3424,6 +3448,71 @@ function openPack(c, done) {
   };
   PT(finish, tEnd + Math.round(1400 * scale));
   pack.onclick = finish;
+}
+
+/* ---------------- 프리미엄 뽑기 (100 / 1000) ---------------- */
+function today() { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+function canBuy100() { return localStorage.getItem("kel_p100") !== today(); }
+function canBuy1000() { return !localStorage.getItem("kel_p1000"); }
+function drawMulti(n, boost) {
+  const taken = takenIds();
+  const out = [];
+  const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0);
+  for (let k = 0; k < n && pool.length; k++) {
+    const weights = TIERS.map((t) => ({ t: t.t, p: t.t >= 3 ? t.p * boost : t.p }));
+    const total = weights.reduce((a, b) => a + b.p, 0);
+    let roll = Math.random() * total, acc = 0, tier = 1;
+    const order = weights.slice().sort((a, b) => a.p - b.p);
+    for (const t of order) { acc += t.p; if (roll <= acc) { tier = t.t; break; } }
+    let cands = pool.filter((c) => c.t === tier && out.indexOf(c) < 0);
+    for (let t = tier - 1; t >= 1 && !cands.length; t--) cands = pool.filter((c) => c.t === t && out.indexOf(c) < 0);
+    if (!cands.length) cands = pool.filter((c) => out.indexOf(c) < 0);
+    if (!cands.length) break;
+    out.push(cands[Math.floor(Math.random() * cands.length)]);
+  }
+  return out;
+}
+function openMulti(kind) {
+  if (kind === 100 && !canBuy100()) return toast("100달러 팩은 하루에 한 번이야");
+  if (kind === 1000 && !canBuy1000()) return toast("1000달러 팩은 평생 한 번뿐이야");
+  if (!me) return openWho();
+  const n = kind === 1000 ? 3 : 5;
+  const boost = kind === 1000 ? 10 : 3;
+  const cards = drawMulti(n, boost);
+  if (!cards.length) return toast("남은 캐릭터가 없어");
+  if (kind === 100) localStorage.setItem("kel_p100", today());
+  else localStorage.setItem("kel_p1000", today());
+
+  let box = document.getElementById("multibox");
+  if (!box) { box = document.createElement("div"); box.id = "multibox"; document.body.appendChild(box); }
+  box.className = kind === 1000 ? "ultra" : "";
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="multi-wrap">' +
+      '<div class="multi-top">' + (kind === 1000 ? "$1,000 ULTRA PACK · 확률 10배" : "$100 PREMIUM PACK · 확률 3배") + "</div>" +
+      '<div class="multi-sub">카드 ' + cards.length + "장 · 마음에 드는 하나를 골라</div>" +
+      '<div class="multi-grid' + (cards.length === 3 ? " three" : "") + '">' +
+        cards.map((c, i) => {
+          const t = tierById[c.t];
+          return '<button class="mcard" data-i="' + i + '" style="--rc:' + t.color + ';animation-delay:' + (i * 0.35) + 's">' +
+            '<span class="mc-em">' + c.em + "</span>" +
+            '<span class="mc-ko">' + esc(c.ko) + "</span>" +
+            '<span class="mc-rk">' + t.en + "</span></button>";
+        }).join("") +
+      "</div>" +
+      '<button class="btn ghost" id="multi-x" style="width:100%;margin-top:16px">닫기</button>' +
+    "</div>";
+  packTone(Math.max.apply(null, cards.map((c) => c.t)));
+  buzz([50, 40, 50, 40, 120]);
+  const best = cards.reduce((a, b) => (b.t > a.t ? b : a), cards[0]);
+  if (best.t >= 4) setTimeout(() => specialFx((FX[best.fx] || {}).special || "cupburst", (FX[best.fx] || {}).c, best.t), cards.length * 350 + 200);
+  $$(".mcard", box).forEach((b) => b.onclick = () => {
+    const c = cards[Number(b.dataset.i)];
+    box.hidden = true; box.innerHTML = "";
+    rollResult = c;
+    openPack(c, () => { drawRoll(); $("#roll-modal").hidden = false; });
+  });
+  $("#multi-x").onclick = () => { box.hidden = true; box.innerHTML = ""; };
 }
 
 /* ---------------- 캐릭터 뽑기 ---------------- */
