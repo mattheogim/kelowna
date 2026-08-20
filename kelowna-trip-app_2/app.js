@@ -12,17 +12,28 @@ const TIERS = [
   { t: 2, name: "희귀",  en: "RARE",      p: 30,   color: "#5B7FA8" },
   { t: 3, name: "영웅",  en: "EPIC",      p: 18,   color: "#8A6BA8" },
   { t: 4, name: "전설",  en: "LEGENDARY", p: 6,    color: "#C79A3E" },
-  { t: 5, name: "신화",  en: "MYTHIC",    p: 0.3,  color: "#C8503C" },
+  { t: 5, name: "신화",  en: "MYTHIC",    p: 0.4,  color: "#C8503C" },
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v17";
-const BUILD_NO = 17;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v24";
+const BUILD_NO = 24;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
 const FX = {
   bolt:     { shape:"streak",motion:"burst", c:"#F2C744", n:22, special:"bolt", quake:true },
+  keynote:  { shape:"star",  motion:"rise",  c:"#E8E8ED", n:18, special:"keynote" },
+  tsunami:  { shape:"grape", motion:"rise",  c:"#3E8FC4", n:26, special:"tsunami", quake:true },
+  volcano:  { shape:"grape", motion:"rise",  c:"#E0562C", n:28, special:"volcano", quake:true },
+  saiyan:   { shape:"streak",motion:"rise",  c:"#F5C542", n:30, special:"saiyan", quake:true },
+  moon:     { shape:"star",  motion:"rise",  c:"#B9C7DE", n:18, special:"moon" },
+  eyescan:  { shape:"ring",  motion:"burst", c:"#7FB2C8", n:12, special:"eyescan" },
+  sandflood:{ shape:"grape", motion:"fall",  c:"#D9C08A", n:30, special:"sandflood" },
+  starfall: { shape:"star",  motion:"fall",  c:"#9DBBE8", n:26, special:"starfall" },
+  swarm:    { shape:"streak",motion:"sweep", c:"#5FA86B", n:24, special:"swarm" },
+  sockrain: { shape:"leaf",  motion:"fall",  c:"#E0D2B8", n:24, special:"sockrain" },
+  cupburst: { shape:"star",  motion:"burst", c:"#E3B457", n:24, special:"cupburst" },
   skull:    { shape:"grape", motion:"rise",  c:"#4FBF6A", n:26, special:"skull", quake:true },
   phoenix:  { shape:"leaf",  motion:"rise",  c:"#F0C36A", n:26, special:"phoenix" },
   patronus: { shape:"streak",motion:"sweep", c:"#BFE4F5", n:20, special:"patronus" },
@@ -70,6 +81,7 @@ const ROSTER = [
   C("potter","Potter","Harry","⚡",5,"해리 포터","bolt"),
   C("voldemort","Riddle","Tom","💀",5,"볼드모트","skull"),
   C("dumbledore","Dumbledore","Albus","🧙",5,"덤블도어","phoenix"),
+  C("jobs","Jobs","Steve","🍎",5,"스티브 잡스","keynote"),
   /* ---------- 전설 1% × 6 ---------- */
   C("snape","Snape","Severus","🧪",4,"스네이프","patronus"),
   C("granger","Granger","Hermione","📚",4,"헤르미온느","book"),
@@ -78,17 +90,17 @@ const ROSTER = [
   C("mcgonagall","McGonagall","Minerva","🐈",4,"맥고나걸","cat"),
   C("bellatrix","Lestrange","Bellatrix","🗡️",4,"벨라트릭스","curse"),
   /* ---------- 영웅 18% ---------- */
-  C("luna","Lovegood","Luna","🌙",3,"루나 러브굿","star"),
-  C("draco","Malfoy","Draco","🐍",3,"드레이코","snake"),
-  C("hagrid","Hagrid","Rubeus","🗝️",3,"해그리드","stomp"),
-  C("ginny","Weasley","Ginny","🦅",3,"지니","feather"),
-  C("dobby","Dobby","the Elf","🧦",3,"도비","sock"),
-  C("cedric","Diggory","Cedric","🏆",3,"세드릭","gold"),
-  C("hedwig","Hedwig","the Owl","🦉",3,"헤드위그","owl"),
-  C("lupin","Lupin","Remus","🐺",3,"리무스 루핀","wolf"),
+  C("luna","Lovegood","Luna","🌙",3,"루나 러브굿","starfall"),
+  C("draco","Malfoy","Draco","🐍",3,"드레이코","swarm"),
+  C("hagrid","Hagrid","Rubeus","🗝️",3,"해그리드","volcano"),
+  C("ginny","Weasley","Ginny","🦅",3,"지니","saiyan"),
+  C("dobby","Dobby","the Elf","🧦",3,"도비","sockrain"),
+  C("cedric","Diggory","Cedric","🏆",3,"세드릭","cupburst"),
+  C("hedwig","Hedwig","the Owl","🦉",3,"헤드위그","tsunami"),
+  C("lupin","Lupin","Remus","🐺",3,"리무스 루핀","moon"),
   C("tonks","Tonks","Nymphadora","💗",3,"톤크스","heart"),
-  C("moody","Moody","Alastor","👁️",3,"매드아이 무디","eye"),
-  C("slughorn","Slughorn","Horace","⏳",3,"슬러그혼","sand"),
+  C("moody","Moody","Alastor","👁️",3,"매드아이 무디","eyescan"),
+  C("slughorn","Slughorn","Horace","⏳",3,"슬러그혼","sandflood"),
   C("flitwick","Flitwick","Filius","🪄",3,"플리트윅","charm"),
   /* ---------- 희귀 30% ---------- */
   C("neville","Longbottom","Neville","🌱",2,"네빌","leaf"),
@@ -171,7 +183,7 @@ const ROSTER = [
   C("snap","Exploding","Snap","💥",1,"폭발 스냅","spark"),
   C("goblin","Gringotts","Goblin","🪙",1,"고블린","coin"),
   C("elf","House","Elf","🧝",1,"집요정","sock"),
-  C("merman","Merperson","of the Lake","🧜",1,"인어","water"),
+  C("merman","Merperson","of the Lake","🧜",1,"인어","tsunami"),
   C("hippogriff","Hippogriff","the Beast","🦅",1,"히포그리프","feather"),
   C("werewolf","Full","Moon","🌕",1,"보름달","wolf"),
   C("pixie","Cornish","Pixie","🧚",1,"코니시 픽시","charm"),
@@ -380,6 +392,17 @@ function specialFx(kind, color, tier) {
     dog:      { wash:"#3A3A44", glyph:"🐾", cls:"w-dog" },
     cat:      { wash:"#C7B26A", glyph:"🐈‍⬛", cls:"w-cat" },
     curse:    { wash:"#D8453C", glyph:"🗡️", cls:"w-curse" },
+    keynote:  { wash:"#101014", glyph:"🍎", cls:"w-keynote" },
+    tsunami:  { wash:"#2E7FB8", glyph:"🌊", cls:"w-tsunami" },
+    volcano:  { wash:"#E0562C", glyph:"🌋", cls:"w-volcano" },
+    saiyan:   { wash:"#F5C542", glyph:"💥", cls:"w-saiyan" },
+    moon:     { wash:"#8FA4C4", glyph:"🌕", cls:"w-moon" },
+    eyescan:  { wash:"#5F93AC", glyph:"👁️", cls:"w-eye" },
+    sandflood:{ wash:"#C9A961", glyph:"⏳", cls:"w-sand" },
+    starfall: { wash:"#6C8CC4", glyph:"✨", cls:"w-starfall" },
+    swarm:    { wash:"#3E8054", glyph:"🐍", cls:"w-swarm" },
+    sockrain: { wash:"#B8A88C", glyph:"🧦", cls:"w-sock" },
+    cupburst: { wash:"#D9A441", glyph:"🏆", cls:"w-cup" },
   }[kind];
   if (!T) return;
 
@@ -403,6 +426,31 @@ function specialFx(kind, color, tier) {
   if (kind === "curse")
     extra = '<div class="sfx-curse c1"></div><div class="sfx-curse c2"></div><div class="sfx-curse c3"></div>' +
             '<div class="sfx-curse c4"></div><div class="sfx-redflash"></div><div class="sfx-slash"></div>';
+  if (kind === "keynote")
+    extra = '<div class="sfx-black"></div><div class="sfx-spot"></div>' +
+            '<div class="sfx-keytext">One more thing...</div>';
+  if (kind === "tsunami")
+    extra = '<div class="sfx-wave w1"></div><div class="sfx-wave w2"></div><div class="sfx-wave w3"></div><div class="sfx-foam"></div>';
+  if (kind === "volcano")
+    extra = '<div class="sfx-lava"></div><div class="sfx-ember e1"></div><div class="sfx-ember e2"></div>' +
+            '<div class="sfx-ember e3"></div><div class="sfx-ember e4"></div><div class="sfx-ember e5"></div><div class="sfx-redflash"></div>';
+  if (kind === "saiyan")
+    extra = '<div class="sfx-aura"></div><div class="sfx-pillar"></div><div class="sfx-spark s1"></div>' +
+            '<div class="sfx-spark s2"></div><div class="sfx-spark s3"></div><div class="sfx-white"></div>';
+  if (kind === "moon")
+    extra = '<div class="sfx-moonrise">🌕</div><div class="sfx-howl">🐺</div>';
+  if (kind === "eyescan")
+    extra = '<div class="sfx-scanline"></div><div class="sfx-scanline s2"></div>';
+  if (kind === "sandflood")
+    extra = '<div class="sfx-sandwall"></div>';
+  if (kind === "starfall")
+    extra = '<div class="sfx-comet c1"></div><div class="sfx-comet c2"></div><div class="sfx-comet c3"></div>';
+  if (kind === "swarm")
+    extra = '<div class="sfx-snake s1">🐍</div><div class="sfx-snake s2">🐍</div><div class="sfx-snake s3">🐍</div>';
+  if (kind === "sockrain")
+    extra = '<div class="sfx-sock k1">🧦</div><div class="sfx-sock k2">🧦</div><div class="sfx-sock k3">🧦</div>';
+  if (kind === "cupburst")
+    extra = '<div class="sfx-goldburst"></div>';
 
   o.className = T.cls;
   o.removeAttribute("hidden");
@@ -2483,10 +2531,16 @@ function renderInfo() {
   html += '<h2 class="sec">운명</h2><div class="card"><div class="fate">' +
     '<div><div style="font-weight:700;font-size:15px">운명 거스르기</div>' +
     '<div class="muted" style="margin-top:3px">뽑기 20번을 새로 받아</div>' +
-    (Number(localStorage.getItem("kel_fate") || 0) ? '<div class="muted" style="font-size:11px;margin-top:2px">지금까지 ' + localStorage.getItem("kel_fate") + '번 거슬렀음</div>' : "") + "</div>" +
+    (fateCount() ? '<div class="muted" style="font-size:11px;margin-top:2px">지금까지 ' + fateCount() + "번 거슬렀음" +
+      (myTitle() ? ' · <b style="color:var(--gold)">' + myTitle().em + " " + myTitle().t + "</b>" : "") +
+      (coupons() > 0 ? ' · 🎟️' + coupons() : "") + "</div>" : "") + "</div>" +
     '<div style="margin-left:auto;text-align:right"><div class="fate-price">$10.99</div>' +
     '<div class="muted" style="font-size:11px">사실 공짜</div></div></div>' +
-    '<button class="btn" id="fate-btn" style="width:100%;margin-top:12px">뽑기</button></div>';
+    '<div class="btn-row" style="margin-top:12px;gap:8px">' +
+    '<button class="btn ghost" id="quiz-btn" style="flex:1">🧠 퀴즈 만점 = 확률 2배</button>' +
+    '<button class="btn ghost" id="ad-btn" style="flex:1">📺 광고 보고 10번</button></div>' +
+    '<button class="btn" id="fate-btn" style="width:100%;margin-top:8px">$10.99 결제 (가짜)</button>' +
+    '<p class="muted" style="font-size:11.5px;margin:9px 0 0;text-align:center">퀴즈 ' + Math.max(0, MAX_QUIZ - quizDone()) + '회 · 광고 ' + (MAX_ADS - adsWatched()) + '회 남음</p></div>';
 
   html += '<p class="muted" style="margin:14px 4px">Safari 공유 버튼 → "홈 화면에 추가" 하면 앱처럼 열려. 6명 다 해두자.</p>';
   html += '<div class="card" style="display:flex;align-items:center;gap:10px">' +
@@ -2551,13 +2605,20 @@ function renderInfo() {
   const pd = $("#pack-demo");
   if (pd) pd.onclick = () => { const pick = ROSTER[Math.floor(Math.random() * ROSTER.length)]; openPack(pick, () => toast(pick.em + " " + pick.ko + " — 연출 끝")); };
   const fb = $("#fate-btn"); if (fb) fb.onclick = () => {
-    if (!confirm("$10.99 — 진짜 결제는 아니야.\n뽑기 20번을 새로 받고 다시 굴릴까?")) return;
     localStorage.setItem("kel_rolls", "0");
-    localStorage.setItem("kel_fate", String(Number(localStorage.getItem("kel_fate") || 0) + 1));
+    localStorage.setItem("kel_fate", String(fateCount() + 1));
+    const n = fateCount();
+    sendPush("💸 " + nameOf(me) + "의 과금", "운명 거스르기 " + n + "회째… 그만해", "fate");
+    qInsert("checkins", { member: me, place: "💸 운명 거스르기 " + n + "회째", note: null, lat: null, lng: null });
+    checkTitleUnlock();
     rollResult = drawCharacter();
     toast("💸 결제 완료(가짜). 20번 새로 받았어");
-    openRoll();
+    setTimeout(openRoll, myTitle() && localStorage.getItem("kel_title_seen") === String(myTitle().n) ? 300 : 0);
   };
+  const ab = $("#ad-btn");
+  if (ab) ab.onclick = () => showAd(() => { rollResult = drawCharacter(); openRoll(); });
+  const qb = $("#quiz-btn");
+  if (qb) qb.onclick = () => showQuiz(() => { rollResult = drawCharacter(); openRoll(); });
   const pon = $("#push-on"); if (pon) pon.onclick = enablePush;
   const pt = $("#push-test");
   if (pt) pt.onclick = () => {
@@ -3020,6 +3081,177 @@ function ensureLayers() {
   return edge;
 }
 
+/* ---------------- 가짜 광고 (뽑기 충전) ---------------- */
+const MAX_ADS = 10;
+const ADS = [
+  { em: "🧪", t: "스네이프 표 두통약", d: "\"수업 중 졸음, 단 한 방울로\"", by: "호그와트 약초학과 공동개발" },
+  { em: "🧹", t: "님부스 2001 리스", d: "월 39,900원부터 · 첫 달 무료", by: "퀴디치 모터스" },
+  { em: "🦉", t: "부엉이 우편 프리미엄", d: "당일배송 · 비 오는 날도 정시", by: "OWL POST" },
+  { em: "🍺", t: "버터맥주 6캔 패키지", d: "지금 주문 시 거품 2배", by: "호그스미드 유통" },
+  { em: "💍", t: "잃어버린 반지 찾아드립니다", d: "골룸 흥신소 · 상담 무료", by: "샤이어 지사" },
+  { em: "🎩", t: "분류모자 성격검사", d: "3분이면 내 기숙사가 나온다", by: "제휴: 마법부" },
+  { em: "🚂", t: "호그와트 급행 얼리버드", d: "9와 4분의 3 승강장 출발", by: "영국 마법철도" },
+  { em: "🧦", t: "도비의 양말 정기구독", d: "매달 새 양말이 자유를 배달", by: "집요정 노동조합" },
+];
+function adsWatched() { return Number(localStorage.getItem("kel_ads") || 0); }
+function showAd(onDone) {
+  if (adsWatched() >= MAX_ADS) { toast("광고는 " + MAX_ADS + "번까지야"); return; }
+  let box = document.getElementById("adbox");
+  if (!box) { box = document.createElement("div"); box.id = "adbox"; document.body.appendChild(box); }
+  const ad = ADS[Math.floor(Math.random() * ADS.length)];
+  const left = MAX_ADS - adsWatched() - 1;
+  let sec = 5;
+  const draw = () => {
+    box.innerHTML =
+      '<div class="ad-card">' +
+        '<div class="ad-top">광고 · SPONSORED<span id="ad-count">' + sec + "초</span></div>" +
+        '<div class="ad-em">' + ad.em + "</div>" +
+        '<div class="ad-t">' + ad.t + "</div>" +
+        '<div class="ad-d">' + ad.d + "</div>" +
+        '<div class="ad-by">' + ad.by + "</div>" +
+        '<div class="ad-bar"><i id="ad-fill"></i></div>' +
+        '<button class="btn" id="ad-skip"' + (sec > 0 ? " disabled" : "") + ' style="width:100%;margin-top:14px">' +
+          (sec > 0 ? sec + "초 후 보상 받기" : "🎲 뽑기 10번 받기") + "</button>" +
+        '<p class="ad-note">가짜 광고야. 아무 데도 안 팔아.<br>남은 광고 ' + left + "회</p>" +
+      "</div>";
+    const b = document.getElementById("ad-skip");
+    if (sec <= 0 && b) b.onclick = () => {
+      localStorage.setItem("kel_ads", String(adsWatched() + 1));
+      localStorage.setItem("kel_rolls", String(Math.max(0, myRolls() - 10)));
+      box.hidden = true; box.innerHTML = "";
+      toast("🎲 뽑기 10번 충전!");
+      onDone && onDone();
+    };
+  };
+  box.hidden = false;
+  draw();
+  const iv = setInterval(() => {
+    sec--;
+    if (sec > 0) {
+      const c = document.getElementById("ad-count"), f = document.getElementById("ad-fill"), b = document.getElementById("ad-skip");
+      if (c) c.textContent = sec + "초";
+      if (f) f.style.width = ((5 - sec) / 5 * 100) + "%";
+      if (b) b.textContent = sec + "초 후 보상 받기";
+    } else { clearInterval(iv); sec = 0; draw(); const f = document.getElementById("ad-fill"); if (f) f.style.width = "100%"; }
+  }, 1000);
+}
+
+/* ---------------- 칭호 · 2배 쿠폰 ---------------- */
+const TITLES = [
+  { n: 10, t: "지갑을 여는 자", em: "💸" },
+  { n: 25, t: "과금의 길", em: "🪙" },
+  { n: 50, t: "운명을 거스른 자", em: "⏳" },
+  { n: 100, t: "시간의 지배자", em: "🌌" },
+];
+function fateCount() { return Number(localStorage.getItem("kel_fate") || 0); }
+function coupons() { return Number(localStorage.getItem("kel_coupon") || 0); }
+function myTitle() {
+  let cur = null;
+  for (const t of TITLES) if (fateCount() >= t.n) cur = t;
+  return cur;
+}
+function checkTitleUnlock() {
+  const got = myTitle();
+  if (!got) return;
+  const seen = localStorage.getItem("kel_title_seen") || "";
+  if (seen === String(got.n)) return;
+  localStorage.setItem("kel_title_seen", String(got.n));
+  const bonus = got.n >= 50 ? 5 : 0;
+  if (bonus) localStorage.setItem("kel_coupon", String(coupons() + bonus));
+  sendPush("🏅 칭호 획득", nameOf(me) + " — " + got.em + " " + got.t + " (" + got.n + "회)", "title");
+  qInsert("checkins", { member: me, place: "🏅 " + got.em + " " + got.t + " 달성 (" + got.n + "회)", note: null, lat: null, lng: null });
+  showTitleCard(got, bonus);
+}
+function showTitleCard(t, bonus) {
+  let box = document.getElementById("titlebox");
+  if (!box) { box = document.createElement("div"); box.id = "titlebox"; document.body.appendChild(box); }
+  box.innerHTML =
+    '<div class="title-card">' +
+      '<div class="title-lab">칭호 획득</div>' +
+      '<div class="title-em">' + t.em + "</div>" +
+      '<div class="title-t">' + t.t + "</div>" +
+      '<div class="title-d">운명 거스르기 ' + t.n + "회 달성</div>" +
+      (bonus ? '<div class="title-coupon">🎟️ 확률 2배 쿠폰 ' + bonus + "장<br><span>다음 " + bonus + "번의 뽑기에서 영웅 이상 확률이 두 배</span></div>" : "") +
+      '<button class="btn" id="title-ok" style="width:100%;margin-top:16px">받기</button>' +
+    "</div>";
+  box.hidden = false;
+  packTone(5); buzz([60, 40, 60, 40, 140]);
+  weatherFx("arrival", 3, "#C79A3E", t.em + " " + t.t);
+  $("#title-ok").onclick = () => { box.hidden = true; box.innerHTML = ""; };
+}
+
+/* ---------------- 퀴즈로 뽑기 충전 ---------------- */
+const MAX_QUIZ = 10;
+const QUIZ = [
+  { q: "홍희정 생일은?", o: ["9월 9일", "9월 19일", "8월 9일", "10월 9일"], a: 0 },
+  { q: "김재민 생일은?", o: ["11월 15일", "11월 5일", "1월 15일", "12월 5일"], a: 1 },
+  { q: "윤재형 생일은?", o: ["1월 25일", "2월 15일", "1월 15일", "2월 25일"], a: 0 },
+  { q: "김다흰 생일은?", o: ["4월 10일", "4월 1일", "3월 1일", "4월 11일"], a: 1 },
+  { q: "김상우 생일은?", o: ["11월 19일", "11월 9일", "12월 19일", "1월 19일"], a: 0 },
+  { q: "김재민 ♥ 홍희정 기념일은?", o: ["8월 5일", "8월 25일", "8월 15일", "9월 15일"], a: 2 },
+  { q: "생일이 가장 빠른 사람은? (달 기준)", o: ["윤재형", "김다흰", "김재민", "홍희정"], a: 0 },
+  { q: "생일이 같은 달인 두 사람은?", o: ["재민·상우", "희정·다흰", "재형·상우", "희정·재형"], a: 0 },
+  { q: "11월에 생일인 사람은 몇 명?", o: ["1명", "2명", "3명", "없음"], a: 1 },
+  { q: "재민·희정 기념일이 있는 달은?", o: ["7월", "8월", "9월", "10월"], a: 1 },
+];
+function quizDone() { return Number(localStorage.getItem("kel_quiz") || 0); }
+function showQuiz(onDone) {
+  if (quizDone() >= MAX_QUIZ) { toast("퀴즈는 " + MAX_QUIZ + "번까지야"); return; }
+  const pool = QUIZ.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+  let idx = 0, correct = 0, locked = false;
+  let box = document.getElementById("quizbox");
+  if (!box) { box = document.createElement("div"); box.id = "quizbox"; document.body.appendChild(box); }
+  box.hidden = false;
+
+  const draw = () => {
+    const item = pool[idx];
+    box.innerHTML =
+      '<div class="quiz-card">' +
+        '<div class="quiz-top">퀴즈 ' + (idx + 1) + " / 3<span>맞힌 개수 " + correct + "</span></div>" +
+        '<div class="quiz-q">' + esc(item.q) + "</div>" +
+        '<div class="quiz-opts">' + item.o.map((t, i) =>
+          '<button class="quiz-opt" data-i="' + i + '">' + esc(t) + "</button>").join("") + "</div>" +
+        '<button class="quiz-x" id="quiz-close">나중에</button>' +
+      "</div>";
+    $$(".quiz-opt", box).forEach((b) => b.onclick = () => {
+      if (locked) return;
+      locked = true;
+      const pick = Number(b.dataset.i);
+      const right = pick === item.a;
+      if (right) correct++;
+      b.classList.add(right ? "right" : "wrong");
+      if (!right) { const rb = box.querySelector('.quiz-opt[data-i="' + item.a + '"]'); if (rb) rb.classList.add("right"); }
+      buzz(right ? [30] : [60, 40, 60]);
+      setTimeout(() => { locked = false; idx++; if (idx < pool.length) draw(); else finish(); }, 900);
+    });
+    $("#quiz-close").onclick = () => { box.hidden = true; box.innerHTML = ""; };
+  };
+
+  const finish = () => {
+    const perfect = correct === 3;
+    if (perfect) {
+      localStorage.setItem("kel_quiz", String(quizDone() + 1));
+      localStorage.setItem("kel_coupon", String(coupons() + 3));
+    }
+    box.innerHTML =
+      '<div class="quiz-card">' +
+        '<div class="quiz-em">' + (perfect ? "🎟️" : correct === 2 ? "😐" : "😵") + "</div>" +
+        '<div class="quiz-res">' + correct + " / 3 정답</div>" +
+        '<div class="quiz-sub">' + (perfect ? "다 맞혔어!" :
+          correct === 2 ? "하나 틀렸어. 보상은 없어" : "친구들 생일 좀 외워라…") + "</div>" +
+        (perfect ? '<div class="title-coupon" style="margin-top:14px">🎟️ 확률 2배 쿠폰 3장<br><span>다음 3번의 뽑기에서 영웅 이상 확률이 두 배</span></div>' : "") +
+        '<button class="btn" id="quiz-ok" style="width:100%;margin-top:16px">' + (perfect ? "받고 뽑으러 가기" : "다시 풀기") + "</button>" +
+        '<p class="ad-note">' + (perfect ? "남은 퀴즈 " + Math.max(0, MAX_QUIZ - quizDone()) + "회" : "3개 다 맞혀야 쿠폰을 줘") + "</p>" +
+      "</div>";
+    $("#quiz-ok").onclick = () => {
+      box.hidden = true; box.innerHTML = "";
+      if (perfect) { toast("🎟️ 확률 2배 쿠폰 3장 획득!"); onDone && onDone(); }
+      else showQuiz(onDone);
+    };
+  };
+  draw();
+}
+
 /* ---------------- 팩 오프닝 연출 ---------------- */
 let packT = [];
 function packClear() { packT.forEach(clearTimeout); packT = []; }
@@ -3174,9 +3406,13 @@ function drawCharacter() {
     if (hi.length) picked = hi[Math.floor(Math.random() * hi.length)];
   }
   if (!picked) {
-    const roll = Math.random() * 100;
+    const boost = coupons() > 0;
+    if (boost) localStorage.setItem("kel_coupon", String(coupons() - 1));
+    const weights = TIERS.map((t) => ({ t: t.t, p: boost && t.t >= 3 ? t.p * 2 : t.p }));
+    const total = weights.reduce((a, b) => a + b.p, 0);
+    const roll = Math.random() * total;
     let acc = 0, tier = 1;
-    const order = TIERS.slice().sort((a, b) => a.p - b.p); // 희귀한 것부터
+    const order = weights.slice().sort((a, b) => a.p - b.p); // 희귀한 것부터
     for (const t of order) { acc += t.p; if (roll <= acc) { tier = t.t; break; } }
     let cands = pool.filter((c) => c.t === tier);
     for (let t = tier - 1; t >= 1 && !cands.length; t--) cands = pool.filter((c) => c.t === t);
@@ -3213,6 +3449,7 @@ function drawRoll() {
     '<div class="roll-name"><div class="en">' + esc(c.last) + " <b>" + esc(nameOf(me)) + "</b> " + esc(c.first) + "</div>" +
       '<div class="ko">' + esc(c.ko) + " · " + t.name + (c.t === 6 ? " — 이 세계 사람이 아니야" : c.t === 5 ? " — 부엉이다" : "") + "</div></div>" +
     '<div class="rolls">ROLLS LEFT<b>' + left + '<span>/' + MAX_ROLLS + "</span></b></div>" +
+    (coupons() > 0 ? '<div class="coupon-on">🎟️ 확률 2배 적용 중 · ' + coupons() + "번 남음</div>" : "") +
     '<div class="btn-row" style="margin-top:12px">' +
       '<button class="btn ghost" id="roll-again"' + (left <= 0 ? " disabled" : "") + ' style="flex:1">🎲 다시 굴리기</button>' +
       '<button class="btn" id="roll-ok" style="flex:1">이걸로 확정</button></div>' +
@@ -3221,7 +3458,13 @@ function drawRoll() {
     '<button class="btn ghost" id="roll-odds" style="width:100%;margin-top:14px">확률표 보기</button>' +
     '<p class="muted" style="text-align:center;margin:12px 0 0;font-size:12.5px">확정 후에도 <b>INFO 탭 → 운명 거스르기</b>에서 다시 뽑을 수 있어</p>';
   $("#roll-again").onclick = () => {
-    if (myRolls() >= MAX_ROLLS) return toast("20번 다 썼어 — 정보 탭에서 운명 거스르기");
+    if (myRolls() >= MAX_ROLLS) {
+      if (adsWatched() < MAX_ADS && confirm("뽑기 20번을 다 썼어.\n광고 보고 10번 더 받을까?"))
+        return showAd(() => { rollResult = drawCharacter(); drawRoll(); });
+      if (quizDone() < MAX_QUIZ && confirm("퀴즈 만점 맞히면 확률 2배 쿠폰을 줘. 풀어볼래?"))
+        return showQuiz(() => { rollResult = drawCharacter(); drawRoll(); });
+      return toast("INFO 탭 → 운명 거스르기에서 충전할 수 있어");
+    }
     bumpRolls();
     const next = drawCharacter();
     if (!next) return toast("남은 캐릭터가 없어");
