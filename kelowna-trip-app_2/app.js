@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v24";
-const BUILD_NO = 24;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v26";
+const BUILD_NO = 26;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -34,6 +34,12 @@ const FX = {
   swarm:    { shape:"streak",motion:"sweep", c:"#5FA86B", n:24, special:"swarm" },
   sockrain: { shape:"leaf",  motion:"fall",  c:"#E0D2B8", n:24, special:"sockrain" },
   cupburst: { shape:"star",  motion:"burst", c:"#E3B457", n:24, special:"cupburst" },
+  firebreath:{shape:"streak",motion:"sweep", c:"#FF6B2B", n:32, special:"firebreath", quake:true },
+  arrowrain:{ shape:"streak",motion:"fall",  c:"#7FA86B", n:34, special:"arrowrain" },
+  darkbolt: { shape:"streak",motion:"burst", c:"#8A5FD8", n:30, special:"darkbolt", quake:true },
+  rocket:   { shape:"grape", motion:"rise",  c:"#E8E8ED", n:32, special:"rocket", quake:true },
+  stage:    { shape:"star",  motion:"burst", c:"#E85FA8", n:34, special:"stage" },
+  impact:   { shape:"ring",  motion:"burst", c:"#F2D04A", n:26, special:"impact", quake:true },
   skull:    { shape:"grape", motion:"rise",  c:"#4FBF6A", n:26, special:"skull", quake:true },
   phoenix:  { shape:"leaf",  motion:"rise",  c:"#F0C36A", n:26, special:"phoenix" },
   patronus: { shape:"streak",motion:"sweep", c:"#BFE4F5", n:20, special:"patronus" },
@@ -89,6 +95,12 @@ const ROSTER = [
   C("sirius","Black","Sirius","🐕",4,"시리우스","paw"),
   C("mcgonagall","McGonagall","Minerva","🐈",4,"맥고나걸","cat"),
   C("bellatrix","Lestrange","Bellatrix","🗡️",4,"벨라트릭스","curse"),
+  C("smaug","Smaug","the Dragon","🐉",4,"스마우그","firebreath"),
+  C("legolas","Greenleaf","Legolas","🏹",4,"레골라스","arrowrain"),
+  C("grindelwald","Grindelwald","Gellert","🦇",4,"그린델왈드","darkbolt"),
+  C("musk","Musk","Elon","🚀",4,"일론 머스크","rocket"),
+  C("freddie","Mercury","Freddie","🎤",4,"프레디 머큐리","stage"),
+  C("bruce","Lee","Bruce","🥋",4,"브루스 리","impact"),
   /* ---------- 영웅 18% ---------- */
   C("luna","Lovegood","Luna","🌙",3,"루나 러브굿","starfall"),
   C("draco","Malfoy","Draco","🐍",3,"드레이코","swarm"),
@@ -377,6 +389,7 @@ function charFx(memberId, level) {
   if (f.quake && !calmFx) { document.body.classList.add("quake"); setTimeout(() => document.body.classList.remove("quake"), 1100); }
   if (c.t >= 3) edgeGlow(f.c || colorOf(memberId), c.t >= 4);
   if (f.special) specialFx(f.special, f.c, c.t);
+  else { const o = document.getElementById("sfx"); if (o) { o.hidden = true; o.innerHTML = ""; o.className = ""; o.style.display = "none"; } }
   return true;
 }
 function specialFx(kind, color, tier) {
@@ -403,6 +416,12 @@ function specialFx(kind, color, tier) {
     swarm:    { wash:"#3E8054", glyph:"🐍", cls:"w-swarm" },
     sockrain: { wash:"#B8A88C", glyph:"🧦", cls:"w-sock" },
     cupburst: { wash:"#D9A441", glyph:"🏆", cls:"w-cup" },
+    firebreath:{wash:"#FF6B2B", glyph:"🐉", cls:"w-fire" },
+    arrowrain:{ wash:"#6E9660", glyph:"🏹", cls:"w-arrow" },
+    darkbolt: { wash:"#7A4FC4", glyph:"🦇", cls:"w-dark" },
+    rocket:   { wash:"#5A6478", glyph:"🚀", cls:"w-rocket" },
+    stage:    { wash:"#D9418F", glyph:"🎤", cls:"w-stage" },
+    impact:   { wash:"#E0B520", glyph:"🥋", cls:"w-impact" },
   }[kind];
   if (!T) return;
 
@@ -451,16 +470,33 @@ function specialFx(kind, color, tier) {
     extra = '<div class="sfx-sock k1">🧦</div><div class="sfx-sock k2">🧦</div><div class="sfx-sock k3">🧦</div>';
   if (kind === "cupburst")
     extra = '<div class="sfx-goldburst"></div>';
+  if (kind === "firebreath")
+    extra = '<div class="sfx-breath"></div><div class="sfx-scorch"></div><div class="sfx-redflash"></div>';
+  if (kind === "arrowrain")
+    extra = '<div class="sfx-arrow a1"></div><div class="sfx-arrow a2"></div><div class="sfx-arrow a3"></div>' +
+            '<div class="sfx-arrow a4"></div><div class="sfx-arrow a5"></div><div class="sfx-arrow a6"></div>';
+  if (kind === "darkbolt")
+    extra = '<div class="sfx-dark"></div><div class="sfx-vbolt v1"></div><div class="sfx-vbolt v2"></div><div class="sfx-vbolt v3"></div>';
+  if (kind === "rocket")
+    extra = '<div class="sfx-rocket">🚀</div><div class="sfx-plume"></div><div class="sfx-white"></div>';
+  if (kind === "stage")
+    extra = '<div class="sfx-beamL"></div><div class="sfx-beamR"></div><div class="sfx-crowd"></div>';
+  if (kind === "impact")
+    extra = '<div class="sfx-hit"></div><div class="sfx-crackline c1"></div><div class="sfx-crackline c2"></div>';
 
   o.className = T.cls;
   o.removeAttribute("hidden");
   o.style.cssText = "position:fixed;inset:0;z-index:206;pointer-events:none;overflow:hidden;opacity:1;visibility:visible;display:block";
   o.style.setProperty("--sc", T.wash);
+  const grand = tier >= 4 ? '<div class="sfx-flash2"></div><div class="sfx-ring2"></div><div class="sfx-ring2 r2"></div><div class="sfx-ring2 r3"></div>' : "";
+  const myth = tier >= 5
+    ? '<div class="sfx-vignette"></div><div class="sfx-mythbar">MYTHIC · 0.1%</div><div class="sfx-orbit"><i></i><i></i><i></i><i></i></div>'
+    : "";
   o.innerHTML =
     '<div class="sfx-wash"></div>' +
     '<div class="sfx-rings"><i></i><i></i><i></i></div>' +
-    extra +
-    '<div class="sfx-big">' + T.glyph + "</div>";
+    grand + extra + myth +
+    '<div class="sfx-big' + (tier >= 5 ? " myth" : tier >= 4 ? " grand" : "") + '">' + T.glyph + "</div>";
   o.hidden = false;
 
   if (!reduceMotion()) {
@@ -468,7 +504,7 @@ function specialFx(kind, color, tier) {
     setTimeout(() => document.body.classList.remove("sfx-shake"), 1800);
   }
   clearTimeout(specialFx._t);
-  specialFx._t = setTimeout(() => { o.style.display = "none"; o.hidden = true; o.innerHTML = ""; o.className = ""; }, 4600);
+  specialFx._t = setTimeout(() => { o.style.display = "none"; o.hidden = true; o.innerHTML = ""; o.className = ""; }, tier >= 5 ? 5600 : 4600);
 }
 function boltSvg(cls, w, h) {
   return '<svg class="sfx-bolt ' + cls + '" viewBox="0 0 120 400" width="' + w + '" height="' + h +
