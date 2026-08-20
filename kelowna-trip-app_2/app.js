@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v31";
-const BUILD_NO = 31;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v32";
+const BUILD_NO = 32;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -242,6 +242,275 @@ function trapId() {
 function isTrap(id) { return TRAP_POOL.indexOf(id) >= 0; }
 
 
+
+/* ============================================================
+   무기 202종 — 등급 확률은 캐릭터와 동일
+   for: 이 무기를 "원하는" 캐릭터들 (일치하면 각성)
+   ============================================================ */
+function W(id, ko, en, em, t, want) { return { id, ko, en, em, t, want }; }
+const WEAPONS = [
+  W("elderwand","딱총나무 지팡이","The Elder Wand","🪄",5,["potter","voldemort","dumbledore","grindelwald"]),
+  W("resurrection","부활의 돌","Resurrection Stone","💎",5,["voldemort","dumbledore"]),
+  W("truecloak","진짜 투명 망토","The True Cloak","🫥",5,["potter","sirius"]),
+  W("onering","절대 반지","The One Ring","💍",5,["gollum","grey"]),
+  W("firstphone","첫 번째 아이폰","The First iPhone","📱",5,["jobs"]),
+  W("timeturner_o","원본 시간 돌리개","Original Time-Turner","⏳",5,["granger","slughorn"]),
+  W("teslacar","테슬라","Tesla","🚗",4,["musk"]),
+  W("falcon","팰컨 로켓","Falcon Rocket","🚀",4,["musk"]),
+  W("micstand","반쪽 마이크스탠드","Half Mic Stand","🎙️",4,["freddie"]),
+  W("nunchaku","쌍절곤","Nunchaku","🥢",4,["bruce"]),
+  W("basilisk","바실리스크 송곳니","Basilisk Fang","🦷",4,["potter","voldemort","ginny"]),
+  W("gryffindorsword","그리핀도르의 검","Sword of Gryffindor","⚔️",4,["potter","neville"]),
+  W("firebolt","파이어볼트","Firebolt","🧹",4,["potter","ginny","wood"]),
+  W("marauder","도둑들의 지도","The Marauder's Map","🗺️",4,["potter","sirius","fred","george"]),
+  W("pensieve","펜시브","Pensieve","🌀",4,["dumbledore","snape"]),
+  W("phoenixfeather","불사조 깃털","Phoenix Feather","🪶",4,["dumbledore","hedwig"]),
+  W("bellaknife","벨라트릭스의 단검","Bellatrix's Dagger","🗡️",4,["bellatrix"]),
+  W("mirror","두 방향 거울","Two-Way Mirror","🪞",4,["sirius","potter"]),
+  W("dragonhoard","스마우그의 보물","Smaug's Hoard","🪙",4,["smaug"]),
+  W("elvenbow","요정의 활","Elven Bow","🏹",4,["legolas"]),
+  W("staffgrey","회색의 지팡이","Staff of the Grey","🦯",4,["grey","dumbledore"]),
+  W("chessqueen","마법사 체스 퀸","Wizard Chess Queen","♛",4,["ron","chess2"]),
+  W("catglasses","맥고나걸의 안경","McGonagall's Spectacles","👓",4,["mcgonagall"]),
+  W("darkmark","어둠의 표식","The Dark Mark","🐍",4,["voldemort","bellatrix","draco"]),
+  W("nimbus2001","님부스 2001","Nimbus 2001","🧹",3,["draco","wood"]),
+  W("timeturner","시간 돌리개","Time-Turner","⌛",3,["granger"]),
+  W("sortinghat_w","분류 모자","Sorting Hat","🎩",3,["hat"]),
+  W("invisibility","투명 망토","Invisibility Cloak","👻",3,["potter"]),
+  W("luckpotion","펠릭스 펠리시스","Liquid Luck","🍀",3,["slughorn","potter"]),
+  W("polyjuice","폴리주스 마법약","Polyjuice Potion","⚗️",3,["granger","snape"]),
+  W("veritaserum","베리타세룸","Veritaserum","💧",3,["snape","moody"]),
+  W("madeye","매드아이의 눈","Mad-Eye's Eye","👁️",3,["moody"]),
+  W("snitch_w","황금 스니치","Golden Snitch","🟡",3,["potter","cedric","ginny"]),
+  W("hedwigcage","헤드위그의 새장","Hedwig's Cage","🪺",3,["hedwig","potter"]),
+  W("lunaspecs","스펙트라클스","Spectrespecs","🕶️",3,["luna"]),
+  W("wolfsbane","늑대 삭이는 물약","Wolfsbane Potion","🌿",3,["lupin"]),
+  W("hagridumbrella","해그리드의 우산","Hagrid's Umbrella","☂️",3,["hagrid"]),
+  W("dobbysock","도비의 양말","Dobby's Sock","🧦",3,["dobby"]),
+  W("triwizardcup","트리위저드 컵","Triwizard Cup","🏆",3,["cedric","potter"]),
+  W("howler_w","하울러","Howler","📣",3,["molly","howler"]),
+  W("weasleycar","하늘을 나는 포드","Flying Ford Anglia","🚙",3,["ron","arthur","flyingcar"]),
+  W("scabbers_w","스캐버스의 발","Scabbers' Paw","🐀",3,["ron","scabbers"]),
+  W("gilliweed","아가미풀","Gillyweed","🌱",3,["potter","neville"]),
+  W("remembrall","리멤브럴","Remembrall","🔮",3,["neville"]),
+  W("quaffle_w","쿼플","Quaffle","🔴",3,["ginny","katie","angelina"]),
+  W("beaterbat","블러저 방망이","Beater's Bat","🏏",3,["fred","george"]),
+  W("charmwand","플리트윅의 지휘봉","Flitwick's Baton","🪄",3,["flitwick"]),
+  W("crystalball","트릴로니의 수정구","Crystal Ball","🔮",3,["trelawney","parvati"]),
+  W("mandrake_w","만드레이크 화분","Mandrake Pot","🪴",3,["sprout","mandrake"]),
+  W("firewhisky","파이어위스키","Firewhisky","🥃",3,["hagrid","sirius"]),
+  W("nightbus","나이트 버스 티켓","Knight Bus Ticket","🎟️",3,["knightbus"]),
+  W("expresstix","급행열차 티켓","Express Ticket","🚂",3,["express","platform"]),
+  W("ledger_w","고블린 장부","Goblin Ledger","📒",3,["goblin"]),
+  W("silverhand","은빛 손","Silver Hand","🤚",3,["scabbers","dobby"]),
+  W("stdwand","표준 지팡이","Standard Wand","🪄",2,[]),
+  W("owltreat","부엉이 간식","Owl Treat","🍪",2,[]),
+  W("cauldron_w","솥단지","Cauldron","🍲",2,[]),
+  W("quill_w","깃펜","Quill","🖋️",2,[]),
+  W("inkpot","잉크병","Ink Pot","🫙",2,[]),
+  W("parchment","양피지 뭉치","Parchment Roll","📜",2,[]),
+  W("spellbook","주문서","Spellbook","📕",2,[]),
+  W("potionkit","마법약 키트","Potion Kit","🧪",2,[]),
+  W("brooms","학교 빗자루","School Broom","🧹",2,[]),
+  W("gloves","용가죽 장갑","Dragonhide Gloves","🧤",2,[]),
+  W("hourglass","기숙사 모래시계","House Hourglass","⏳",2,[]),
+  W("scarf","기숙사 목도리","House Scarf","🧣",2,[]),
+  W("tie_w","기숙사 넥타이","House Tie","👔",2,[]),
+  W("badge","반장 배지","Prefect Badge","📛",2,[]),
+  W("lantern","마법 등불","Wand-lit Lantern","🏮",2,[]),
+  W("compass_w","마법 나침반","Enchanted Compass","🧭",2,[]),
+  W("map_w","낡은 지도","Old Map","🗺️",2,[]),
+  W("key_w","날개 달린 열쇠","Flying Key","🗝️",2,[]),
+  W("mirror_s","작은 손거울","Hand Mirror","🪞",2,[]),
+  W("chocolate","초콜릿 개구리","Chocolate Frog","🍫",2,[]),
+  W("beans_w","버티봇 젤리","Bertie Bott's","🫘",2,[]),
+  W("butterbeer_w","버터맥주","Butterbeer","🍺",2,[]),
+  W("pumpkin_w","호박 주스","Pumpkin Juice","🎃",2,[]),
+  W("cake_w","솥단지 케이크","Cauldron Cake","🧁",2,[]),
+  W("liquorice_w","감초 지팡이","Liquorice Wand","🥢",2,[]),
+  W("acidpop","애시드 팝","Acid Pop","🍬",2,[]),
+  W("toadstool","독버섯","Toadstool","🍄",2,[]),
+  W("feather_w","깃털","Feather","🪶",2,[]),
+  W("candle","마법 양초","Floating Candle","🕯️",2,[]),
+  W("bell","호그와트 종","Castle Bell","🔔",2,[]),
+  W("chalk","분필","Chalk","🖍️",2,[]),
+  W("abacus","산술 주판","Arithmancy Abacus","🧮",2,[]),
+  W("telescope","천문 망원경","Telescope","🔭",2,[]),
+  W("starchart","별자리표","Star Chart","🌌",2,[]),
+  W("herbpot","약초 화분","Herb Pot","🪴",2,[]),
+  W("wateringcan","물뿌리개","Watering Can","🚿",2,[]),
+  W("shears","전지가위","Pruning Shears","✂️",2,[]),
+  W("bucket","걸레와 양동이","Mop & Bucket","🪣",2,[]),
+  W("broomcloset","빗자루 창고 열쇠","Broom Closet Key","🚪",2,[]),
+  W("whistle","심판 호루라기","Referee Whistle","🪈",2,[]),
+  W("goggles","퀴디치 고글","Quidditch Goggles","🥽",2,[]),
+  W("kneepads","무릎 보호대","Knee Pads","🦵",2,[]),
+  W("bandage","붕대","Bandage","🩹",2,[]),
+  W("pepperup","페퍼업 물약","Pepperup Potion","🌶️",2,[]),
+  W("skelegro","스켈레그로","Skele-Gro","🦴",2,[]),
+  W("dungbomb","똥폭탄","Dungbomb","💣",2,[]),
+  W("fanged","송곳니 프리스비","Fanged Frisbee","🥏",2,[]),
+  W("extendable","늘어나는 귀","Extendable Ears","👂",2,[]),
+  W("puking","토하는 사탕","Puking Pastille","🤢",2,[]),
+  W("decoy","가짜 폭탄","Decoy Detonator","🧨",2,[]),
+  W("noteboook","비밀 일기장","Secret Diary","📓",2,[]),
+  W("stamp_w","부엉이 우표","Owl Stamp","📮",2,[]),
+  W("scale","마법 저울","Brass Scales","⚖️",2,[]),
+  W("goblet","불의 잔","Goblet","🏺",2,[]),
+  W("ropes","마법 밧줄","Incarcerous Rope","🪢",2,[]),
+  W("stick","그냥 나뭇가지","Just a Stick","🪵",1,[]),
+  W("rock","돌멩이","Rock","🪨",1,[]),
+  W("spoon","숟가락","Spoon","🥄",1,[]),
+  W("fork","포크","Fork","🍴",1,[]),
+  W("pan","프라이팬","Frying Pan","🍳",1,[]),
+  W("pot","냄비","Pot","🫕",1,[]),
+  W("mug","머그컵","Mug","☕",1,[]),
+  W("straw","빨대","Straw","🥤",1,[]),
+  W("napkin","냅킨","Napkin","🧻",1,[]),
+  W("toothpick","이쑤시개","Toothpick","🦷",1,[]),
+  W("sock_w","한 짝 양말","Odd Sock","🧦",1,[]),
+  W("shoelace","신발끈","Shoelace","👟",1,[]),
+  W("button","단추","Button","🔘",1,[]),
+  W("paperclip","클립","Paperclip","📎",1,[]),
+  W("rubber","고무줄","Rubber Band","🎗️",1,[]),
+  W("pebble","조약돌","Pebble","🥌",1,[]),
+  W("leaf_w","나뭇잎","Leaf","🍃",1,[]),
+  W("acorn","도토리","Acorn","🌰",1,[]),
+  W("pinecone","솔방울","Pine Cone","🌲",1,[]),
+  W("shell","조개껍데기","Seashell","🐚",1,[]),
+  W("bottle","빈 병","Empty Bottle","🍾",1,[]),
+  W("cork","코르크","Cork","🍷",1,[]),
+  W("can","찌그러진 캔","Dented Can","🥫",1,[]),
+  W("box","빈 상자","Empty Box","📦",1,[]),
+  W("bag","비닐봉지","Plastic Bag","🛍️",1,[]),
+  W("receipt","영수증","Receipt","🧾",1,[]),
+  W("coin_w","동전","Coin","🪙",1,[]),
+  W("ticket","찢어진 티켓","Torn Ticket","🎫",1,[]),
+  W("map_torn","찢어진 지도","Torn Map","🗺️",1,[]),
+  W("pen","볼펜","Ballpoint Pen","🖊️",1,[]),
+  W("eraser","지우개","Eraser","🩹",1,[]),
+  W("ruler","자","Ruler","📏",1,[]),
+  W("tape","테이프","Tape","🧻",1,[]),
+  W("glue","풀","Glue Stick","🧴",1,[]),
+  W("scissors","가위","Scissors","✂️",1,[]),
+  W("stapler","스테이플러","Stapler","📎",1,[]),
+  W("battery","방전된 배터리","Dead Battery","🔋",1,[]),
+  W("cable","엉킨 케이블","Tangled Cable","🔌",1,[]),
+  W("earbud","한쪽 이어폰","One Earbud","🎧",1,[]),
+  W("charger","충전기","Charger","🔌",1,[]),
+  W("umbrella","부러진 우산","Broken Umbrella","☂️",1,[]),
+  W("hat_w","밀짚모자","Straw Hat","👒",1,[]),
+  W("sunglass","선글라스","Sunglasses","🕶️",1,[]),
+  W("towel","수건","Towel","🧺",1,[]),
+  W("soap","비누","Soap","🧼",1,[]),
+  W("brush","칫솔","Toothbrush","🪥",1,[]),
+  W("comb","빗","Comb","💈",1,[]),
+  W("mirror_c","깨진 손거울","Cracked Mirror","🪞",1,[]),
+  W("candle_c","녹은 양초","Melted Candle","🕯️",1,[]),
+  W("match","성냥","Matchstick","🔥",1,[]),
+  W("lighter","라이터","Lighter","🔥",1,[]),
+  W("flashlight","손전등","Flashlight","🔦",1,[]),
+  W("rope_c","짧은 끈","Short Rope","🪢",1,[]),
+  W("net","잠자리채","Net","🥅",1,[]),
+  W("ball","테니스공","Tennis Ball","🎾",1,[]),
+  W("dice","주사위","Dice","🎲",1,[]),
+  W("card_c","트럼프 한 장","Playing Card","🃏",1,[]),
+  W("marble","구슬","Marble","🔵",1,[]),
+  W("yoyo","요요","Yo-yo","🪀",1,[]),
+  W("balloon","풍선","Balloon","🎈",1,[]),
+  W("whistle_c","호루라기","Whistle","🪈",1,[]),
+  W("harmonica","하모니카","Harmonica","🎵",1,[]),
+  W("triangle","트라이앵글","Triangle","🔺",1,[]),
+  W("tambourine","탬버린","Tambourine","🪘",1,[]),
+  W("banana","바나나","Banana","🍌",1,[]),
+  W("apple_c","사과","Apple","🍎",1,[]),
+  W("carrot","당근","Carrot","🥕",1,[]),
+  W("corn","옥수수","Corn","🌽",1,[]),
+  W("bread","식빵","Bread","🍞",1,[]),
+  W("egg","계란","Egg","🥚",1,[]),
+  W("cheese","치즈","Cheese","🧀",1,[]),
+  W("sausage","소시지","Sausage","🌭",1,[]),
+  W("pizza","식은 피자","Cold Pizza","🍕",1,[]),
+  W("noodle","라면","Instant Noodle","🍜",1,[]),
+  W("kimchi","김치","Kimchi","🥬",1,[]),
+  W("chopsticks","나무젓가락","Chopsticks","🥢",1,[]),
+  W("teabag","티백","Tea Bag","🫖",1,[]),
+  W("sugar","각설탕","Sugar Cube","🧊",1,[]),
+  W("ice","얼음","Ice","🧊",1,[]),
+  W("snow","눈뭉치","Snowball","❄️",1,[]),
+  W("sand","모래","Sand","🏖️",1,[]),
+  W("mud","진흙","Mud","🟤",1,[]),
+  W("dust_w","먼지 뭉치","Dust Bunny","🌫️",1,[]),
+  W("cobweb","거미줄","Cobweb","🕸️",1,[]),
+  W("worm","지렁이","Worm","🪱",1,[]),
+  W("snail","달팽이","Snail","🐌",1,[]),
+  W("frog","개구리","Frog","🐸",1,[]),
+  W("pigeon","비둘기","Pigeon","🕊️",1,[]),
+  W("pellet_w","부엉이 배설물","Owl Pellet","💩",1,[]),
+  W("nothing","아무것도 없음","Nothing","🫙",1,[]),
+  W("air","공기","Air","💨",1,[]),
+  W("hope","희망","Hope","✨",1,[]),
+  W("regret","후회","Regret","😔",1,[]),
+];
+const weaponById = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
+const WTICKET_MAX = 12;
+const WTICKET_MIN = 20;   // 분 — 이 간격마다 1장 충전
+
+/* 무기 티켓 (캐릭터 뽑기와 별개) */
+function wTickets() {
+  const last = Number(localStorage.getItem("kel_wt_at") || 0);
+  let n = Number(localStorage.getItem("kel_wt") || WTICKET_MAX);
+  if (last) {
+    const gained = Math.floor((Date.now() - last) / (WTICKET_MIN * 60000));
+    if (gained > 0) { n = Math.min(WTICKET_MAX, n + gained); localStorage.setItem("kel_wt", String(n)); localStorage.setItem("kel_wt_at", String(Date.now())); }
+  } else localStorage.setItem("kel_wt_at", String(Date.now()));
+  return n;
+}
+function useTicket(k) {
+  const n = wTickets();
+  if (n < k) return false;
+  localStorage.setItem("kel_wt", String(n - k));
+  if (!localStorage.getItem("kel_wt_at")) localStorage.setItem("kel_wt_at", String(Date.now()));
+  return true;
+}
+function addTicket(k) { localStorage.setItem("kel_wt", String(Math.min(WTICKET_MAX, wTickets() + k))); }
+function nextTicketIn() {
+  if (wTickets() >= WTICKET_MAX) return "";
+  const last = Number(localStorage.getItem("kel_wt_at") || Date.now());
+  const ms = WTICKET_MIN * 60000 - ((Date.now() - last) % (WTICKET_MIN * 60000));
+  return Math.max(1, Math.ceil(ms / 60000)) + "분 후 +1";
+}
+
+/* 보유 무기 */
+function myWeapons() { return (store.inventory || []).filter((r) => r.member === me); }
+function ownedIds() { return myWeapons().map((r) => r.weapon_id); }
+function wQty(id) { const r = myWeapons().find((x) => x.weapon_id === id); return r ? r.qty : 0; }
+function equippedId() { const r = (store.characters || []).find((c) => c.member === me); return r ? r.weapon : null; }
+function equippedOf(memberId) { const r = (store.characters || []).find((c) => c.member === memberId); return r ? r.weapon : null; }
+function weaponOf(memberId) { const id = equippedOf(memberId); return id ? weaponById[id] : null; }
+/* 각성 여부: 장착 무기가 내 캐릭터를 원하면 */
+function isAwakened(memberId) {
+  const w = weaponOf(memberId), c = charOf(memberId);
+  if (!w || !c) return false;
+  return (w.want || []).indexOf(c.id) >= 0;
+}
+function powerOf(memberId) {
+  const w = weaponOf(memberId);
+  if (!w) return 1;
+  if (isAwakened(memberId)) return 3;
+  return (w.want || []).length ? 1.5 : 1.3;
+}
+function drawWeapon(boost) {
+  const weights = TIERS.map((t) => ({ t: t.t, p: boost && t.t >= 3 ? t.p * boost : t.p }));
+  const total = weights.reduce((a, b) => a + b.p, 0);
+  let roll = Math.random() * total, acc = 0, tier = 1;
+  const order = weights.slice().sort((a, b) => a.p - b.p);
+  for (const t of order) { acc += t.p; if (roll <= acc) { tier = t.t; break; } }
+  let cands = WEAPONS.filter((w) => w.t === tier);
+  for (let t = tier - 1; t >= 1 && !cands.length; t--) cands = WEAPONS.filter((w) => w.t === t);
+  return cands[Math.floor(Math.random() * cands.length)];
+}
+
 /* ---------------- 기본 도구 ---------------- */
 const $ = (s, el) => (el || document).querySelector(s);
 const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
@@ -264,7 +533,12 @@ function takenIds() { return (store.characters || []).map((c) => c.char_id); }
 const nameOf = (id) => (id && byId[id] ? byId[id].name : id ? id : "수첩");
 const colorOf = (id) => { const t = tierOf(id); return t ? tierById[t].color : (byId[id] ? byId[id].color : "#9A9A92"); };
 const avatarOf = (id) => { const c = charOf(id); if (c) return c.em; return byId[id] && byId[id].avatar ? byId[id].avatar : "📓"; };
-const av = (id, cls) => '<span class="av ' + (cls || "") + (id === me ? " self" : "") + '" style="--rc:' + colorOf(id) + '">' + avatarOf(id) + "</span>";
+const av = (id, cls) => {
+  const w = weaponOf(id);
+  return '<span class="av ' + (cls || "") + (id === me ? " self" : "") + (isAwakened(id) ? " awake" : "") +
+    '" style="--rc:' + colorOf(id) + '">' + avatarOf(id) +
+    (w ? '<i class="av-w">' + w.em + "</i>" : "") + "</span>";
+};
 const money = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
 const pad = (n) => String(n).padStart(2, "0");
 const CAT_EMOJI = { "와이너리": "🍷", "음식": "🍽️", "액티비티": "🏞️", "기타": "📌" };
@@ -394,7 +668,8 @@ function charFx(memberId, level) {
   const calmFx = reduceMotion();
   const tierMul = c.t >= 5 ? 2.4 : c.t >= 4 ? 1.7 : 1;
   const base = c.t >= 5 ? Math.max(f.n || 10, 34) : (f.n || 10);
-  const n = Math.round(base * (level >= 3 ? 1.6 : level >= 2 ? 1 : 0.6) * tierMul * (calmFx ? 0.35 : 1));
+  const pw = powerOf(memberId);
+  const n = Math.round(base * (level >= 3 ? 1.6 : level >= 2 ? 1 : 0.6) * tierMul * pw * (calmFx ? 0.35 : 1));
   let html = "";
   for (let i = 0; i < n; i++) {
     const dur = (2.4 + Math.random() * 2).toFixed(2) + "s";
@@ -422,11 +697,11 @@ function charFx(memberId, level) {
   weatherFx._t = setTimeout(() => { layer.hidden = true; layer.innerHTML = ""; }, 5200);
   if (f.quake && !calmFx) { document.body.classList.add("quake"); setTimeout(() => document.body.classList.remove("quake"), 1100); }
   if (c.t >= 3) edgeGlow(f.c || colorOf(memberId), c.t >= 4);
-  if (f.special) specialFx(f.special, f.c, c.t);
+  if (f.special) specialFx(f.special, f.c, isAwakened(memberId) ? 6 : c.t, memberId);
   else { const o = document.getElementById("sfx"); if (o) { o.hidden = true; o.innerHTML = ""; o.className = ""; o.style.display = "none"; } }
   return true;
 }
-function specialFx(kind, color, tier) {
+function specialFx(kind, color, tier, memberId) {
   const o = document.getElementById("sfx");
   if (!o) return;
   const T = {
@@ -531,16 +806,23 @@ function specialFx(kind, color, tier) {
       '<div class="sfx-speed"></div><div class="sfx-grade"></div><div class="sfx-zoom"></div>' +
       '<div class="sfx-shard s1"></div><div class="sfx-shard s2"></div><div class="sfx-shard s3"></div><div class="sfx-shard s4"></div>'
     : "";
+  const wp = memberId ? weaponOf(memberId) : null;
+  const awake = tier >= 6;
+  const awakeLayer = awake
+    ? '<div class="sfx-awaken"></div><div class="sfx-wglyph">' + (wp ? wp.em : "⚔️") + "</div>" +
+      '<div class="sfx-mythbar awk">AWAKENED · ' + (wp ? esc(wp.ko) : "") + "</div>" +
+      '<div class="sfx-ripple"></div><div class="sfx-ripple r2"></div><div class="sfx-ripple r3"></div>'
+    : "";
   const myth = tier >= 5
-    ? '<div class="sfx-vignette"></div><div class="sfx-mythbar">MYTHIC · 0.1%</div>' +
+    ? '<div class="sfx-vignette"></div>' + (awake ? "" : '<div class="sfx-mythbar">MYTHIC · 0.1%</div>') +
       '<div class="sfx-orbit"><i></i><i></i><i></i><i></i><i></i><i></i></div>' +
       '<div class="sfx-godray"></div><div class="sfx-shockdisc"></div><div class="sfx-crackscreen"></div>'
     : "";
   o.innerHTML =
     '<div class="sfx-wash"></div>' +
     '<div class="sfx-rings"><i></i><i></i><i></i></div>' +
-    grand + extra + myth +
-    '<div class="sfx-big' + (tier >= 5 ? " myth" : tier >= 4 ? " grand" : "") + '">' + T.glyph + "</div>";
+    grand + extra + myth + awakeLayer +
+    '<div class="sfx-big' + (awake ? " awk" : tier >= 5 ? " myth" : tier >= 4 ? " grand" : "") + '">' + T.glyph + "</div>";
   o.hidden = false;
 
   if (!reduceMotion()) {
@@ -655,7 +937,7 @@ function toast(msg) {
 const store = {
   itinerary: [], polls: [], votes: [], expenses: [], checkins: [],
   wishes: [], wishLikes: [], shopping: [],
-  wineRatings: [], reactions: [], characters: [],
+  wineRatings: [], reactions: [], characters: [], inventory: [],
   settings: {}, loadedAt: null,
 };
 let sb = null;
@@ -915,7 +1197,7 @@ async function loadAll() {
     return;
   }
   try {
-    const [it, po, vo, ex, ch, wi, wl, sh, wr, rx, ca, se] = await Promise.all([
+    const [it, po, vo, ex, ch, wi, wl, sh, wr, rx, ca, iv, se] = await Promise.all([
       sb.from("itinerary").select("*").order("day").order("sort"),
       sb.from("polls").select("*").order("created_at", { ascending: false }),
       sb.from("votes").select("*"),
@@ -927,14 +1209,15 @@ async function loadAll() {
       sb.from("wine_ratings").select("*").order("created_at", { ascending: false }),
       sb.from("reactions").select("*"),
       sb.from("characters").select("*"),
+      sb.from("inventory").select("*"),
       sb.from("settings").select("*"),
     ]);
-    const bad = [it, po, vo, ex, ch, wi, wl, sh, wr, rx, ca, se].find((r) => r.error);
+    const bad = [it, po, vo, ex, ch, wi, wl, sh, wr, rx, ca, iv, se].find((r) => r.error);
     if (bad) throw bad.error;
     store.itinerary = it.data; store.polls = po.data; store.votes = vo.data;
     store.expenses = ex.data; store.checkins = ch.data;
     store.wishes = wi.data; store.wishLikes = wl.data; store.shopping = sh.data;
-    store.wineRatings = wr.data; store.reactions = rx.data; store.characters = ca.data || [];
+    store.wineRatings = wr.data; store.reactions = rx.data; store.characters = ca.data || []; store.inventory = iv.data || [];
     store.settings = Object.fromEntries(se.data.map((r) => [r.key, r.value]));
     store.loadedAt = Date.now();
     localStorage.setItem("kel_mirror", JSON.stringify(store));
@@ -945,6 +1228,7 @@ async function loadAll() {
   }
   if (checkVersionGate()) return;
   applyGrants();
+  checkNews();
   rerender();
   } finally {
     loading = false;
@@ -964,7 +1248,7 @@ function restoreMirror(silent) {
 function subscribe() {
   if (!sb) return;
   const ch = sb.channel("kel-live");
-  ["checkins", "expenses", "polls", "votes", "itinerary", "wishes", "wish_likes", "shopping", "wine_ratings", "reactions", "sirens", "settings", "characters"].forEach((t) => {
+  ["checkins", "expenses", "polls", "votes", "itinerary", "wishes", "wish_likes", "shopping", "wine_ratings", "reactions", "sirens", "settings", "characters", "inventory"].forEach((t) => {
     ch.on("postgres_changes", { event: "*", schema: "public", table: t }, (p) => onLive(t, p));
   });
   ch.subscribe();
@@ -975,7 +1259,7 @@ function onLive(table, payload) {
   if (payload.eventType !== "INSERT") return;
   const r = payload.new || {};
   if (table === "sirens") { emergency(r.note || null); return; }
-  if (table === "reactions" || table === "characters") return;
+  if (table === "reactions" || table === "characters" || table === "inventory") return;
   if (table === "settings") {
     const r2 = payload.new || {};
     if (r2.key === "current_dest" && r2.value) {
@@ -2582,6 +2866,11 @@ function renderInfo() {
     (charOf(me) ? '<button class="btn ghost small" id="fx-demo">내 이펙트</button>' : "") +
     '<button class="btn ghost small" id="pack-demo">뽑기 연출 테스트</button>' +
     '<button class="btn ghost small" id="diag">연출 진단</button></span></div>' +
+    '<div class="kv"><b>⚔️ 무기</b><span class="code-line">' +
+    (weaponOf(me) ? weaponOf(me).em + " <b>" + esc(weaponOf(me).ko) + "</b>" + (isAwakened(me) ? ' <span style="color:var(--gold);font-weight:800">⚡각성</span>' : "") : '<span class="muted">미장착</span>') +
+    ' <span class="muted" style="font-size:12px">🎟️' + wTickets() + "</span>" +
+    '<button class="btn ghost small" id="armory-btn">무기고</button>' +
+    '<button class="btn ghost small" id="wdraw-btn">뽑기</button></span></div>' +
     '<div class="kv"><b>교신 기록</b><span class="code-line">' +
     (localStorage.getItem("kel_hidefeed") === "1" ? '<span class="muted">숨김</span>' : '<b style="color:var(--pine)">표시 중</b>') +
     '<button class="btn ghost small" id="feed-toggle">' + (localStorage.getItem("kel_hidefeed") === "1" ? "다시 보기" : "숨기기") + "</button></span></div>" +
@@ -2596,8 +2885,25 @@ function renderInfo() {
     "</span></div>" +
     "</div>";
 
+  const rank = MEMBERS.map((m) => {
+    const owned = (store.inventory || []).filter((r) => r.member === m.id).length;
+    return { m, c: charOf(m.id), owned, awake: isAwakened(m.id), w: weaponOf(m.id) };
+  }).sort((a, b) => b.owned - a.owned || (b.c ? b.c.t : 0) - (a.c ? a.c.t : 0));
+  html += '<h2 class="sec">컬렉션 랭킹</h2><div class="card" style="padding:4px 18px">';
+  rank.forEach((x, i) => {
+    const pct = Math.round(x.owned / WEAPONS.length * 100);
+    html += '<div class="rowline"><span class="rk-no">' + (i + 1) + "</span>" + av(x.m.id) +
+      '<div style="min-width:0"><div style="font-weight:700;font-size:14px">' + esc(x.m.name) +
+      (x.awake ? ' <span style="color:var(--gold);font-size:11px">⚡각성</span>' : "") + "</div>" +
+      '<div class="muted" style="font-size:12px;margin-top:2px">' + (x.c ? x.c.em + " " + esc(x.c.ko) : "미정") +
+      (x.w ? " · " + x.w.em + " " + esc(x.w.ko) : "") + "</div></div>" +
+      '<div style="margin-left:auto;text-align:right"><div style="font-weight:800;font-size:15px">' + x.owned + "</div>" +
+      '<div class="muted" style="font-size:11px">' + pct + "%</div></div></div>";
+  });
+  html += "</div>";
+
   const hall = MEMBERS.map((m) => ({ m, c: charOf(m.id) })).filter((x) => x.c).sort((a, b) => b.c.t - a.c.t);
-  if (hall.length) {
+  if (false) {
     html += '<h2 class="sec">명예의 전당</h2><div class="card" style="padding:4px 18px">';
     for (const x of hall) {
       const t = tierById[x.c.t];
@@ -2667,6 +2973,8 @@ function renderInfo() {
      "kel_theme","kel_siren","kel_req_done","kel_aq"].forEach((k) => localStorage.removeItem(k));
     location.reload();
   };
+  const ar = $("#armory-btn"); if (ar) ar.onclick = openArmory;
+  const wd = $("#wdraw-btn"); if (wd) wd.onclick = openWeapon;
   const fd = $("#fx-demo"); if (fd) fd.onclick = () => { charFx(me, 3); showRibbon(charOf(me).ko + "의 시그니처", colorOf(me)); };
   const ft = $("#feed-toggle");
   if (ft) ft.onclick = () => {
@@ -3239,6 +3547,7 @@ function showAd(onDone) {
     if (sec <= 0 && b) b.onclick = () => {
       localStorage.setItem("kel_ads", String(adsWatched() + 1));
       localStorage.setItem("kel_rolls", String(Math.max(0, myRolls() - 10)));
+      addTicket(2);
       box.hidden = true; box.innerHTML = "";
       toast("🎲 뽑기 10번 충전!");
       onDone && onDone();
@@ -3283,6 +3592,34 @@ function checkTitleUnlock() {
   qInsert("checkins", { member: me, place: "🏅 " + got.em + " " + got.t + " 달성 (" + got.n + "회)", note: null, lat: null, lng: null });
   showTitleCard(got, bonus);
 }
+function checkNews() {
+  const tok = setting("news_token") || "";
+  if (!tok || localStorage.getItem("kel_news") === tok) return;
+  localStorage.setItem("kel_news", tok);
+  showNews();
+}
+function showNews() {
+  let box = document.getElementById("newsbox");
+  if (!box) { box = document.createElement("div"); box.id = "newsbox"; document.body.appendChild(box); }
+  box.innerHTML =
+    '<div class="wel-card">' +
+      '<div class="wel-em">⚔️</div>' +
+      '<div class="wel-t">무기 업데이트</div>' +
+      '<div class="wel-d">캐릭터는 그대로! 이제 무기를 모아</div>' +
+      '<div class="wel-list">' +
+        '<div><b>⚔️ 무기 202종</b><span>등급은 캐릭터와 동일 · 티켓은 20분마다 1장 (최대 12)</span></div>' +
+        '<div><b>⚡ 각성</b><span>내 캐릭터가 <b>원하는 무기</b>를 장착하면 이펙트가 폭주 · 셋이 딱총나무 지팡이를 노린다</span></div>' +
+        '<div><b>📦 위험한 상자</b><span>무기를 잃을 수도, 신화를 얻을 수도. 🚫 고르지 마라 상자는 60% 전멸 / 22% 신화</span></div>' +
+        '<div><b>🏆 컬렉션 랭킹</b><span>INFO 탭에서 6명 수집 순위 실시간</span></div>' +
+        '<div><b>🎟️ 티켓 얻는 법</b><span>시간 충전 · 퀴즈 · 광고 · 상자</span></div>' +
+      "</div>" +
+      '<button class="btn" id="news-ok" style="width:100%;margin-top:18px">무기고 열기</button>' +
+    "</div>";
+  box.hidden = false;
+  packTone(4); buzz([40, 50, 90]);
+  $("#news-ok").onclick = () => { box.hidden = true; box.innerHTML = ""; openArmory(); };
+}
+
 function showWelcome() {
   let box = document.getElementById("welcomebox");
   if (!box) { box = document.createElement("div"); box.id = "welcomebox"; document.body.appendChild(box); }
@@ -3374,6 +3711,7 @@ function showQuiz(onDone) {
     if (perfect) {
       localStorage.setItem("kel_quiz", String(quizDone() + 1));
       localStorage.setItem("kel_coupon", String(coupons() + 3));
+      addTicket(3);
     }
     box.innerHTML =
       '<div class="quiz-card">' +
@@ -3664,6 +4002,188 @@ function openMulti(kind) {
     openPack(c, () => { drawRoll(); $("#roll-modal").hidden = false; });
   });
   $("#multi-x").onclick = () => { box.hidden = true; box.innerHTML = ""; };
+}
+
+/* ---------------- 무기 ---------------- */
+let wRoll = null;
+async function grantWeapon(w) {
+  if (needSb()) return;
+  const cur = wQty(w.id);
+  await sb.from("inventory").upsert({ member: me, weapon_id: w.id, qty: cur + 1 }, { onConflict: "member,weapon_id" });
+  await loadAll();
+}
+function openWeapon() {
+  if (installRequired()) { showInstallWall(); return; }
+  if (!me) { toast("먼저 이름을 골라줘"); return openWho(); }
+  if (!charOf(me)) { toast("캐릭터부터 뽑자"); return openRoll(); }
+  if (!useTicket(1)) return toast("무기 티켓이 없어 · " + nextTicketIn());
+  const w = drawWeapon(0);
+  wRoll = w;
+  openPack({ em: w.em, ko: w.ko, last: w.en.split(" ")[0], first: w.en.split(" ").slice(1).join(" ") || "", t: w.t, fx: "gold" }, async () => {
+    await grantWeapon(w);
+    drawWeaponResult(w);
+  });
+}
+function drawWeaponResult(w) {
+  const t = tierById[w.t];
+  const c = charOf(me);
+  const fit = c && (w.want || []).indexOf(c.id) >= 0;
+  const dupe = wQty(w.id) > 1;
+  let box = document.getElementById("wbox");
+  if (!box) { box = document.createElement("div"); box.id = "wbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="quiz-card">' +
+      '<div class="wres-em">' + w.em + "</div>" +
+      '<div class="wres-t">' + esc(w.ko) + "</div>" +
+      '<div class="wres-en">' + esc(w.en) + " · " + t.name + "</div>" +
+      (fit ? '<div class="title-coupon" style="margin-top:12px">⚡ 각성 무기<br><span>' + esc(c.ko) + '이(가) 원하던 것 · 장착하면 이펙트가 폭주</span></div>'
+           : dupe ? '<div class="muted" style="margin-top:10px">이미 가진 무기 (보유 ' + wQty(w.id) + "개)</div>" : "") +
+      '<div class="btn-row" style="margin-top:14px">' +
+        '<button class="btn ghost" id="w-again" style="flex:1">🎟️ 한 번 더 (' + wTickets() + ")</button>" +
+        '<button class="btn" id="w-equip" style="flex:1">장착하기</button></div>' +
+      '<button class="btn ghost" id="w-close" style="width:100%;margin-top:8px">보관함으로</button>' +
+    "</div>";
+  $("#w-again").onclick = () => { box.hidden = true; openWeapon(); };
+  $("#w-equip").onclick = async () => { box.hidden = true; await equipWeapon(w.id); };
+  $("#w-close").onclick = () => { box.hidden = true; openArmory(); };
+}
+async function equipWeapon(id) {
+  if (needSb() || !me) return;
+  const rec = (store.characters || []).find((c) => c.member === me);
+  if (!rec) return toast("캐릭터부터 뽑자");
+  await sb.from("characters").update({ weapon: id }).eq("member", me);
+  await loadAll();
+  const w = weaponById[id];
+  if (isAwakened(me)) {
+    toast("⚡ 각성! " + charOf(me).ko + " + " + w.ko);
+    sendPush("⚡ 각성", nameOf(me) + " — " + charOf(me).ko + "이(가) " + w.ko + "를 손에 넣었다", "awaken");
+    qInsert("checkins", { member: me, place: "⚡ 각성 — " + charOf(me).ko + " + " + w.ko, note: null, lat: null, lng: null });
+    selfFx._t = 0; setTimeout(() => charFx(me, 3), 400);
+  } else toast(w.em + " " + w.ko + " 장착");
+  rerender();
+}
+function openArmory() {
+  let box = document.getElementById("armorybox");
+  if (!box) { box = document.createElement("div"); box.id = "armorybox"; document.body.appendChild(box); }
+  const owned = myWeapons();
+  const c = charOf(me);
+  const wants = c ? WEAPONS.filter((w) => (w.want || []).indexOf(c.id) >= 0) : [];
+  const eq = equippedId();
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="armory">' +
+      '<div class="arm-top">무기고 <span>' + owned.length + " / " + WEAPONS.length + "</span></div>" +
+      (wants.length ? '<div class="arm-want">' + (c ? esc(c.ko) : "") + '이(가) 원하는 무기<div class="arm-wrow">' +
+        wants.map((w) => '<span class="arm-wchip' + (wQty(w.id) ? " has" : "") + '">' + w.em + " " + esc(w.ko) +
+          (wQty(w.id) ? " ✅" : "") + "</span>").join("") + "</div></div>" : "") +
+      '<div class="arm-grid">' +
+        (owned.length ? owned.map((r) => {
+          const w = weaponById[r.weapon_id]; if (!w) return "";
+          const t = tierById[w.t];
+          const fit = c && (w.want || []).indexOf(c.id) >= 0;
+          return '<button class="arm-item' + (eq === w.id ? " on" : "") + (fit ? " fit" : "") + '" data-w="' + w.id + '" style="--rc:' + t.color + '">' +
+            '<span class="ai-em">' + w.em + "</span><span class=\"ai-ko\">" + esc(w.ko) + "</span>" +
+            '<span class="ai-t" style="background:' + t.color + '">' + t.en + "</span>" +
+            (r.qty > 1 ? '<span class="ai-q">×' + r.qty + "</span>" : "") +
+            (eq === w.id ? '<span class="ai-eq">장착중</span>' : "") + "</button>";
+        }).join("") : '<p class="muted" style="grid-column:1/-1;text-align:center">아직 무기가 없어. 뽑아보자</p>') +
+      "</div>" +
+      '<div class="btn-row" style="margin-top:14px">' +
+        '<button class="btn ghost" id="arm-draw" style="flex:1">🎟️ 무기 뽑기 (' + wTickets() + ")</button>" +
+        '<button class="btn ghost" id="arm-box" style="flex:1">📦 위험한 상자</button>' +
+        '<button class="btn" id="arm-close" style="flex:1">닫기</button></div>' +
+    "</div>";
+  $$(".arm-item", box).forEach((b) => b.onclick = async () => { box.hidden = true; await equipWeapon(b.dataset.w); openArmory(); });
+  $("#arm-draw").onclick = () => { box.hidden = true; openWeapon(); };
+  $("#arm-box").onclick = () => { box.hidden = true; openBoxes(); };
+  $("#arm-close").onclick = () => { box.hidden = true; };
+}
+
+/* ---------------- 위험한 상자 ---------------- */
+const BOXES = [
+  { id:"safe",  em:"📦", ko:"미확인 상자",   cost:2, lose:10, mythic:2,  desc:"10% 확률로 무기 하나 소멸" },
+  { id:"cursed",em:"☠️", ko:"저주받은 상자", cost:4, lose:35, mythic:8,  desc:"35% 확률로 무기 절반 소멸" },
+  { id:"trap",  em:"🚫", ko:"고르지 마라",   cost:6, lose:60, mythic:22, desc:"60% 확률로 전부 소멸" },
+];
+function openBoxes() {
+  let box = document.getElementById("boxbox");
+  if (!box) { box = document.createElement("div"); box.id = "boxbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="armory">' +
+      '<div class="arm-top">위험한 상자 <span>🎟️ ' + wTickets() + "</span></div>" +
+      '<p class="muted" style="font-size:12.5px;margin:0 0 12px">잃을 수도 있고, 신화를 얻을 수도 있어</p>' +
+      BOXES.map((b) =>
+        '<button class="boxcard b-' + b.id + '" data-b="' + b.id + '">' +
+          '<span class="bx-em">' + b.em + "</span>" +
+          '<span class="bx-t">' + b.ko + "</span>" +
+          '<span class="bx-d">' + b.desc + " · 신화 " + b.mythic + "%</span>" +
+          '<span class="bx-c">🎟️ ' + b.cost + "</span></button>").join("") +
+      '<button class="btn ghost" id="box-close" style="width:100%;margin-top:12px">닫기</button>' +
+    "</div>";
+  $$(".boxcard", box).forEach((b) => b.onclick = () => runBox(b.dataset.b));
+  $("#box-close").onclick = () => { box.hidden = true; };
+}
+async function runBox(id) {
+  const b = BOXES.find((x) => x.id === id);
+  if (!b) return;
+  if (!confirm(b.em + " " + b.ko + "\n\n티켓 " + b.cost + "장 소모\n" + b.desc + "\n신화 무기 확률 " + b.mythic + "%\n\n진짜 열까?")) return;
+  if (!useTicket(b.cost)) return toast("티켓이 부족해 · " + nextTicketIn());
+  document.getElementById("boxbox").hidden = true;
+
+  const roll = Math.random() * 100;
+  if (roll < b.lose) {
+    const mine = myWeapons();
+    if (!mine.length) { toast("잃을 게 없었다… 운이 좋네"); return; }
+    let killed = [];
+    if (b.id === "trap") killed = mine.slice();
+    else if (b.id === "cursed") killed = mine.slice(0, Math.max(1, Math.ceil(mine.length / 2)));
+    else killed = [mine[Math.floor(Math.random() * mine.length)]];
+    if (!needSb()) {
+      await sb.from("inventory").delete().eq("member", me).in("weapon_id", killed.map((k) => k.weapon_id));
+      if (killed.some((k) => k.weapon_id === equippedId())) await sb.from("characters").update({ weapon: null }).eq("member", me);
+      await loadAll();
+    }
+    showBoxResult(false, killed.length, null);
+    sendPush("💀 상자 참사", nameOf(me) + "이(가) 무기 " + killed.length + "개를 잃었다", "box");
+    return;
+  }
+  const boost = roll < b.lose + b.mythic ? 999 : 3;
+  const w = drawWeapon(boost);
+  await grantWeapon(w);
+  showBoxResult(true, 0, w);
+  if (w.t >= 5) {
+    sendPush("✦ 신화 무기", nameOf(me) + "이(가) " + w.em + " " + w.ko + "를 얻었다", "myth");
+    qInsert("checkins", { member: me, place: "✦ 신화 무기 " + w.em + " " + w.ko + " 획득", note: null, lat: null, lng: null });
+  }
+}
+function showBoxResult(win, lost, w) {
+  let box = document.getElementById("wbox");
+  if (!box) { box = document.createElement("div"); box.id = "wbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  if (!win) {
+    box.innerHTML = '<div class="quiz-card">' +
+      '<div class="wres-em">💀</div><div class="wres-t">무기 ' + lost + "개 소멸</div>" +
+      '<div class="wres-en">그러게 열지 말랬는데</div>' +
+      '<button class="btn" id="w-close" style="width:100%;margin-top:16px">…</button></div>';
+    buzz([80, 60, 80]); weatherFx("go", 3, "#C8503C", "전부 잃었다");
+  } else {
+    const t = tierById[w.t];
+    const c = charOf(me);
+    const fit = c && (w.want || []).indexOf(c.id) >= 0;
+    box.innerHTML = '<div class="quiz-card">' +
+      '<div class="wres-em">' + w.em + "</div>" +
+      '<div class="wres-t">' + esc(w.ko) + "</div>" +
+      '<div class="wres-en">' + esc(w.en) + " · " + t.name + "</div>" +
+      (fit ? '<div class="title-coupon" style="margin-top:12px">⚡ 각성 무기다!</div>' : "") +
+      '<div class="btn-row" style="margin-top:14px">' +
+        '<button class="btn ghost" id="w-close" style="flex:1">보관함</button>' +
+        '<button class="btn" id="w-equip2" style="flex:1">장착</button></div></div>';
+    packTone(w.t); if (w.t >= 4) specialFx("cupburst", t.color, w.t);
+    const e = $("#w-equip2"); if (e) e.onclick = async () => { box.hidden = true; await equipWeapon(w.id); };
+  }
+  const cl = $("#w-close"); if (cl) cl.onclick = () => { box.hidden = true; openArmory(); };
 }
 
 /* ---------------- 캐릭터 뽑기 ---------------- */
