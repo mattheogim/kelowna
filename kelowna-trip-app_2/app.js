@@ -367,7 +367,9 @@ function charFx(memberId, level) {
   const layer = document.getElementById("fx");
   if (!layer) return false;
   const calmFx = reduceMotion();
-  const n = Math.round((f.n || 10) * (level >= 3 ? 1.6 : level >= 2 ? 1 : 0.6) * (calmFx ? 0.35 : 1));
+  const tierMul = c.t >= 5 ? 2.4 : c.t >= 4 ? 1.7 : 1;
+  const base = c.t >= 5 ? Math.max(f.n || 10, 34) : (f.n || 10);
+  const n = Math.round(base * (level >= 3 ? 1.6 : level >= 2 ? 1 : 0.6) * tierMul * (calmFx ? 0.35 : 1));
   let html = "";
   for (let i = 0; i < n; i++) {
     const dur = (2.4 + Math.random() * 2).toFixed(2) + "s";
@@ -499,9 +501,15 @@ function specialFx(kind, color, tier) {
   o.removeAttribute("hidden");
   o.style.cssText = "position:fixed;inset:0;z-index:206;pointer-events:none;overflow:hidden;opacity:1;visibility:visible;display:block";
   o.style.setProperty("--sc", T.wash);
-  const grand = tier >= 4 ? '<div class="sfx-flash2"></div><div class="sfx-ring2"></div><div class="sfx-ring2 r2"></div><div class="sfx-ring2 r3"></div>' : "";
+  const grand = tier >= 4
+    ? '<div class="sfx-flash2"></div><div class="sfx-ring2"></div><div class="sfx-ring2 r2"></div><div class="sfx-ring2 r3"></div>' +
+      '<div class="sfx-speed"></div><div class="sfx-grade"></div><div class="sfx-zoom"></div>' +
+      '<div class="sfx-shard s1"></div><div class="sfx-shard s2"></div><div class="sfx-shard s3"></div><div class="sfx-shard s4"></div>'
+    : "";
   const myth = tier >= 5
-    ? '<div class="sfx-vignette"></div><div class="sfx-mythbar">MYTHIC · 0.1%</div><div class="sfx-orbit"><i></i><i></i><i></i><i></i></div>'
+    ? '<div class="sfx-vignette"></div><div class="sfx-mythbar">MYTHIC · 0.1%</div>' +
+      '<div class="sfx-orbit"><i></i><i></i><i></i><i></i><i></i><i></i></div>' +
+      '<div class="sfx-godray"></div><div class="sfx-shockdisc"></div><div class="sfx-crackscreen"></div>'
     : "";
   o.innerHTML =
     '<div class="sfx-wash"></div>' +
@@ -911,6 +919,7 @@ async function loadAll() {
     restoreMirror(false);
   }
   if (checkVersionGate()) return;
+  applyGrants();
   rerender();
   } finally {
     loading = false;
@@ -2592,12 +2601,14 @@ function renderInfo() {
         '<span class="shop-price">$100</span>' +
         '<span class="shop-t">프리미엄 팩</span>' +
         '<span class="shop-d">카드 5장 · 확률 3배 · 하루 1번</span>' +
-        '<span class="shop-s">' + (canBuy100() ? "구매 가능" : "오늘 사용함") + "</span></button>" +
+        '<span class="shop-s">' + (extraPrem() > 0 ? "🎁 보유 " + extraPrem() + "장 + " : "") +
+          (localStorage.getItem("kel_p100") !== today() ? "오늘 1회 가능" : (extraPrem() > 0 ? "오늘분 사용함" : "오늘 사용함")) + "</span></button>" +
       '<button class="shop-item ultra' + (canBuy1000() ? "" : " off") + '" id="buy1000">' +
         '<span class="shop-price">$1,000</span>' +
         '<span class="shop-t">울트라 팩</span>' +
         '<span class="shop-d">카드 3장 · 확률 10배 · 평생 1번</span>' +
-        '<span class="shop-s">' + (canBuy1000() ? "아직 안 씀" : "이미 사용함") + "</span></button>" +
+        '<span class="shop-s">' + (extraUltra() > 0 ? "🎁 보유 " + extraUltra() + "장 · " : "") +
+          (!localStorage.getItem("kel_p1000") ? "평생 1회 남음" : (extraUltra() > 0 ? "기본분 사용함" : "이미 사용함")) + "</span></button>" +
     "</div>" +
     '<p class="muted" style="font-size:11.5px;margin:9px 0 0;text-align:center">퀴즈 ' + Math.max(0, MAX_QUIZ - quizDone()) + '회 · 광고 ' + (MAX_ADS - adsWatched()) + '회 남음</p></div>';
 
@@ -2903,7 +2914,19 @@ function setting(k) {
 }
 function checkVersionGate() {
   const min = Number(setting("min_version") || 0);
-  if (min && BUILD_NO < min) { showVersionWall(min); return true; }
+  if (min && BUILD_NO < min) {
+    // 먼저 조용히 자동 갱신을 한 번 시도하고, 그래도 안 되면 잠금
+    const tried = localStorage.getItem("kel_autoupd");
+    if (tried !== String(min)) {
+      localStorage.setItem("kel_autoupd", String(min));
+      toast("새 버전이 있어 — 자동으로 갱신할게");
+      setTimeout(hardUpdate, 400);
+      return true;
+    }
+    showVersionWall(min);
+    return true;
+  }
+  localStorage.removeItem("kel_autoupd");
   const tok = setting("reset_token") || "";
   if (tok && localStorage.getItem("kel_reset_token") !== tok) {
     localStorage.setItem("kel_reset_token", tok);
@@ -2911,8 +2934,9 @@ function checkVersionGate() {
      "kel_push_x", "kel_check", "kel_alerts", "kel_siren", "kel_req_done"].forEach((k) => localStorage.removeItem(k));
     me = "";
     rollResult = null;
-    toast("🔄 새 판 시작 — 이름부터 다시 고르자");
-    setTimeout(() => { rerender(); openWho(); }, 600);
+    localStorage.removeItem("kel_x_ultra"); localStorage.removeItem("kel_x_prem");
+    localStorage.removeItem("kel_grant_token");
+    showWelcome();
   }
   return false;
 }
@@ -3233,6 +3257,27 @@ function checkTitleUnlock() {
   qInsert("checkins", { member: me, place: "🏅 " + got.em + " " + got.t + " 달성 (" + got.n + "회)", note: null, lat: null, lng: null });
   showTitleCard(got, bonus);
 }
+function showWelcome() {
+  let box = document.getElementById("welcomebox");
+  if (!box) { box = document.createElement("div"); box.id = "welcomebox"; document.body.appendChild(box); }
+  box.innerHTML =
+    '<div class="wel-card">' +
+      '<div class="wel-em">🎲</div>' +
+      '<div class="wel-t">새 판이 시작됐어</div>' +
+      '<div class="wel-d">테스트 기록은 전부 지웠어. 지금부터가 진짜야.</div>' +
+      '<div class="wel-list">' +
+        '<div><b>1. 이름 고르기</b><span>내가 6명 중 누구인지 선택</span></div>' +
+        '<div><b>2. 캐릭터 뽑기</b><span>119명 중 랜덤 · 20번까지 다시 굴리기</span></div>' +
+        '<div><b>3. 알림 켜기</b><span>앱이 꺼져 있어도 무전이 옴</span></div>' +
+        '<div><b>4. 등급이 곧 이펙트</b><span>전설·신화면 무전 보낼 때 화면이 뒤집힘</span></div>' +
+        '<div><b>5. 충전 방법</b><span>퀴즈 만점 = 확률 2배 · 광고 = 10번 · 상점 팩</span></div>' +
+      "</div>" +
+      '<button class="btn" id="wel-ok" style="width:100%;margin-top:18px">시작하기</button>' +
+    "</div>";
+  box.hidden = false;
+  $("#wel-ok").onclick = () => { box.hidden = true; box.innerHTML = ""; rerender(); openWho(); };
+}
+
 function showTitleCard(t, bonus) {
   let box = document.getElementById("titlebox");
   if (!box) { box = document.createElement("div"); box.id = "titlebox"; document.body.appendChild(box); }
@@ -3485,8 +3530,43 @@ function ascendFx() {
 
 /* ---------------- 프리미엄 뽑기 (100 / 1000) ---------------- */
 function today() { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
-function canBuy100() { return localStorage.getItem("kel_p100") !== today(); }
-function canBuy1000() { return !localStorage.getItem("kel_p1000"); }
+function extraUltra() { return Number(localStorage.getItem("kel_x_ultra") || 0); }
+function extraPrem() { return Number(localStorage.getItem("kel_x_prem") || 0); }
+function canBuy100() { return localStorage.getItem("kel_p100") !== today() || extraPrem() > 0; }
+function canBuy1000() { return !localStorage.getItem("kel_p1000") || extraUltra() > 0; }
+function applyGrants() {
+  const tok = setting("grant_token") || "";
+  if (!tok || !me) return;
+  if (localStorage.getItem("kel_grant_token") === tok) return;
+  let g = {};
+  try { g = JSON.parse(setting("grants") || "{}"); } catch (e) { return; }
+  localStorage.setItem("kel_grant_token", tok);
+  const mine = g[me];
+  if (!mine) return;
+  if (mine.ultra) localStorage.setItem("kel_x_ultra", String(extraUltra() + mine.ultra));
+  if (mine.premium) localStorage.setItem("kel_x_prem", String(extraPrem() + mine.premium));
+  const parts = [];
+  if (mine.ultra) parts.push("🏆 $1,000 울트라 팩 " + mine.ultra + "장");
+  if (mine.premium) parts.push("💵 $100 프리미엄 팩 " + mine.premium + "장");
+  showGiftCard(parts, mine.why || "");
+}
+function showGiftCard(parts, why) {
+  let box = document.getElementById("giftbox");
+  if (!box) { box = document.createElement("div"); box.id = "giftbox"; document.body.appendChild(box); }
+  box.innerHTML =
+    '<div class="title-card">' +
+      '<div class="title-lab">선물 도착</div>' +
+      '<div class="title-em">🎁</div>' +
+      '<div class="title-t">' + esc(nameOf(me)) + "에게</div>" +
+      (why ? '<div class="title-d">' + esc(why) + "</div>" : "") +
+      '<div class="title-coupon" style="margin-top:14px">' + parts.join("<br>") + "</div>" +
+      '<button class="btn" id="gift-ok" style="width:100%;margin-top:16px">받기</button>' +
+    "</div>";
+  box.hidden = false;
+  packTone(5); buzz([60, 40, 60, 40, 140]);
+  weatherFx("arrival", 3, "#C79A3E", "🎁 선물이 도착했다");
+  $("#gift-ok").onclick = () => { box.hidden = true; box.innerHTML = ""; rerender(); };
+}
 function drawMulti(n, boost) {
   const taken = takenIds();
   const out = [];
@@ -3513,8 +3593,15 @@ function openMulti(kind) {
   const boost = kind === 1000 ? 10 : 3;
   const cards = drawMulti(n, boost);
   if (!cards.length) return toast("남은 캐릭터가 없어");
-  if (kind === 100) localStorage.setItem("kel_p100", today());
-  else localStorage.setItem("kel_p1000", today());
+  if (kind === 100) {
+    if (localStorage.getItem("kel_p100") === today() && extraPrem() > 0)
+      localStorage.setItem("kel_x_prem", String(extraPrem() - 1));
+    else localStorage.setItem("kel_p100", today());
+  } else {
+    if (localStorage.getItem("kel_p1000") && extraUltra() > 0)
+      localStorage.setItem("kel_x_ultra", String(extraUltra() - 1));
+    else localStorage.setItem("kel_p1000", today());
+  }
 
   let box = document.getElementById("multibox");
   if (!box) { box = document.createElement("div"); box.id = "multibox"; document.body.appendChild(box); }
@@ -3935,7 +4022,22 @@ function boot() {
   window.addEventListener("online", () => { loadAll(); flushQueue(); });
 
   if ("serviceWorker" in navigator && location.protocol === "https:") {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      if (reg) reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener("statechange", () => {
+          if (nw.state === "installed" && navigator.serviceWorker.controller) {
+            nw.postMessage({ type: "SKIP_WAITING" });
+            if (!sessionStorage.getItem("kel_swreload")) {
+              sessionStorage.setItem("kel_swreload", "1");
+              setTimeout(() => location.reload(), 600);
+            }
+          }
+        });
+      });
+      return reg;
+    }).catch(() => {});
   }
 }
 
