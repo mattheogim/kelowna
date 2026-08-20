@@ -16,8 +16,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v29";
-const BUILD_NO = 29;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v31";
+const BUILD_NO = 31;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -149,6 +149,11 @@ const ROSTER = [
   C("pomfrey","Pomfrey","Poppy","💊",2,"폼프리","charm"),
   /* ---------- 일반 45.7% ---------- */
   C("donotchoose","Do Not","Choose Me","🚫",1,"고르지 마라","warn"),
+  C("nameless","The","Nameless","❓",1,"이름 없는 자","dust"),
+  C("blankcard","Blank","Card","🕳️",1,"빈 칸","ghost"),
+  C("joker","The","Joker","🃏",1,"조커","spark"),
+  C("sealed","Sealed","Card","🔒",1,"봉인된 카드","charm"),
+  C("unknownbox","Unknown","Box","📦",1,"미확인 상자","dust"),
   C("gollum","Gollum","Sméagol","💍",1,"골룸 (배송 사고)","ring"),
   C("filch","Filch","Argus","🧹",1,"필치","dust"),
   C("peeves","Peeves","the Poltergeist","👻",1,"피브스","ghost"),
@@ -213,8 +218,28 @@ const ROSTER = [
   // 숨겨진 각성체 — 뽑기로는 안 나오고 '고르지 마라'를 확정했을 때만
   { id:"chosen", last:"The", first:"Chosen One", em:"🌟", t:5, ko:"선택받은 자", fx:"ascend", hidden:true },
 ];
-const TRAP_ID = "donotchoose";
-const TRAP_RATE = 23;   // % — 이 확률로 무조건 등장
+const TRAP_POOL = ["donotchoose", "nameless", "blankcard", "joker", "sealed", "unknownbox"];
+const TRAP_RATE = 23;   // % — 미끼 중 하나가 이 확률로 등장
+/* 진짜 각성 카드는 서버(settings.trap_id)가 정한다.
+   값이 없으면 reset_token을 해시해서 자동 결정 → 리셋할 때마다 정답이 바뀜 */
+const TRAP_WARNS = {
+  donotchoose: "⚠️ 확정하지 마시오",
+  nameless:    "⚠️ 이름을 부르지 마시오",
+  blankcard:   "⚠️ 비어 있음 · 확정 비권장",
+  joker:       "⚠️ 무엇이 나올지 모름",
+  sealed:      "⚠️ 봉인을 뜯지 마시오",
+  unknownbox:  "⚠️ 열지 마시오",
+};
+function trapWarn(id) { return TRAP_WARNS[id] || "⚠️ 확정하지 마시오"; }
+function trapId() {
+  const fixed = setting("trap_id");
+  if (fixed && TRAP_POOL.indexOf(fixed) >= 0) return fixed;
+  const seed = String(setting("reset_token") || "seed");
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 100000;
+  return TRAP_POOL[h % TRAP_POOL.length];
+}
+function isTrap(id) { return TRAP_POOL.indexOf(id) >= 0; }
 
 
 /* ---------------- 기본 도구 ---------------- */
@@ -2600,9 +2625,10 @@ function renderInfo() {
       '<button class="shop-item' + (canBuy100() ? "" : " off") + '" id="buy100">' +
         '<span class="shop-price">$100</span>' +
         '<span class="shop-t">프리미엄 팩</span>' +
-        '<span class="shop-d">카드 5장 · 확률 3배 · 하루 1번</span>' +
-        '<span class="shop-s">' + (extraPrem() > 0 ? "🎁 보유 " + extraPrem() + "장 + " : "") +
-          (localStorage.getItem("kel_p100") !== today() ? "오늘 1회 가능" : (extraPrem() > 0 ? "오늘분 사용함" : "오늘 사용함")) + "</span></button>" +
+        '<span class="shop-d">카드 5장 · 확률 3배 · 하루 ' + P100_PER_DAY + "번</span>" +
+        '<span class="shop-s">' + (extraPrem() > 0 ? "🎁 보유 " + extraPrem() + "장 · " : "") +
+          "오늘 " + used100Today() + "/" + P100_PER_DAY +
+          (used100Today() < P100_PER_DAY ? " · 구매 가능" : (extraPrem() > 0 ? " · 선물로 가능" : " · 내일 다시")) + "</span></button>" +
       '<button class="shop-item ultra' + (canBuy1000() ? "" : " off") + '" id="buy1000">' +
         '<span class="shop-price">$1,000</span>' +
         '<span class="shop-t">울트라 팩</span>' +
@@ -2689,8 +2715,8 @@ function renderInfo() {
   if (ab) ab.onclick = () => showAd(() => { rollResult = drawCharacter(); openRoll(); });
   const b100 = $("#buy100");
   if (b100) b100.onclick = () => {
-    if (!canBuy100()) return toast("오늘은 이미 열었어. 내일 다시");
-    if (!confirm("$100 프리미엄 팩\n카드 5장 · 확률 3배 · 하루 한 번\n\n(진짜 결제 아님)")) return;
+    if (!canBuy100()) return toast("오늘 " + P100_PER_DAY + "번 다 썼어. 내일 다시");
+    if (!confirm("$100 프리미엄 팩\n카드 5장 · 확률 3배\n오늘 " + used100Today() + "/" + P100_PER_DAY + " 사용\n\n(진짜 결제 아님)")) return;
     openMulti(100);
   };
   const b1000 = $("#buy1000");
@@ -3532,7 +3558,12 @@ function ascendFx() {
 function today() { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
 function extraUltra() { return Number(localStorage.getItem("kel_x_ultra") || 0); }
 function extraPrem() { return Number(localStorage.getItem("kel_x_prem") || 0); }
-function canBuy100() { return localStorage.getItem("kel_p100") !== today() || extraPrem() > 0; }
+const P100_PER_DAY = 2;
+function used100Today() {
+  const rec = (localStorage.getItem("kel_p100") || "").split("|");
+  return rec[0] === today() ? Number(rec[1] || 1) : 0;
+}
+function canBuy100() { return used100Today() < P100_PER_DAY || extraPrem() > 0; }
 function canBuy1000() { return !localStorage.getItem("kel_p1000") || extraUltra() > 0; }
 function applyGrants() {
   const tok = setting("grant_token") || "";
@@ -3570,7 +3601,7 @@ function showGiftCard(parts, why) {
 function drawMulti(n, boost) {
   const taken = takenIds();
   const out = [];
-  const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0 && !c.hidden && c.id !== TRAP_ID);
+  const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0 && !c.hidden && !isTrap(c.id));
   for (let k = 0; k < n && pool.length; k++) {
     const weights = TIERS.map((t) => ({ t: t.t, p: t.t >= 3 ? t.p * boost : t.p }));
     const total = weights.reduce((a, b) => a + b.p, 0);
@@ -3586,7 +3617,7 @@ function drawMulti(n, boost) {
   return out;
 }
 function openMulti(kind) {
-  if (kind === 100 && !canBuy100()) return toast("100달러 팩은 하루에 한 번이야");
+  if (kind === 100 && !canBuy100()) return toast("100달러 팩은 하루 " + P100_PER_DAY + "번이야");
   if (kind === 1000 && !canBuy1000()) return toast("1000달러 팩은 평생 한 번뿐이야");
   if (!me) return openWho();
   const n = kind === 1000 ? 3 : 5;
@@ -3594,9 +3625,9 @@ function openMulti(kind) {
   const cards = drawMulti(n, boost);
   if (!cards.length) return toast("남은 캐릭터가 없어");
   if (kind === 100) {
-    if (localStorage.getItem("kel_p100") === today() && extraPrem() > 0)
+    if (used100Today() >= P100_PER_DAY && extraPrem() > 0)
       localStorage.setItem("kel_x_prem", String(extraPrem() - 1));
-    else localStorage.setItem("kel_p100", today());
+    else localStorage.setItem("kel_p100", today() + "|" + (used100Today() + 1));
   } else {
     if (localStorage.getItem("kel_p1000") && extraUltra() > 0)
       localStorage.setItem("kel_x_ultra", String(extraUltra() - 1));
@@ -3648,7 +3679,9 @@ function drawCharacter() {
   const boost = coupons() > 0;
   if (boost) localStorage.setItem("kel_coupon", String(coupons() - 1));
   // 함정 캐릭터는 '일반' 등급 몫에서만 가져간다 (상위 등급 확률 유지)
-  const trap = pool.find((c) => c.id === TRAP_ID);
+  const traps = pool.filter((c) => isTrap(c.id));
+  const trap = (dryStreak() >= PITY_AT || !traps.length) ? null   // 천장이 걸린 턴엔 미끼 안 나옴
+    : traps[Math.floor(Math.random() * traps.length)];
   if (trap && Math.random() * 100 < TRAP_RATE) {
     localStorage.setItem("kel_dry", String(dryStreak() + 1));
     return trap;
@@ -3703,7 +3736,7 @@ function drawRoll() {
     '<div class="medal spin" style="--rc:' + t.color + '">' +
       (c.t >= 5 ? '<span class="spark" style="width:8px;height:8px;top:-2px;left:70px"></span><span class="spark" style="width:5px;height:5px;top:36px;right:-6px;animation-delay:.5s"></span><span class="spark" style="width:4px;height:4px;bottom:10px;left:14px;animation-delay:1s"></span>' : "") +
       '<div class="rg"></div><div class="in"><div class="em">' + c.em + '</div><div class="rk">' + t.en + " · " + t.p + "%</div></div></div>" +
-    (c.id === TRAP_ID ? '<div class="trap-warn">⚠️ 확정하지 마시오</div>' : "") +
+    (isTrap(c.id) ? '<div class="trap-warn">' + trapWarn(c.id) + "</div>" : "") +
     '<div class="roll-name"><div class="en">' + esc(c.last) + " <b>" + esc(nameOf(me)) + "</b> " + esc(c.first) + "</div>" +
       '<div class="ko">' + esc(c.ko) + " · " + t.name + (c.t === 6 ? " — 이 세계 사람이 아니야" : c.t === 5 ? " — 부엉이다" : "") + "</div></div>" +
     '<div class="rolls">ROLLS LEFT<b>' + left + '<span>/' + MAX_ROLLS + "</span></b></div>" +
@@ -3735,7 +3768,12 @@ function drawRoll() {
 async function confirmRoll() {
   if (needSb() || !rollResult) return;
   let c = rollResult;
-  if (c.id === TRAP_ID) {
+  if (isTrap(c.id) && c.id !== trapId()) {
+    // 미끼였지만 이번 판의 정답이 아님 → 그냥 그 캐릭터로 확정
+    toast("…아무 일도 일어나지 않았다");
+    weatherFx("cabin", 1, "#9A9A92", "그냥 카드였다");
+  }
+  if (c.id === trapId()) {
     const asc = charById["chosen"];
     if (asc && takenIds().indexOf("chosen") < 0) {
       $("#roll-modal").hidden = true;
@@ -3779,7 +3817,7 @@ function openOdds() {
   }).join("") +
     '<div class="odds-row" style="border-top:1.5px dashed var(--line-2);margin-top:6px;padding-top:14px">' +
     '<span class="odds-ring" style="--rc:#C8503C">🚫</span>' +
-    '<div><div class="odds-t">고르지 마라 <span class="muted">DO NOT CHOOSE ME</span></div>' +
+    '<div><div class="odds-t">수상한 카드 <span class="muted">SUSPICIOUS</span></div>' +
     '<div class="odds-l">등급과 별개로 이 확률로 등장. 확정하면 어떻게 되는지는 아무도 몰라</div></div>' +
     '<span class="odds-p" style="color:#C8503C">' + TRAP_RATE + "%</span></div>" +
     '<p class="muted" style="text-align:center;margin-top:14px">꽝은 없어. 운만 다를 뿐</p>';
