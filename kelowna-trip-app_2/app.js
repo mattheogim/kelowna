@@ -16,14 +16,16 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v27";
-const BUILD_NO = 27;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-19 v29";
+const BUILD_NO = 29;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
 const FX = {
   bolt:     { shape:"streak",motion:"burst", c:"#F2C744", n:22, special:"bolt", quake:true },
   keynote:  { shape:"star",  motion:"rise",  c:"#E8E8ED", n:18, special:"keynote" },
+  warn:     { shape:"warn",  motion:"fall",  c:"#C8503C", n:14 },
+  ascend:   { shape:"star",  motion:"rise",  c:"#F5E08A", n:40, special:"ascend", quake:true },
   tsunami:  { shape:"grape", motion:"rise",  c:"#3E8FC4", n:26, special:"tsunami", quake:true },
   volcano:  { shape:"grape", motion:"rise",  c:"#E0562C", n:28, special:"volcano", quake:true },
   saiyan:   { shape:"streak",motion:"rise",  c:"#F5C542", n:30, special:"saiyan", quake:true },
@@ -146,6 +148,7 @@ const ROSTER = [
   C("sprout","Sprout","Pomona","🪴",2,"스프라우트","leaf"),
   C("pomfrey","Pomfrey","Poppy","💊",2,"폼프리","charm"),
   /* ---------- 일반 45.7% ---------- */
+  C("donotchoose","Do Not","Choose Me","🚫",1,"고르지 마라","warn"),
   C("gollum","Gollum","Sméagol","💍",1,"골룸 (배송 사고)","ring"),
   C("filch","Filch","Argus","🧹",1,"필치","dust"),
   C("peeves","Peeves","the Poltergeist","👻",1,"피브스","ghost"),
@@ -207,7 +210,11 @@ const ROSTER = [
   C("cake","Cauldron","Cake","🧁",1,"솥단지 케이크","candy"),
   C("liquorice","Liquorice","Wand","🥢",1,"감초 지팡이","candy"),
   C("owlpellet","Owl","Pellet","💩",1,"부엉이 배설물","dust"),
+  // 숨겨진 각성체 — 뽑기로는 안 나오고 '고르지 마라'를 확정했을 때만
+  { id:"chosen", last:"The", first:"Chosen One", em:"🌟", t:5, ko:"선택받은 자", fx:"ascend", hidden:true },
 ];
+const TRAP_ID = "donotchoose";
+const TRAP_RATE = 23;   // % — 이 확률로 무조건 등장
 
 
 /* ---------------- 기본 도구 ---------------- */
@@ -422,6 +429,7 @@ function specialFx(kind, color, tier) {
     rocket:   { wash:"#5A6478", glyph:"🚀", cls:"w-rocket" },
     stage:    { wash:"#D9418F", glyph:"🎤", cls:"w-stage" },
     impact:   { wash:"#E0B520", glyph:"🥋", cls:"w-impact" },
+    ascend:   { wash:"#F5E08A", glyph:"🌟", cls:"w-ascend" },
   }[kind];
   if (!T) return;
 
@@ -483,6 +491,9 @@ function specialFx(kind, color, tier) {
     extra = '<div class="sfx-beamL"></div><div class="sfx-beamR"></div><div class="sfx-crowd"></div>';
   if (kind === "impact")
     extra = '<div class="sfx-hit"></div><div class="sfx-crackline c1"></div><div class="sfx-crackline c2"></div>';
+  if (kind === "ascend")
+    extra = '<div class="sfx-white"></div><div class="sfx-ascendbeam"></div><div class="sfx-halo2"></div>' +
+            '<div class="sfx-featherup f1">🪶</div><div class="sfx-featherup f2">🪶</div><div class="sfx-featherup f3">🪶</div>';
 
   o.className = T.cls;
   o.removeAttribute("hidden");
@@ -3450,6 +3461,28 @@ function openPack(c, done) {
   pack.onclick = finish;
 }
 
+function ascendFx() {
+  return new Promise((res) => {
+    let box = document.getElementById("ascbox");
+    if (!box) { box = document.createElement("div"); box.id = "ascbox"; document.body.appendChild(box); }
+    box.hidden = false;
+    box.innerHTML =
+      '<div class="asc-wrap">' +
+        '<div class="asc-warn">🚫</div>' +
+        '<div class="asc-line1">그러게 고르지 말랬는데</div>' +
+        '<div class="asc-star">🌟</div>' +
+        '<div class="asc-line2">선택받은 자</div>' +
+        '<div class="asc-tier">MYTHIC · 0.1%</div>' +
+      "</div>";
+    packTone(5);
+    buzz([80, 50, 80, 50, 200]);
+    specialFx("ascend", "#F5E08A", 5);
+    document.body.classList.add("sfx-shake");
+    setTimeout(() => document.body.classList.remove("sfx-shake"), 1800);
+    setTimeout(() => { box.hidden = true; box.innerHTML = ""; res(); }, 4200);
+  });
+}
+
 /* ---------------- 프리미엄 뽑기 (100 / 1000) ---------------- */
 function today() { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
 function canBuy100() { return localStorage.getItem("kel_p100") !== today(); }
@@ -3457,7 +3490,7 @@ function canBuy1000() { return !localStorage.getItem("kel_p1000"); }
 function drawMulti(n, boost) {
   const taken = takenIds();
   const out = [];
-  const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0);
+  const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0 && !c.hidden && c.id !== TRAP_ID);
   for (let k = 0; k < n && pool.length; k++) {
     const weights = TIERS.map((t) => ({ t: t.t, p: t.t >= 3 ? t.p * boost : t.p }));
     const total = weights.reduce((a, b) => a + b.p, 0);
@@ -3522,8 +3555,17 @@ function bumpRolls() { localStorage.setItem("kel_rolls", String(myRolls() + 1));
 function dryStreak() { return Number(localStorage.getItem("kel_dry") || 0); }
 function drawCharacter() {
   const taken = takenIds();
-  const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0);
+  const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0 && !c.hidden);
   if (!pool.length) return null;
+  // 쿠폰은 어떤 뽑기든 1장 소모
+  const boost = coupons() > 0;
+  if (boost) localStorage.setItem("kel_coupon", String(coupons() - 1));
+  // 함정 캐릭터는 '일반' 등급 몫에서만 가져간다 (상위 등급 확률 유지)
+  const trap = pool.find((c) => c.id === TRAP_ID);
+  if (trap && Math.random() * 100 < TRAP_RATE) {
+    localStorage.setItem("kel_dry", String(dryStreak() + 1));
+    return trap;
+  }
   let picked = null;
   // 천장: 12번 연속 영웅 미만이면 영웅 이상 확정
   if (dryStreak() >= PITY_AT) {
@@ -3531,9 +3573,12 @@ function drawCharacter() {
     if (hi.length) picked = hi[Math.floor(Math.random() * hi.length)];
   }
   if (!picked) {
-    const boost = coupons() > 0;
-    if (boost) localStorage.setItem("kel_coupon", String(coupons() - 1));
-    const weights = TIERS.map((t) => ({ t: t.t, p: boost && t.t >= 3 ? t.p * 2 : t.p }));
+    const trapLeft = !!trap;
+    const weights = TIERS.map((t) => {
+      let p = boost && t.t >= 3 ? t.p * 2 : t.p;
+      if (t.t === 1 && trapLeft) p = Math.max(0.1, p - TRAP_RATE);   // 함정이 가져간 몫만큼 일반에서 차감
+      return { t: t.t, p };
+    });
     const total = weights.reduce((a, b) => a + b.p, 0);
     const roll = Math.random() * total;
     let acc = 0, tier = 1;
@@ -3571,6 +3616,7 @@ function drawRoll() {
     '<div class="medal spin" style="--rc:' + t.color + '">' +
       (c.t >= 5 ? '<span class="spark" style="width:8px;height:8px;top:-2px;left:70px"></span><span class="spark" style="width:5px;height:5px;top:36px;right:-6px;animation-delay:.5s"></span><span class="spark" style="width:4px;height:4px;bottom:10px;left:14px;animation-delay:1s"></span>' : "") +
       '<div class="rg"></div><div class="in"><div class="em">' + c.em + '</div><div class="rk">' + t.en + " · " + t.p + "%</div></div></div>" +
+    (c.id === TRAP_ID ? '<div class="trap-warn">⚠️ 확정하지 마시오</div>' : "") +
     '<div class="roll-name"><div class="en">' + esc(c.last) + " <b>" + esc(nameOf(me)) + "</b> " + esc(c.first) + "</div>" +
       '<div class="ko">' + esc(c.ko) + " · " + t.name + (c.t === 6 ? " — 이 세계 사람이 아니야" : c.t === 5 ? " — 부엉이다" : "") + "</div></div>" +
     '<div class="rolls">ROLLS LEFT<b>' + left + '<span>/' + MAX_ROLLS + "</span></b></div>" +
@@ -3601,7 +3647,16 @@ function drawRoll() {
 }
 async function confirmRoll() {
   if (needSb() || !rollResult) return;
-  const c = rollResult;
+  let c = rollResult;
+  if (c.id === TRAP_ID) {
+    const asc = charById["chosen"];
+    if (asc && takenIds().indexOf("chosen") < 0) {
+      $("#roll-modal").hidden = true;
+      await ascendFx();
+      c = asc;
+      rollResult = asc;
+    }
+  }
   const { error } = await sb.from("characters").upsert({ member: me, char_id: c.id, tier: c.t, rolls: myRolls() }, { onConflict: "member" });
   if (error) {
     toast("누가 방금 그 캐릭터를 가져갔어 — 다시 뽑을게");
@@ -3627,14 +3682,20 @@ function openOdds() {
   if (!box) return;
   const taken = takenIds();
   box.innerHTML = TIERS.map((t) => {
-    const list = ROSTER.filter((c) => c.t === t.t);
+    const list = ROSTER.filter((c) => c.t === t.t && !c.hidden);
     const left = list.filter((c) => taken.indexOf(c.id) < 0).length;
     return '<div class="odds-row"><span class="odds-ring" style="--rc:' + t.color + '">' + list[0].em + "</span>" +
       '<div><div class="odds-t">' + t.name + " <span class=\"muted\">" + t.en + "</span></div>" +
       '<div class="odds-l">' + list.map((c) => c.em + " " + c.ko).join(" · ") + "</div>" +
       '<div class="odds-l">남은 인원 ' + left + "/" + list.length + "</div></div>" +
       '<span class="odds-p" style="color:' + t.color + '">' + t.p + "%</span></div>";
-  }).join("") + '<p class="muted" style="text-align:center;margin-top:14px">꽝은 없어. 운만 다를 뿐</p>';
+  }).join("") +
+    '<div class="odds-row" style="border-top:1.5px dashed var(--line-2);margin-top:6px;padding-top:14px">' +
+    '<span class="odds-ring" style="--rc:#C8503C">🚫</span>' +
+    '<div><div class="odds-t">고르지 마라 <span class="muted">DO NOT CHOOSE ME</span></div>' +
+    '<div class="odds-l">등급과 별개로 이 확률로 등장. 확정하면 어떻게 되는지는 아무도 몰라</div></div>' +
+    '<span class="odds-p" style="color:#C8503C">' + TRAP_RATE + "%</span></div>" +
+    '<p class="muted" style="text-align:center;margin-top:14px">꽝은 없어. 운만 다를 뿐</p>';
   $("#odds-modal").hidden = false;
 }
 
