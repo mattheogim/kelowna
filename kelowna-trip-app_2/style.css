@@ -1269,3 +1269,180 @@ body.quake{animation:qk .5s cubic-bezier(.36,.07,.19,.97) 2}
 @keyframes ripple{0%{opacity:0;transform:scale(.1)}12%{opacity:.9}100%{opacity:0;transform:scale(8)}}
 #newsbox{position:fixed;inset:0;z-index:725;background:rgba(18,17,15,.9);display:flex;align-items:center;justify-content:center;padding:22px}
 #newsbox[hidden]{display:none}
+
+/* ================================================================
+   v33 — 정각 무제한 · 라이어 게임 · 궁합표 · 배수 쿠폰 · 신규 이펙트
+   ================================================================ */
+
+/* ---------- 정각 무제한 필 ---------- */
+#rush-pill{position:fixed;left:14px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:540;
+  border:none;border-radius:999px;padding:8px 13px;font-size:12.5px;font-weight:700;color:var(--ink-soft);
+  background:var(--card);box-shadow:var(--sh),0 0 0 1px rgba(26,26,24,.08);display:flex;gap:5px;align-items:center;cursor:pointer}
+#rush-pill b{font-variant-numeric:tabular-nums;color:var(--ink)}
+#rush-pill.on{color:#3A2A00;background:linear-gradient(135deg,#FFE9A8,#F2C744);
+  box-shadow:0 4px 18px rgba(242,199,68,.55),0 0 0 1.5px #C79A3E;animation:rushpulse 1s ease-in-out infinite}
+#rush-pill.on b{color:#3A2A00}
+@keyframes rushpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+#rushov{position:fixed;inset:0;z-index:640;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(120% 90% at 50% 40%,rgba(60,44,6,.92),rgba(16,12,4,.96));animation:rushin .3s ease}
+#rushov[hidden]{display:none}
+@keyframes rushin{from{opacity:0}to{opacity:1}}
+.rush-in{background:var(--card);border-radius:16px;padding:26px 22px;text-align:center;max-width:320px;width:100%;
+  box-shadow:0 0 0 3px #F2C744,0 0 60px rgba(242,199,68,.5)}
+.rush-bolt{font-size:56px;animation:boltpop .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes boltpop{from{transform:scale(.2) rotate(-16deg);opacity:0}to{transform:scale(1);opacity:1}}
+.rush-t{font-size:23px;font-weight:900;margin-top:8px;color:var(--ink)}
+.rush-s{font-size:13.5px;color:var(--ink-soft);margin-top:5px}
+.rush-note{background:linear-gradient(135deg,#FFF3CC,#FBE49A);color:#4A3400;border-radius:10px;
+  padding:9px 12px;font-size:13px;font-weight:700;margin:0 0 12px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* ---------- 배수 쿠폰 버튼 ---------- */
+.btn.boost2{background:linear-gradient(135deg,#8A6BA8,#6D4A9C);color:#fff}
+.btn.boost10{background:linear-gradient(135deg,#E0562C,#C79A3E);color:#fff;
+  box-shadow:0 3px 14px rgba(224,86,44,.4);animation:b10glow 1.6s ease-in-out infinite}
+@keyframes b10glow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.16)}}
+
+/* ---------- 라이어 게임 ---------- */
+.liar-card{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);
+  border-radius:var(--radius-sm,12px);box-shadow:var(--sh),0 0 0 1.5px rgba(26,26,24,.1);padding:12px 12px 12px 14px;margin:12px 0 4px;
+  position:relative;overflow:hidden}
+.liar-card::before{content:"";position:absolute;inset:0;background:
+  repeating-linear-gradient(-45deg,transparent 0 14px,rgba(200,80,60,.05) 14px 28px)}
+.lc-l{display:flex;align-items:center;gap:10px;position:relative}
+.lc-em{font-size:26px}
+.lc-t{font-weight:900;font-size:15px;color:var(--ink)}
+.lc-s{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.lc-btn{position:relative;padding:9px 16px;flex:none}
+
+#liarbox,#synbox{position:fixed;inset:0;z-index:630;background:rgba(22,19,14,.6);
+  display:flex;align-items:flex-start;justify-content:center;padding:20px 14px calc(30px + env(safe-area-inset-bottom));overflow:auto}
+#liarbox[hidden],#synbox[hidden]{display:none}
+.liar-wrap{max-width:400px;width:100%}
+.liar-center{text-align:center}
+.liar-hero{font-size:52px;text-align:center;margin:6px 0 2px}
+.liar-rule{font-size:13.5px;color:var(--ink-soft);line-height:1.65;text-align:center;margin:8px 0 0}
+.liar-sub{font-size:13px;color:var(--ink-soft);text-align:center;margin:8px 0 0;line-height:1.6}
+.liar-cat{display:inline-block;background:var(--ink);color:var(--bg,#F3EDE0);border-radius:999px;padding:5px 13px;
+  font-size:12px;font-weight:800;letter-spacing:.06em;margin:2px auto 10px;display:table}
+.liar-word{font-size:40px;font-weight:900;text-align:center;color:var(--ink);letter-spacing:-.5px;
+  padding:22px 12px;border:2.5px solid var(--ink);border-radius:14px;position:relative;line-height:1.25;
+  background:repeating-linear-gradient(0deg,transparent 0 26px,rgba(26,26,24,.04) 26px 27px)}
+.liar-word.liar-liar{color:var(--accent);border-color:var(--accent);transform:rotate(-1.2deg)}
+.liar-count{font-size:88px;font-weight:900;color:var(--ink);animation:cntpop .25s ease;margin:22px 0 4px}
+@keyframes cntpop{from{transform:scale(1.5);opacity:.2}to{transform:scale(1);opacity:1}}
+.lr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.lr-p{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:12px;
+  background:rgba(26,26,24,.05);color:var(--ink-soft);font-size:12.5px;font-weight:700;opacity:.55;position:relative}
+.lr-p.in{opacity:1;background:var(--card);box-shadow:0 0 0 2px #4FA86B,var(--sh);color:var(--ink)}
+.lr-p b{position:absolute;top:5px;right:7px;color:#2E8F52;font-size:13px}
+.lv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:12px}
+.lv-p{display:flex;align-items:center;gap:9px;padding:13px 12px;border:none;border-radius:12px;background:var(--card);
+  box-shadow:var(--sh),0 0 0 1px rgba(26,26,24,.1);font-size:14.5px;font-weight:800;color:var(--ink);cursor:pointer}
+.lv-p.picked{box-shadow:0 0 0 2.5px var(--accent),0 5px 16px rgba(200,80,60,.3);transform:scale(1.03)}
+.liar-banner{text-align:center;font-size:24px;font-weight:900;border-radius:12px;padding:15px 10px;transform:rotate(-.8deg);margin-top:4px}
+.liar-banner.cit{background:#E3F0E1;color:#1F5A34;box-shadow:0 0 0 2px #2E8F52 inset}
+.liar-banner.liar{background:#F5DFD9;color:#7A2416;box-shadow:0 0 0 2px var(--accent) inset}
+.liar-reveal{text-align:center;font-size:14px;color:var(--ink-soft);margin:12px 0 0;line-height:1.7}
+.tally{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+.tally-row{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink)}
+.tally-n{width:74px;font-weight:800;flex:none}
+.tally-bar{flex:1;height:12px;background:rgba(26,26,24,.08);border-radius:99px;overflow:hidden}
+.tally-bar i{display:block;height:100%;background:linear-gradient(90deg,#C79A3E,var(--accent));border-radius:99px;transition:width .6s ease}
+.tally-row b{width:32px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- 궁합표 ---------- */
+.syn-wrap{max-width:420px;width:100%}
+.syn-minehdr{font-weight:900;font-size:14px;color:var(--ink);margin:2px 0 8px}
+.syn-thdr{font-weight:900;font-size:13px;letter-spacing:.08em;margin:16px 0 8px;text-transform:uppercase}
+.syn-row{display:flex;flex-direction:column;gap:7px;background:var(--card);border-radius:12px;
+  box-shadow:var(--sh),0 0 0 1px rgba(26,26,24,.08);padding:11px 12px;margin-bottom:8px}
+.syn-row.fit{box-shadow:0 0 0 2px #C79A3E,0 4px 14px rgba(199,154,62,.28)}
+.syn-w{display:flex;align-items:center;gap:10px}
+.syn-em{font-size:24px}
+.syn-ko{font-weight:800;font-size:14px;color:var(--ink)}
+.syn-own{font-size:11px;color:#2E8F52;font-weight:800}
+.syn-tier{display:inline-block;color:#fff;font-size:9.5px;font-weight:900;letter-spacing:.08em;border-radius:5px;padding:2px 6px;margin-top:3px}
+.syn-chips{display:flex;flex-wrap:wrap;gap:5px}
+.syn-chip{font-size:12px;font-weight:700;background:rgba(26,26,24,.06);color:var(--ink-soft);border-radius:999px;padding:4px 10px}
+.syn-chip.mine{background:var(--ink);color:var(--bg,#F3EDE0);box-shadow:0 0 0 1.5px #C79A3E}
+
+/* ---------- 무기 플레어: 금박 폭포 + 프리즘 ---------- */
+#wflair{position:fixed;inset:0;z-index:660;pointer-events:none;overflow:hidden}
+#wflair[hidden]{display:none}
+#wflair .gf{position:absolute;top:-6%;width:7px;height:15px;border-radius:2px;
+  background:linear-gradient(135deg,#FFF3C4,#F2C744 55%,#B8862E);box-shadow:0 0 8px rgba(242,199,68,.8);
+  animation:gffall linear forwards;transform:rotate(12deg)}
+@keyframes gffall{to{transform:translate(-60px,112vh) rotate(560deg)}}
+#wflair .prism{position:absolute;top:-20%;left:-35%;width:34%;height:150%;transform:rotate(18deg);
+  background:linear-gradient(90deg,transparent,rgba(255,120,120,.16),rgba(255,236,140,.3),rgba(140,255,190,.16),rgba(150,190,255,.22),transparent);
+  filter:blur(2px);animation:prismsweep 1.5s ease-in-out .15s forwards}
+#wflair .prism.p2{animation-delay:.85s;opacity:.8}
+@keyframes prismsweep{to{left:110%}}
+
+/* ---------- 홀로그램 카드 ---------- */
+.card3d .front.holo{position:relative;overflow:hidden}
+.card3d .front.holo::after{content:"";position:absolute;inset:-40%;pointer-events:none;mix-blend-mode:screen;opacity:.85;
+  background:conic-gradient(from 0deg,rgba(255,110,110,.0),rgba(255,110,110,.35),rgba(255,236,140,.4),rgba(140,255,190,.32),rgba(150,190,255,.4),rgba(230,140,255,.32),rgba(255,110,110,.0));
+  animation:holospin 2.6s linear infinite;filter:blur(9px)}
+@keyframes holospin{to{transform:rotate(360deg)}}
+
+/* ---------- 신규 시그니처: 간달프 ---------- */
+.sfx-ysncrack{position:absolute;left:50%;top:-6%;width:4px;height:0;transform:translateX(-50%) rotate(1.4deg);
+  background:linear-gradient(#fff,#EDE6D2);box-shadow:0 0 22px 5px rgba(255,252,235,.95),0 0 60px 16px rgba(237,230,210,.5);
+  clip-path:polygon(0 0,100% 0,62% 14%,100% 26%,38% 41%,92% 55%,20% 70%,84% 83%,50% 100%,0 100%);
+  animation:ysncrack .5s cubic-bezier(.7,0,.3,1) forwards}
+@keyframes ysncrack{to{height:112%}}
+.sfx-ysnwall{position:absolute;left:50%;top:50%;width:10px;height:130%;transform:translate(-50%,-50%) scaleX(0);
+  background:linear-gradient(90deg,transparent,rgba(255,253,240,.95),transparent);
+  animation:ysnwall 1s ease .4s forwards}
+@keyframes ysnwall{60%{transform:translate(-50%,-50%) scaleX(26);opacity:1}100%{transform:translate(-50%,-50%) scaleX(30);opacity:0}}
+.sfx-ysnstamp{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-7deg) scale(2.4);opacity:0;
+  border:3.5px solid #FFFDF2;border-radius:10px;color:#FFFDF2;font-weight:900;font-size:26px;letter-spacing:.14em;
+  padding:10px 18px;text-shadow:0 0 18px rgba(255,253,240,.8);box-shadow:0 0 26px rgba(255,253,240,.5),inset 0 0 20px rgba(255,253,240,.25);
+  animation:ysnstamp .45s cubic-bezier(.2,1.4,.4,1) .8s forwards}
+@keyframes ysnstamp{to{opacity:1;transform:translate(-50%,-50%) rotate(-7deg) scale(1)}}
+
+/* ---------- 신규 시그니처: 요다 (포스 리프트) ---------- */
+.sfx-forcering{position:absolute;left:50%;top:62%;width:120px;height:34px;border:2.5px solid rgba(159,212,138,.85);
+  border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 20px rgba(159,212,138,.6);
+  animation:forcering 1.7s ease-out forwards}
+.sfx-forcering.r2{animation-delay:.3s;width:190px;height:52px}
+.sfx-forcering.r3{animation-delay:.6s;width:260px;height:70px}
+@keyframes forcering{from{opacity:0;transform:translate(-50%,-50%) translateY(60px)}30%{opacity:1}
+  to{opacity:0;transform:translate(-50%,-50%) translateY(-240px)}}
+body.forcelift #main > .tab.active > *{animation:forcelift 2.4s cubic-bezier(.34,1.2,.4,1)}
+body.forcelift #main > .tab.active > *:nth-child(2n){animation-delay:.12s}
+body.forcelift #main > .tab.active > *:nth-child(3n){animation-delay:.22s}
+body.forcelift #tabbar,body.forcelift #topbar{animation:forcelift 2.4s cubic-bezier(.34,1.2,.4,1) .08s}
+@keyframes forcelift{0%{transform:none}22%{transform:translateY(-16px) rotate(-.7deg)}
+  46%{transform:translateY(-11px) rotate(.5deg)}70%{transform:translateY(-15px) rotate(-.3deg)}100%{transform:none}}
+
+/* ---------- 신규 시그니처: 손흥민 (골 슬로모) ---------- */
+.sfx-pitch{position:absolute;left:0;right:0;bottom:0;height:42%;
+  background:linear-gradient(rgba(15,81,50,0),rgba(15,81,50,.55) 40%,rgba(10,58,36,.75));
+  animation:pitchin .5s ease forwards}
+@keyframes pitchin{from{opacity:0}to{opacity:1}}
+.sfx-net{position:absolute;right:-4%;top:22%;width:30%;height:52%;opacity:0;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.7) 0 2px,transparent 2px 14px),
+             repeating-linear-gradient(90deg,rgba(255,255,255,.7) 0 2px,transparent 2px 14px);
+  transform:skewY(-6deg);animation:netin .4s ease .2s forwards,netshake .5s ease 1.5s}
+@keyframes netin{to{opacity:.8}}
+@keyframes netshake{0%{transform:skewY(-6deg)}30%{transform:skewY(-6deg) translateX(13px) scaleX(.94)}
+  60%{transform:skewY(-6deg) translateX(-6px)}100%{transform:skewY(-6deg)}}
+.sfx-ball{position:absolute;left:-12%;top:58%;font-size:44px;filter:drop-shadow(0 0 12px rgba(255,255,255,.7));
+  animation:ballfly 1.5s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes ballfly{0%{transform:translate(0,0) rotate(0)}55%{transform:translate(46vw,-90px) rotate(400deg)}
+  100%{transform:translate(82vw,-40px) rotate(760deg)}}
+.sfx-goalstamp{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%) scale(3) rotate(6deg);opacity:0;
+  font-size:52px;font-weight:900;letter-spacing:.2em;color:#FFF6D9;-webkit-text-stroke:2px #0F5132;
+  text-shadow:0 0 24px rgba(242,199,68,.9);animation:goalstamp .4s cubic-bezier(.2,1.5,.4,1) 1.5s forwards}
+@keyframes goalstamp{to{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-4deg)}}
+body.slowmo #main{filter:saturate(.35) contrast(1.06);transition:filter .3s}
+body.slowmo #fx .pw{animation-play-state:paused}
+
+/* ---------- 퀴즈: 진술형 ---------- */
+.quiz-st{display:flex;flex-direction:column;gap:7px;margin:10px 0 2px}
+.quiz-st span{background:rgba(26,26,24,.05);border-left:3.5px solid var(--ink);border-radius:8px;
+  padding:9px 11px;font-size:14px;font-weight:700;color:var(--ink);text-align:left;line-height:1.5}
+.quiz-opt.wrongonly{box-shadow:0 0 0 2px var(--accent) inset;color:var(--accent)}

@@ -16,13 +16,16 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-19 v32";
-const BUILD_NO = 32;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-21 v33";
+const BUILD_NO = 33;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
 const FX = {
   bolt:     { shape:"streak",motion:"burst", c:"#F2C744", n:22, special:"bolt", quake:true },
+  youshallnot:{ shape:"streak",motion:"burst", c:"#EDE6D2", n:26, special:"youshallnot", quake:true },
+  forcelift:{ shape:"star",  motion:"rise",  c:"#9FD48A", n:22, special:"forcelift" },
+  goldengoal:{ shape:"streak",motion:"sweep", c:"#F2C744", n:26, special:"goldengoal", quake:true },
   keynote:  { shape:"star",  motion:"rise",  c:"#E8E8ED", n:18, special:"keynote" },
   warn:     { shape:"warn",  motion:"fall",  c:"#C8503C", n:14 },
   ascend:   { shape:"star",  motion:"rise",  c:"#F5E08A", n:40, special:"ascend", quake:true },
@@ -85,11 +88,14 @@ const FX = {
 
 function C(id, last, first, em, t, ko, fx) { return { id, last, first, em, t, ko, fx }; }
 const ROSTER = [
-  /* ---------- 신화 0.1% × 3 ---------- */
+  /* ---------- 신화 0.1% × 7 ---------- */
   C("potter","Potter","Harry","⚡",5,"해리 포터","bolt"),
   C("voldemort","Riddle","Tom","💀",5,"볼드모트","skull"),
   C("dumbledore","Dumbledore","Albus","🧙",5,"덤블도어","phoenix"),
   C("jobs","Jobs","Steve","🍎",5,"스티브 잡스","keynote"),
+  C("grey","Gandalf","the Grey","🧙‍♂️",5,"간달프","youshallnot"),
+  C("yoda","Yoda","Grand Master","🐸",5,"요다","forcelift"),
+  C("son","Son","Heungmin","⚽",5,"손흥민","goldengoal"),
   /* ---------- 전설 1% × 6 ---------- */
   C("snape","Snape","Severus","🧪",4,"스네이프","patronus"),
   C("granger","Granger","Hermione","📚",4,"헤르미온느","book"),
@@ -451,6 +457,22 @@ const WEAPONS = [
   W("air","공기","Air","💨",1,[]),
   W("hope","희망","Hope","✨",1,[]),
   W("regret","후회","Regret","😔",1,[]),
+  /* ---------- v33 신규 ---------- */
+  W("yodasaber","요다의 광선검","Yoda's Lightsaber","🟢",5,["yoda"]),
+  W("sonboots","손흥민의 축구화","Sonny's Boots","👟",5,["son"]),
+  W("palantir","팔란티어","The Palantir","🔮",5,["grey"]),
+  W("glamdring","글람드링","Glamdring","⚔️",4,["grey"]),
+  W("holocron","포스 홀로크론","Force Holocron","🔷",4,["yoda"]),
+  W("captainband","주장 완장","Captain's Armband","🎽",4,["son"]),
+  W("soccerball","월드컵 공인구","World Cup Ball","⚽",3,["son"]),
+  W("gandalfworks","간달프의 폭죽","Gandalf's Fireworks","🎆",3,["grey"]),
+  W("jedirobe","제다이 로브","Jedi Robe","🥋",3,["yoda"]),
+  W("varmonitor","VAR 모니터","VAR Monitor","📺",3,["son"]),
+  W("teamvest","팀 조끼","Team Bib","🦺",2,[]),
+  W("scarf_son","응원 머플러","Supporter Scarf","🧣",2,["son"]),
+  W("foamcup","스티로폼 컵","Styrofoam Cup","🥤",1,[]),
+  W("chopstick1","젓가락 한 짝","Single Chopstick","🥢",1,[]),
+  W("wetwipe","물티슈 한 장","One Wet Wipe","🧻",1,[]),
 ];
 const weaponById = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
 const WTICKET_MAX = 12;
@@ -732,6 +754,9 @@ function specialFx(kind, color, tier, memberId) {
     stage:    { wash:"#D9418F", glyph:"🎤", cls:"w-stage" },
     impact:   { wash:"#E0B520", glyph:"🥋", cls:"w-impact" },
     ascend:   { wash:"#F5E08A", glyph:"🌟", cls:"w-ascend" },
+    youshallnot:{ wash:"#CFC8B4", glyph:"🧙‍♂️", cls:"w-ysn" },
+    forcelift:{ wash:"#6FA85C", glyph:"🐸", cls:"w-force" },
+    goldengoal:{ wash:"#0F5132", glyph:"⚽", cls:"w-goal" },
   }[kind];
   if (!T) return;
 
@@ -796,6 +821,21 @@ function specialFx(kind, color, tier, memberId) {
   if (kind === "ascend")
     extra = '<div class="sfx-white"></div><div class="sfx-ascendbeam"></div><div class="sfx-halo2"></div>' +
             '<div class="sfx-featherup f1">🪶</div><div class="sfx-featherup f2">🪶</div><div class="sfx-featherup f3">🪶</div>';
+  if (kind === "youshallnot") {
+    extra = '<div class="sfx-white"></div><div class="sfx-ysncrack"></div><div class="sfx-ysnwall"></div>' +
+            '<div class="sfx-ysnstamp">지나갈 수 없다</div>';
+  }
+  if (kind === "forcelift") {
+    extra = '<div class="sfx-forcering r1"></div><div class="sfx-forcering r2"></div><div class="sfx-forcering r3"></div>';
+    document.body.classList.add("forcelift");
+    setTimeout(() => document.body.classList.remove("forcelift"), 2600);
+  }
+  if (kind === "goldengoal") {
+    extra = '<div class="sfx-pitch"></div><div class="sfx-net"></div><div class="sfx-ball">⚽</div>' +
+            '<div class="sfx-goalstamp">GOAL</div><div class="sfx-white"></div>';
+    document.body.classList.add("slowmo");
+    setTimeout(() => document.body.classList.remove("slowmo"), 2400);
+  }
 
   o.className = T.cls;
   o.removeAttribute("hidden");
@@ -2223,6 +2263,8 @@ function renderStamp() {
     '<button class="stamp-big half" id="do-stamp">📮 도장+한마디</button>' +
     '<button class="stamp-big half" id="do-text" style="background:var(--ink)">💬 문자 교신</button></div>' +
     '<div class="shop-add" id="text-row" hidden><input class="input" id="radio-text" placeholder="짧게 한 마디 (신호 없으면 자동 대기)"><button class="btn" id="radio-send">📨</button></div>';
+
+  html += liarCardHtml();
 
   html += '<h2 class="sec">교신 — 카드 탭하면 위치 요청</h2><div class="board">';
   for (const m of MEMBERS) {
@@ -3661,73 +3703,84 @@ function showTitleCard(t, bonus) {
 
 /* ---------------- 퀴즈로 뽑기 충전 ---------------- */
 const MAX_QUIZ = 10;
-const QUIZ = [
-  { q: "홍희정 생일은?", o: ["9월 9일", "9월 19일", "8월 9일", "10월 9일"], a: 0 },
-  { q: "김재민 생일은?", o: ["11월 15일", "11월 5일", "1월 15일", "12월 5일"], a: 1 },
-  { q: "윤재형 생일은?", o: ["1월 25일", "2월 15일", "1월 15일", "2월 25일"], a: 0 },
-  { q: "김다흰 생일은?", o: ["4월 10일", "4월 1일", "3월 1일", "4월 11일"], a: 1 },
-  { q: "김상우 생일은?", o: ["11월 19일", "11월 9일", "12월 19일", "1월 19일"], a: 0 },
-  { q: "김재민 ♥ 홍희정 기념일은?", o: ["8월 5일", "8월 25일", "8월 15일", "9월 15일"], a: 2 },
-  { q: "생일이 가장 빠른 사람은? (달 기준)", o: ["윤재형", "김다흰", "김재민", "홍희정"], a: 0 },
-  { q: "생일이 같은 달인 두 사람은?", o: ["재민·상우", "희정·다흰", "재형·상우", "희정·재형"], a: 0 },
-  { q: "11월에 생일인 사람은 몇 명?", o: ["1명", "2명", "3명", "없음"], a: 1 },
-  { q: "재민·희정 기념일이 있는 달은?", o: ["7월", "8월", "9월", "10월"], a: 1 },
-];
 function quizDone() { return Number(localStorage.getItem("kel_quiz") || 0); }
+const QZ_TF = ["① 참 · ② 참", "① 참 · ② 거짓", "① 거짓 · ② 참", "① 거짓 · ② 거짓"];
+const QUIZ = [
+  { q: "지희 생일은?", o: ["9월 5일", "9월 15일", "9월 25일", "10월 15일"], a: 1 },
+  { q: "다흰이가 쓰는 쿠션 호수는?", o: ["17호", "19호", "21호", "23호"], a: 2 },
+  { q: "상우 전화번호 뒷자리는?", o: ["2189", "2918", "2198", "9128"], a: 2 },
+  { q: "재민이가 첫날 산 와인은 몇 병?", o: ["3병", "4병", "5병", "6병"], a: 2 },
+  { q: "이번 여행에서 처음 간 와이너리는?", o: ["Beaumont", "Quails' Gate", "Little Straw", "Mt. Boucherie"], a: 1 },
+  { q: "숙소 와이파이 이름을 정확히 고르면?", o: ["cabinlife", "cablinife", "cabinlyfe", "cabinlfie"], a: 0 },
+  { q: "2026 월드컵 우승팀은?", o: ["아르헨티나", "프랑스", "스페인", "잉글랜드"], a: 2 },
+  { q: "2026 월드컵 결승 스코어는?", o: ["1 : 0", "2 : 1", "0 : 0 승부차기", "3 : 1"], a: 0 },
+  { q: "그 결승골의 주인공은?", o: ["라민 야말", "페란 토레스", "니코 윌리엄스", "메시"], a: 1 },
+  { q: "오카나간 호수에 산다는 전설의 괴물 이름은?", o: ["오고포고", "사스콰치", "웬디고", "네시"], a: 0 },
+  { q: "BC주의 주도는?", o: ["밴쿠버", "버나비", "빅토리아", "켈로나"], a: 2 },
+  { q: "피노 누아는 무슨 포도로 만들까?", o: ["청포도", "적포도", "얼린 포도", "건포도"], a: 1 },
+  { q: "희정 생일은?", o: ["9월 9일", "9월 19일", "9월 5일", "8월 9일"], a: 0 },
+  { q: "재민 생일은?", o: ["11월 15일", "11월 5일", "10월 5일", "11월 25일"], a: 1 },
+  { q: "재형 생일은?", o: ["1월 25일", "1월 15일", "2월 25일", "1월 5일"], a: 0 },
+  { q: "상우 생일은?", o: ["11월 9일", "12월 19일", "11월 19일", "11월 29일"], a: 2 },
+  { s: ["희정이 생일은 9월 9일이다", "지희 생일은 9월 19일이다"], o: QZ_TF, a: 1 },
+  { s: ["재민·희정 커플의 기념일은 8월 15일이다", "그날은 광복절이다"], o: QZ_TF, a: 0 },
+  { s: ["재형이는 1월생이다", "상우는 12월생이다"], o: QZ_TF, a: 1 },
+  { s: ["다흰이는 쿠션 21호를 쓴다", "2026 월드컵 우승팀은 스페인이다"], o: QZ_TF, a: 0 },
+  { s: ["이 여행 멤버 중 11월생은 두 명이다", "멤버 중 생일이 가장 빠른 달은 다흰이다"], o: QZ_TF, a: 1 },
+  { s: ["월드컵 결승골은 연장전에 터졌다", "그 경기는 승부차기까지 갔다"], o: QZ_TF, a: 1 },
+  { s: ["숙소 도어코드는 0992다", "숙소 변기엔 휴지만 버릴 수 있다"], o: QZ_TF, a: 0 },
+  { s: ["출발 집결지는 Hope 맥도날드였다", "이 숙소는 Hydraulic Lake 근처다"], o: QZ_TF, a: 0 },
+];
 function showQuiz(onDone) {
-  if (quizDone() >= MAX_QUIZ) { toast("퀴즈는 " + MAX_QUIZ + "번까지야"); return; }
-  const pool = QUIZ.slice().sort(() => Math.random() - 0.5).slice(0, 3);
-  let idx = 0, correct = 0, locked = false;
+  if (quizDone() >= MAX_QUIZ) return toast("퀴즈 보상은 10회가 끝 — 이미 다 받았어");
   let box = document.getElementById("quizbox");
   if (!box) { box = document.createElement("div"); box.id = "quizbox"; document.body.appendChild(box); }
+  const pool = QUIZ.slice().sort(() => Math.random() - 0.5).slice(0, 5);
+  let i = 0, correct = 0;
   box.hidden = false;
-
-  const draw = () => {
-    const item = pool[idx];
-    box.innerHTML =
-      '<div class="quiz-card">' +
-        '<div class="quiz-top">퀴즈 ' + (idx + 1) + " / 3<span>맞힌 개수 " + correct + "</span></div>" +
-        '<div class="quiz-q">' + esc(item.q) + "</div>" +
-        '<div class="quiz-opts">' + item.o.map((t, i) =>
-          '<button class="quiz-opt" data-i="' + i + '">' + esc(t) + "</button>").join("") + "</div>" +
-        '<button class="quiz-x" id="quiz-close">나중에</button>' +
-      "</div>";
-    $$(".quiz-opt", box).forEach((b) => b.onclick = () => {
-      if (locked) return;
-      locked = true;
-      const pick = Number(b.dataset.i);
-      const right = pick === item.a;
-      if (right) correct++;
-      b.classList.add(right ? "right" : "wrong");
-      if (!right) { const rb = box.querySelector('.quiz-opt[data-i="' + item.a + '"]'); if (rb) rb.classList.add("right"); }
-      buzz(right ? [30] : [60, 40, 60]);
-      setTimeout(() => { locked = false; idx++; if (idx < pool.length) draw(); else finish(); }, 900);
-    });
-    $("#quiz-close").onclick = () => { box.hidden = true; box.innerHTML = ""; };
-  };
-
   const finish = () => {
-    const perfect = correct === 3;
+    const perfect = correct === pool.length;
     if (perfect) {
       localStorage.setItem("kel_quiz", String(quizDone() + 1));
       localStorage.setItem("kel_coupon", String(coupons() + 3));
       addTicket(3);
+      localStorage.setItem("kel_rush5", String(Date.now() + RUSH_QUIZ_MS));
     }
     box.innerHTML =
       '<div class="quiz-card">' +
-        '<div class="quiz-em">' + (perfect ? "🎟️" : correct === 2 ? "😐" : "😵") + "</div>" +
-        '<div class="quiz-res">' + correct + " / 3 정답</div>" +
-        '<div class="quiz-sub">' + (perfect ? "다 맞혔어!" :
-          correct === 2 ? "하나 틀렸어. 보상은 없어" : "친구들 생일 좀 외워라…") + "</div>" +
-        (perfect ? '<div class="title-coupon" style="margin-top:14px">🎟️ 확률 2배 쿠폰 3장<br><span>다음 3번의 뽑기에서 영웅 이상 확률이 두 배</span></div>' : "") +
-        '<button class="btn" id="quiz-ok" style="width:100%;margin-top:16px">' + (perfect ? "받고 뽑으러 가기" : "다시 풀기") + "</button>" +
-        '<p class="ad-note">' + (perfect ? "남은 퀴즈 " + Math.max(0, MAX_QUIZ - quizDone()) + "회" : "3개 다 맞혀야 쿠폰을 줘") + "</p>" +
+        '<div class="quiz-em">' + (perfect ? "⚡" : correct >= 3 ? "😐" : "😵") + "</div>" +
+        '<div class="quiz-res">' + correct + " / " + pool.length + " 정답</div>" +
+        '<div class="quiz-sub">' + (perfect ? "만점! 5분 무제한 발동!" : "하나라도 틀리면 꽝 — 뭐가 틀렸는진 비밀 😈") + "</div>" +
+        (perfect ? '<div class="title-coupon" style="margin-top:14px">⚡ 5분간 무기 뽑기 무제한<br><span>+ 🎟️ 확률 2배 쿠폰 3장 + 무기 티켓 3장</span></div>' : "") +
+        '<button class="btn" id="quiz-ok" style="width:100%;margin-top:16px">' + (perfect ? "받고 뽑으러 가기" : "다시 도전") + "</button>" +
+        '<p class="ad-note">' + (perfect ? "남은 퀴즈 " + Math.max(0, MAX_QUIZ - quizDone()) + "회" : "5개 전부 맞혀야 보상을 줘") + "</p>" +
       "</div>";
     $("#quiz-ok").onclick = () => {
       box.hidden = true; box.innerHTML = "";
-      if (perfect) { toast("🎟️ 확률 2배 쿠폰 3장 획득!"); onDone && onDone(); }
+      if (perfect) { toast("⚡ 5분 무제한 + 쿠폰 3 + 티켓 3!"); if (onDone) onDone(); else openArmory(); }
       else showQuiz(onDone);
     };
+  };
+  const draw = () => {
+    if (i >= pool.length) return finish();
+    const item = pool[i];
+    const map = item.o.map((_, k) => k).sort(() => Math.random() - 0.5);
+    box.innerHTML =
+      '<div class="quiz-card">' +
+        '<div class="quiz-num">' + (i + 1) + " / " + pool.length + "</div>" +
+        '<div class="quiz-q">' + esc(item.q || "다음 진술의 참 · 거짓을 가려라") + "</div>" +
+        (item.s ? '<div class="quiz-st">' + item.s.map((t, k) => "<span>" + "①②".charAt(k) + " " + esc(t) + "</span>").join("") + "</div>" : "") +
+        '<div class="quiz-opts">' + map.map((oi) =>
+          '<button class="quiz-opt" data-i="' + oi + '">' + esc(item.o[oi]) + "</button>").join("") + "</div>" +
+        '<p class="ad-note">5문제 전부 맞혀야 보상 — 틀려도 정답은 안 알려줌</p>' +
+      "</div>";
+    $$(".quiz-opt", box).forEach((b) => b.onclick = () => {
+      const ok = Number(b.dataset.i) === item.a;
+      if (ok) { correct++; b.classList.add("right"); buzz([30]); }
+      else { b.classList.add("wrongonly"); buzz([60, 40, 60]); }
+      $$(".quiz-opt", box).forEach((x) => x.disabled = true);
+      setTimeout(() => { i++; draw(); }, ok ? 450 : 800);
+    });
   };
   draw();
 }
@@ -3781,7 +3834,7 @@ function openPack(c, done) {
 
   const c3d = $("#c3d"), front = $("#p-front");
   front.style.setProperty("--rc", tier.color);
-  front.classList.remove("on"); c3d.className = "card3d"; c3d.style.transform = ""; c3d.style.opacity = "1";
+  front.classList.remove("on"); front.classList.toggle("holo", !!c.holo); c3d.className = "card3d"; c3d.style.transform = ""; c3d.style.opacity = "1";
   front.style.opacity = ""; front.style.zIndex = "";
   const bk0 = pack.querySelector(".back"); if (bk0) { bk0.style.opacity = ""; bk0.style.zIndex = ""; }
   const cw = pack.querySelector(".cardwrap");
@@ -4012,19 +4065,28 @@ async function grantWeapon(w) {
   await sb.from("inventory").upsert({ member: me, weapon_id: w.id, qty: cur + 1 }, { onConflict: "member,weapon_id" });
   await loadAll();
 }
-function openWeapon() {
+function openWeapon(mode) {
   if (installRequired()) { showInstallWall(); return; }
   if (!me) { toast("먼저 이름을 골라줘"); return openWho(); }
   if (!charOf(me)) { toast("캐릭터부터 뽑자"); return openRoll(); }
-  if (!useTicket(1)) return toast("무기 티켓이 없어 · " + nextTicketIn());
-  const w = drawWeapon(0);
+  let boost = 0;
+  if (mode === "b2") {
+    if (!useWb2()) return toast("✨ 2배 쿠폰이 없어");
+    boost = 2; toast("✨ 2배 쿠폰 — 무료 뽑기 + 상위 확률 ×2");
+  } else if (mode === "b10") {
+    if (!useUb10()) return toast("💥 10배 쿠폰이 없어");
+    boost = 10; toast("💥 10배 쿠폰 — 무료 뽑기 + 상위 확률 ×10");
+  } else if (rushActive()) {
+    mode = undefined;
+  } else if (!useTicket(1)) return toast("무기 티켓이 없어 · " + nextTicketIn());
+  const w = drawWeapon(boost);
   wRoll = w;
-  openPack({ em: w.em, ko: w.ko, last: w.en.split(" ")[0], first: w.en.split(" ").slice(1).join(" ") || "", t: w.t, fx: "gold" }, async () => {
+  openPack({ em: w.em, ko: w.ko, last: w.en.split(" ")[0], first: w.en.split(" ").slice(1).join(" ") || "", t: w.t, fx: "gold", holo: w.t >= 4 }, async () => {
     await grantWeapon(w);
-    drawWeaponResult(w);
+    drawWeaponResult(w, mode);
   });
 }
-function drawWeaponResult(w) {
+function drawWeaponResult(w, mode) {
   const t = tierById[w.t];
   const c = charOf(me);
   const fit = c && (w.want || []).indexOf(c.id) >= 0;
@@ -4040,11 +4102,13 @@ function drawWeaponResult(w) {
       (fit ? '<div class="title-coupon" style="margin-top:12px">⚡ 각성 무기<br><span>' + esc(c.ko) + '이(가) 원하던 것 · 장착하면 이펙트가 폭주</span></div>'
            : dupe ? '<div class="muted" style="margin-top:10px">이미 가진 무기 (보유 ' + wQty(w.id) + "개)</div>" : "") +
       '<div class="btn-row" style="margin-top:14px">' +
-        '<button class="btn ghost" id="w-again" style="flex:1">🎟️ 한 번 더 (' + wTickets() + ")</button>" +
+        '<button class="btn ghost" id="w-again" style="flex:1">' + againLabel(mode) + "</button>" +
         '<button class="btn" id="w-equip" style="flex:1">장착하기</button></div>' +
+      boostBtnRow() +
       '<button class="btn ghost" id="w-close" style="width:100%;margin-top:8px">보관함으로</button>' +
     "</div>";
-  $("#w-again").onclick = () => { box.hidden = true; openWeapon(); };
+  weaponFlair(w.t);
+  $("#w-again").onclick = () => { box.hidden = true; openWeapon(mode === "b2" || mode === "b10" ? mode : undefined); };
   $("#w-equip").onclick = async () => { box.hidden = true; await equipWeapon(w.id); };
   $("#w-close").onclick = () => { box.hidden = true; openArmory(); };
 }
@@ -4070,10 +4134,12 @@ function openArmory() {
   const c = charOf(me);
   const wants = c ? WEAPONS.filter((w) => (w.want || []).indexOf(c.id) >= 0) : [];
   const eq = equippedId();
+  const rush = rushActive();
   box.hidden = false;
   box.innerHTML =
     '<div class="armory">' +
       '<div class="arm-top">무기고 <span>' + owned.length + " / " + WEAPONS.length + "</span></div>" +
+      (rush ? '<div class="rush-note">⚡ 무제한 진행 중 — ' + fmtMS(rushLeftMs()) + " 동안 티켓 없이 뽑기</div>" : "") +
       (wants.length ? '<div class="arm-want">' + (c ? esc(c.ko) : "") + '이(가) 원하는 무기<div class="arm-wrow">' +
         wants.map((w) => '<span class="arm-wchip' + (wQty(w.id) ? " has" : "") + '">' + w.em + " " + esc(w.ko) +
           (wQty(w.id) ? " ✅" : "") + "</span>").join("") + "</div></div>" : "") +
@@ -4090,12 +4156,15 @@ function openArmory() {
         }).join("") : '<p class="muted" style="grid-column:1/-1;text-align:center">아직 무기가 없어. 뽑아보자</p>') +
       "</div>" +
       '<div class="btn-row" style="margin-top:14px">' +
-        '<button class="btn ghost" id="arm-draw" style="flex:1">🎟️ 무기 뽑기 (' + wTickets() + ")</button>" +
-        '<button class="btn ghost" id="arm-box" style="flex:1">📦 위험한 상자</button>' +
-        '<button class="btn" id="arm-close" style="flex:1">닫기</button></div>' +
+        '<button class="btn' + (rush ? "" : " ghost") + '" id="arm-draw" style="flex:1.35">' + (rush ? "⚡ 무제한 뽑기" : "🎟️ 무기 뽑기 (" + wTickets() + ")") + "</button>" +
+        '<button class="btn ghost" id="arm-syn" style="flex:1">💞 궁합표</button>' +
+        '<button class="btn ghost" id="arm-box" style="flex:1">📦 상자</button></div>' +
+      boostBtnRow() +
+      '<button class="btn ghost" id="arm-close" style="width:100%;margin-top:8px">닫기</button>' +
     "</div>";
   $$(".arm-item", box).forEach((b) => b.onclick = async () => { box.hidden = true; await equipWeapon(b.dataset.w); openArmory(); });
   $("#arm-draw").onclick = () => { box.hidden = true; openWeapon(); };
+  $("#arm-syn").onclick = () => { box.hidden = true; openSynergy(); };
   $("#arm-box").onclick = () => { box.hidden = true; openBoxes(); };
   $("#arm-close").onclick = () => { box.hidden = true; };
 }
@@ -4191,13 +4260,14 @@ let rollResult = null;
 function myRolls() { return Number(localStorage.getItem("kel_rolls") || 0); }
 function bumpRolls() { localStorage.setItem("kel_rolls", String(myRolls() + 1)); }
 function dryStreak() { return Number(localStorage.getItem("kel_dry") || 0); }
-function drawCharacter() {
+function drawCharacter(forceMult) {
   const taken = takenIds();
   const pool = ROSTER.filter((c) => taken.indexOf(c.id) < 0 && !c.hidden);
   if (!pool.length) return null;
   // 쿠폰은 어떤 뽑기든 1장 소모
-  const boost = coupons() > 0;
+  const boost = !forceMult && coupons() > 0;
   if (boost) localStorage.setItem("kel_coupon", String(coupons() - 1));
+  const bmult = forceMult || (boost ? 2 : 1);
   // 함정 캐릭터는 '일반' 등급 몫에서만 가져간다 (상위 등급 확률 유지)
   const traps = pool.filter((c) => isTrap(c.id));
   const trap = (dryStreak() >= PITY_AT || !traps.length) ? null   // 천장이 걸린 턴엔 미끼 안 나옴
@@ -4215,7 +4285,7 @@ function drawCharacter() {
   if (!picked) {
     const trapLeft = !!trap;
     const weights = TIERS.map((t) => {
-      let p = boost && t.t >= 3 ? t.p * 2 : t.p;
+      let p = t.t >= 3 ? t.p * bmult : t.p;
       if (t.t === 1 && trapLeft) p = Math.max(0.1, p - TRAP_RATE);   // 함정이 가져간 몫만큼 일반에서 차감
       return { t: t.t, p };
     });
@@ -4264,6 +4334,7 @@ function drawRoll() {
     '<div class="btn-row" style="margin-top:12px">' +
       '<button class="btn ghost" id="roll-again"' + (left <= 0 ? " disabled" : "") + ' style="flex:1">🎲 다시 굴리기</button>' +
       '<button class="btn" id="roll-ok" style="flex:1">이걸로 확정</button></div>' +
+    (ub10() > 0 ? '<button class="btn boost10" id="roll-b10" style="width:100%;margin-top:8px">💥 10배 쿠폰으로 다시 굴리기 · ' + ub10() + "</button>" : "") +
     (taken.length ? '<div class="field-label">이미 뽑힌 이름</div><div class="taken">' +
       taken.map((x) => "<span>" + x.em + " " + esc(x.ko) + "</span>").join("") + "</div>" : "") +
     '<button class="btn ghost" id="roll-odds" style="width:100%;margin-top:14px">확률표 보기</button>' +
@@ -4278,6 +4349,14 @@ function drawRoll() {
     }
     bumpRolls();
     const next = drawCharacter();
+    if (!next) return toast("남은 캐릭터가 없어");
+    $("#roll-modal").hidden = true;
+    openPack(next, () => { rollResult = next; drawRoll(); $("#roll-modal").hidden = false; });
+  };
+  const rb10 = $("#roll-b10");
+  if (rb10) rb10.onclick = () => {
+    if (!useUb10()) return;
+    const next = drawCharacter(10);
     if (!next) return toast("남은 캐릭터가 없어");
     $("#roll-modal").hidden = true;
     openPack(next, () => { rollResult = next; drawRoll(); $("#roll-modal").hidden = false; });
@@ -4600,3 +4679,551 @@ function boot() {
 }
 
 document.addEventListener("DOMContentLoaded", boot);
+
+
+/* ================================================================
+   v33 — 정각 무제한 · 라이어 게임 · 궁합표 · 배수 쿠폰 · 무기 플레어
+   ================================================================ */
+
+/* ---------------- 배수 쿠폰 (라이어 게임 보상) ---------------- */
+function wb2() { return Number(localStorage.getItem("kel_wb2") || 0); }
+function ub10() { return Number(localStorage.getItem("kel_ub10") || 0); }
+function addWb2(n) { localStorage.setItem("kel_wb2", String(wb2() + n)); }
+function addUb10(n) { localStorage.setItem("kel_ub10", String(ub10() + n)); }
+function useWb2() { if (wb2() <= 0) return false; localStorage.setItem("kel_wb2", String(wb2() - 1)); return true; }
+function useUb10() { if (ub10() <= 0) return false; localStorage.setItem("kel_ub10", String(ub10() - 1)); return true; }
+function boostBtnRow() {
+  const a = wb2(), b = ub10();
+  if (!a && !b) return "";
+  let h = '<div class="btn-row" style="margin-top:8px">';
+  if (a) h += '<button class="btn boost2" data-bm="b2" style="flex:1">✨ 2배 뽑기 · ' + a + "</button>";
+  if (b) h += '<button class="btn boost10" data-bm="b10" style="flex:1">💥 10배 뽑기 · ' + b + "</button>";
+  return h + "</div>";
+}
+function againLabel(mode) {
+  if (mode === "b2") return "✨ 2배 한 번 더 (" + wb2() + ")";
+  if (mode === "b10") return "💥 10배 한 번 더 (" + ub10() + ")";
+  if (rushActive()) return "⚡ 무제한 한 번 더";
+  return "🎟️ 한 번 더 (" + wTickets() + ")";
+}
+
+/* ---------------- 정각 무제한 (러시) ---------------- */
+const RUSH_QUIZ_MS = 5 * 60000;
+function rushPersonalUntil() { return Number(localStorage.getItem("kel_rush5") || 0); }
+function rushActive() { return new Date().getMinutes() === 0 || Date.now() < rushPersonalUntil(); }
+function rushLeftMs() {
+  const d = new Date();
+  let g = 0;
+  if (d.getMinutes() === 0) g = 60000 - d.getSeconds() * 1000 - d.getMilliseconds();
+  return Math.max(g, rushPersonalUntil() - Date.now());
+}
+function rushNextMs() { const d = new Date(); return ((59 - d.getMinutes()) * 60 + (60 - d.getSeconds())) * 1000; }
+function fmtMS(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+
+function rushPill() {
+  let p = document.getElementById("rush-pill");
+  if (!p) {
+    p = document.createElement("button");
+    p.id = "rush-pill";
+    document.body.appendChild(p);
+    p.onclick = () => { try { openArmory(); } catch (e) {} };
+  }
+  if (rushActive()) { p.classList.add("on"); p.innerHTML = "⚡ 무제한 <b>" + fmtMS(rushLeftMs()) + "</b>"; }
+  else { p.classList.remove("on"); p.innerHTML = "🎰 정각까지 <b>" + fmtMS(rushNextMs()) + "</b>"; }
+}
+async function rushClaimPush(hkey) {
+  if (!sb) return;
+  try {
+    const { error } = await sb.from("rush_locks").insert({ hkey: hkey });
+    if (!error) sendPush("⚡ 무기 뽑기 무제한", "지금부터 1분 — 티켓 없이 무한으로 뽑아. 무기고로!", "rush");
+  } catch (e) {}
+}
+function rushBlast() {
+  let o = document.getElementById("rushov");
+  if (!o) { o = document.createElement("div"); o.id = "rushov"; document.body.appendChild(o); }
+  o.innerHTML =
+    '<div class="rush-in">' +
+      '<div class="rush-bolt">⚡</div>' +
+      '<div class="rush-t">무기 뽑기 무제한</div>' +
+      '<div class="rush-s">지금부터 1분 — 티켓이 필요 없다</div>' +
+      '<button class="btn" id="rush-go" style="width:100%;margin-top:14px">무기고 열기</button>' +
+    "</div>";
+  o.hidden = false;
+  try { packTone(5); } catch (e) {}
+  buzz([70, 50, 70, 50, 180]);
+  const g = document.getElementById("rush-go");
+  if (g) g.onclick = () => { o.hidden = true; openArmory(); };
+  setTimeout(() => { o.hidden = true; }, 6500);
+}
+function rushTick() {
+  rushPill();
+  const d = new Date();
+  if (d.getMinutes() === 0 && d.getSeconds() < 3) {
+    const hkey = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate() + "-" + d.getHours();
+    if ((localStorage.getItem("kel_rush_hr") || "") !== hkey) {
+      localStorage.setItem("kel_rush_hr", hkey);
+      rushBlast();
+      rushClaimPush(hkey);
+      const ab = document.getElementById("armorybox");
+      if (ab && !ab.hidden) openArmory();
+    }
+  }
+}
+
+/* ---------------- 궁합표 ---------------- */
+function openSynergy() {
+  let box = document.getElementById("synbox");
+  if (!box) { box = document.createElement("div"); box.id = "synbox"; document.body.appendChild(box); }
+  const myC = charOf(me);
+  const chipOf = (id) => {
+    const ch = charById[id];
+    if (!ch) return "";
+    const mine = myC && myC.id === id;
+    return '<span class="syn-chip' + (mine ? " mine" : "") + '">' + ch.em + " " + esc(ch.ko) + "</span>";
+  };
+  const row = (w) => {
+    const t = tierById[w.t];
+    const own = wQty(w.id) > 0;
+    const fit = myC && (w.want || []).indexOf(myC.id) >= 0;
+    return '<div class="syn-row' + (fit ? " fit" : "") + '">' +
+      '<div class="syn-w"><span class="syn-em">' + w.em + "</span><div><div class=\"syn-ko\">" + esc(w.ko) + (own ? ' <span class="syn-own">보유 ✓</span>' : "") + "</div>" +
+      '<span class="syn-tier" style="background:' + t.color + '">' + t.en + "</span></div></div>" +
+      '<div class="syn-chips">' + (w.want || []).map(chipOf).join("") + "</div></div>";
+  };
+  const tiers = [5, 4, 3];
+  const myList = myC ? WEAPONS.filter((w) => (w.want || []).indexOf(myC.id) >= 0) : [];
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="armory syn-wrap">' +
+      '<div class="arm-top">💞 궁합표 <span>맞춰 들면 각성 ×3</span></div>' +
+      (myC ? '<div class="syn-minehdr">' + myC.em + " " + esc(myC.ko) + " 전용 무기</div>" +
+        (myList.length ? myList.map(row).join("") : '<p class="muted" style="margin:4px 0 10px">네 캐릭터를 원하는 무기가 없어… 잡템 인생</p>') : "") +
+      tiers.map((tn) => {
+        const t = tierById[tn];
+        const list = WEAPONS.filter((w) => w.t === tn && (w.want || []).length);
+        return '<div class="syn-thdr" style="color:' + t.color + '">' + t.name + " · " + t.en + "</div>" + list.map(row).join("");
+      }).join("") +
+      '<p class="muted" style="font-size:12px;margin:10px 0 0">1·2성 잡템은 궁합이 없어 — 누가 들어도 잡템</p>' +
+      '<div class="btn-row" style="margin-top:12px">' +
+        '<button class="btn ghost" id="syn-back" style="flex:1">← 무기고</button>' +
+        '<button class="btn" id="syn-close" style="flex:1">닫기</button></div>' +
+    "</div>";
+  const bk = document.getElementById("syn-back"); if (bk) bk.onclick = () => { box.hidden = true; openArmory(); };
+  const cl = document.getElementById("syn-close"); if (cl) cl.onclick = () => { box.hidden = true; };
+}
+
+/* ---------------- 무기 뽑기 플레어 (금박 폭포 + 프리즘) ---------------- */
+function weaponFlair(t) {
+  if (t < 4) return;
+  let o = document.getElementById("wflair");
+  if (!o) { o = document.createElement("div"); o.id = "wflair"; document.body.appendChild(o); }
+  let h = "";
+  const n = t >= 5 ? 46 : 26;
+  for (let i = 0; i < n; i++) {
+    h += '<i class="gf" style="left:' + (Math.random() * 100).toFixed(1) + "%;animation-delay:" + (Math.random() * 0.9).toFixed(2) +
+      "s;animation-duration:" + (1.6 + Math.random() * 1.2).toFixed(2) + 's"></i>';
+  }
+  if (t >= 5) h += '<i class="prism"></i><i class="prism p2"></i>';
+  o.innerHTML = h;
+  o.hidden = false;
+  clearTimeout(weaponFlair._t);
+  weaponFlair._t = setTimeout(() => { o.hidden = true; o.innerHTML = ""; }, 3400);
+}
+
+/* ---------------- 라이어 게임 ---------------- */
+const LIAR_WORDS = [
+  { c: "여행", w: "와이너리" }, { c: "여행", w: "핫텁" }, { c: "여행", w: "카약" }, { c: "여행", w: "패들보드" },
+  { c: "여행", w: "캠프파이어" }, { c: "여행", w: "코스트코" }, { c: "여행", w: "선크림" }, { c: "여행", w: "모기" },
+  { c: "여행", w: "아이스박스" }, { c: "여행", w: "스모어" }, { c: "여행", w: "소맥" }, { c: "여행", w: "도어코드" },
+  { c: "여행", w: "오고포고" }, { c: "여행", w: "휴게소" }, { c: "여행", w: "벙커베드" }, { c: "여행", w: "블루투스 스피커" },
+  { c: "음식", w: "삼겹살" }, { c: "음식", w: "라면" }, { c: "음식", w: "김치찌개" }, { c: "음식", w: "마라탕" },
+  { c: "음식", w: "치킨" }, { c: "음식", w: "떡볶이" }, { c: "음식", w: "초밥" }, { c: "음식", w: "붕어빵" },
+  { c: "음식", w: "아이스 아메리카노" }, { c: "음식", w: "샤인머스캣" }, { c: "음식", w: "곱창" }, { c: "음식", w: "부대찌개" },
+  { c: "물건", w: "에어팟" }, { c: "물건", w: "고데기" }, { c: "물건", w: "손톱깎이" }, { c: "물건", w: "콘택트렌즈" },
+  { c: "물건", w: "보조배터리" }, { c: "물건", w: "셀카봉" }, { c: "물건", w: "물티슈" }, { c: "물건", w: "립밤" },
+  { c: "물건", w: "다이슨" }, { c: "물건", w: "휴지" },
+  { c: "장소", w: "노래방" }, { c: "장소", w: "찜질방" }, { c: "장소", w: "코인세탁소" }, { c: "장소", w: "PC방" },
+  { c: "장소", w: "이케아" }, { c: "장소", w: "스타벅스" }, { c: "장소", w: "한강" }, { c: "장소", w: "면세점" },
+  { c: "상황", w: "양치질" }, { c: "상황", w: "눈치게임" }, { c: "상황", w: "셀카" }, { c: "상황", w: "낮잠" },
+  { c: "상황", w: "계좌이체" }, { c: "상황", w: "넷플릭스 정주행" }, { c: "상황", w: "다이어트" }, { c: "상황", w: "벌레 잡기" },
+  { c: "동물", w: "카피바라" }, { c: "동물", w: "수달" }, { c: "동물", w: "알파카" }, { c: "동물", w: "미어캣" },
+  { c: "동물", w: "골든리트리버" }, { c: "동물", w: "고슴도치" },
+];
+
+let liarG = null, liarPrevPhase = null, liarCntT = null;
+
+function liarInit() {
+  if (!sb) { setTimeout(liarInit, 900); return; }
+  try {
+    const ch = sb.channel("kel-liar");
+    ch.on("postgres_changes", { event: "*", schema: "public", table: "liar_games" }, () => { liarRefresh(); });
+    ch.subscribe();
+  } catch (e) {}
+  liarRefresh();
+}
+
+async function liarRefresh() {
+  if (!sb) return;
+  try {
+    const { data, error } = await sb.from("liar_games").select("*").order("id", { ascending: false }).limit(1);
+    if (error) return;
+    liarG = (data && data[0]) || null;
+    liarAfterRefresh();
+  } catch (e) {}
+}
+
+function liarPlayers() { return (liarG && liarG.players) || []; }
+function liarActive() { return liarG && liarG.phase !== "done"; }
+function liarImIn() { return liarPlayers().indexOf(me) >= 0; }
+
+function liarAfterRefresh() {
+  const box = document.getElementById("liarbox");
+  const open = box && !box.hidden;
+  const ph = liarG ? liarG.phase + ":" + liarG.id + ":" + (liarG.vround || 1) : "none";
+  // 판이 놀이/투표 단계로 넘어갔는데 내가 플레이어면 자동으로 화면 띄움
+  if (liarG && liarImIn() && !open && ["play", "vote", "steal", "done"].indexOf(liarG.phase) >= 0 && liarPrevPhase !== ph) {
+    openLiar();
+  } else if (open) {
+    liarRender();
+  } else if (liarG && liarG.phase === "lobby" && !liarImIn() && liarPrevPhase !== ph) {
+    toast("🎭 라이어 게임 판 열림 — RADIO 탭에서 조인");
+  }
+  liarPrevPhase = ph;
+  // RADIO 탭 카드 갱신
+  try { if (document.querySelector("#tab-stamp.active")) renderStamp(); } catch (e) {}
+  // 보상 지급 (한 번만)
+  liarReward();
+}
+
+function openLiar() {
+  if (!me) { toast("먼저 내가 누구인지 골라줘"); return openWho(); }
+  let box = document.getElementById("liarbox");
+  if (!box) { box = document.createElement("div"); box.id = "liarbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  liarRender();
+  liarRefresh();
+}
+
+function liarClose() {
+  const box = document.getElementById("liarbox");
+  if (box) box.hidden = true;
+  if (liarCntT) { clearInterval(liarCntT); liarCntT = null; }
+}
+
+function liarHead(sub) {
+  return '<div class="arm-top">🎭 라이어 게임 <span>' + (sub || "") + "</span></div>";
+}
+
+function liarRender() {
+  const box = document.getElementById("liarbox");
+  if (!box || box.hidden) return;
+  if (liarCntT) { clearInterval(liarCntT); liarCntT = null; }
+  const g = liarG;
+
+  // 판 없음 / 끝난 판만 있음 → 시작 화면
+  if (!g || (g.phase === "done" && localStorage.getItem("kel_lr_seen") === String(g.id))) {
+    box.innerHTML =
+      '<div class="armory liar-wrap">' + liarHead("") +
+        '<div class="liar-hero">🎭</div>' +
+        '<p class="liar-rule">라이어 빼고 전원에게 단어가 뜬다.<br>돌아가면서 <b>입으로</b> 설명하고, 다 끝나면 폰으로 라이어를 지목.<br>' +
+        '시민이 이기면 전원 <b>2배 쿠폰 10장씩</b>(무기+캐릭터), 라이어가 살아남으면 혼자 <b>10배 쿠폰 10장</b>.</p>' +
+        '<button class="btn" id="lr-new" style="width:100%;margin-top:14px">새 판 열기</button>' +
+        '<button class="btn ghost" id="lr-x" style="width:100%;margin-top:8px">닫기</button>' +
+      "</div>";
+    bind("#lr-new", liarCreate); bind("#lr-x", liarClose);
+    return;
+  }
+
+  const ps = liarPlayers();
+
+  if (g.phase === "lobby") {
+    const inG = liarImIn();
+    box.innerHTML =
+      '<div class="armory liar-wrap">' + liarHead(ps.length + " / " + MEMBERS.length) +
+        '<p class="liar-sub">전원 모이면 자동 시작 · 4명부터는 수동 시작 가능</p>' +
+        '<div class="lr-grid">' + MEMBERS.map((m) => {
+          const joined = ps.indexOf(m.id) >= 0;
+          return '<div class="lr-p' + (joined ? " in" : "") + '">' + av(m.id, "mini") + "<span>" + esc(m.name) + "</span>" + (joined ? "<b>✓</b>" : "") + "</div>";
+        }).join("") + "</div>" +
+        (inG ? '<p class="liar-sub" style="margin-top:12px">조인 완료 — 친구들 기다리는 중…</p>'
+             : '<button class="btn" id="lr-join" style="width:100%;margin-top:12px">조인하기</button>') +
+        (ps.length >= 4 ? '<button class="btn' + (inG ? "" : " ghost") + '" id="lr-start" style="width:100%;margin-top:8px">지금 시작 (' + ps.length + "명)</button>" : "") +
+        '<button class="btn ghost" id="lr-x" style="width:100%;margin-top:8px">닫기</button>' +
+      "</div>";
+    bind("#lr-join", liarJoin); bind("#lr-start", liarStart); bind("#lr-x", liarClose);
+    // 6명 다 모이면 방장이 자동 시작
+    if (ps.length >= MEMBERS.length && me === g.host) liarStart();
+    return;
+  }
+
+  if (g.phase === "play") {
+    const t0 = new Date(g.start_at || g.created_at).getTime() + 3400;
+    const leftMs = t0 - Date.now();
+    if (leftMs > 0) {
+      const draw = () => {
+        const s = Math.max(0, Math.ceil((t0 - Date.now()) / 1000));
+        box.innerHTML =
+          '<div class="armory liar-wrap liar-center">' + liarHead("") +
+            '<div class="liar-count">' + (s || "🎬") + "</div>" +
+            '<p class="liar-sub">단어 공개까지…</p>' +
+          "</div>";
+        if (Date.now() >= t0) { clearInterval(liarCntT); liarCntT = null; liarRender(); }
+      };
+      draw();
+      liarCntT = setInterval(draw, 250);
+      buzz([30]);
+      return;
+    }
+    const imLiar = g.liar === me;
+    const done = g.done_j || [];
+    const iDone = done.indexOf(me) >= 0;
+    box.innerHTML =
+      '<div class="armory liar-wrap">' + liarHead(done.length + " / " + ps.length + " 설명 끝") +
+        '<div class="liar-cat">카테고리 · ' + esc(g.category || "") + "</div>" +
+        (imLiar
+          ? '<div class="liar-word liar-liar">🤫<br>당신이 라이어</div><p class="liar-sub">단어를 몰라도 아는 척 설명해. 들키면 끝이야.</p>'
+          : '<div class="liar-word">' + esc(g.word || "") + '</div><p class="liar-sub">이 단어를 <b>말하지 말고</b> 돌아가면서 설명해.<br>라이어 앞에서 너무 다 퍼주지 말 것.</p>') +
+        '<div class="lr-grid" style="margin-top:12px">' + ps.map((id) => {
+          const d = done.indexOf(id) >= 0;
+          return '<div class="lr-p' + (d ? " in" : "") + '">' + av(id, "mini") + "<span>" + esc(nameOf(id)) + "</span>" + (d ? "<b>✓</b>" : "") + "</div>";
+        }).join("") + "</div>" +
+        (liarImIn() ? '<button class="btn" id="lr-done" style="width:100%;margin-top:12px"' + (iDone ? " disabled" : "") + ">🗣️ " + (iDone ? "설명 끝 완료" : "내 설명 끝") + "</button>" : "") +
+        '<button class="btn ghost" id="lr-x" style="width:100%;margin-top:8px">잠깐 닫기</button>' +
+      "</div>";
+    bind("#lr-done", liarDone); bind("#lr-x", liarClose);
+    return;
+  }
+
+  if (g.phase === "vote") {
+    const votes = g.votes_j || {};
+    const myPick = votes[me];
+    const nVoted = Object.keys(votes).filter((k) => ps.indexOf(k) >= 0).length;
+    box.innerHTML =
+      '<div class="armory liar-wrap">' + liarHead(nVoted + " / " + ps.length + " 투표" + ((g.vround || 1) > 1 ? " · 재투표" : "")) +
+        '<div class="liar-cat">라이어는 누구?</div>' +
+        ((g.vround || 1) > 1 ? '<p class="liar-sub" style="color:var(--accent)">동률! 다시 투표해 — 또 동률이면 라이어 승리</p>' : '<p class="liar-sub">한 명을 골라. 다 고르면 자동으로 결과가 뜬다.</p>') +
+        '<div class="lv-grid">' + ps.filter((id) => id !== me).map((id) =>
+          '<button class="lv-p' + (myPick === id ? " picked" : "") + '" data-v="' + id + '">' + av(id, "mini") + "<span>" + esc(nameOf(id)) + "</span></button>"
+        ).join("") + "</div>" +
+        (liarImIn() ? "" : '<p class="liar-sub">관전 중 — 투표는 참가자만</p>') +
+        '<button class="btn ghost" id="lr-x" style="width:100%;margin-top:10px">잠깐 닫기</button>' +
+      "</div>";
+    $$(".lv-p", box).forEach((b) => b.onclick = () => { if (liarImIn()) liarVote(b.dataset.v); });
+    bind("#lr-x", liarClose);
+    return;
+  }
+
+  if (g.phase === "steal") {
+    if (g.liar === me) {
+      const opts = liarOpts(g);
+      box.innerHTML =
+        '<div class="armory liar-wrap">' + liarHead("") +
+          '<div class="liar-cat">정체 발각!</div>' +
+          '<div class="liar-word liar-liar" style="font-size:26px">마지막 기회 — 단어를 맞혀라</div>' +
+          '<div class="quiz-opts" style="margin-top:12px">' + opts.map((w) =>
+            '<button class="quiz-opt" data-sw="' + esc(w) + '">' + esc(w) + "</button>").join("") + "</div>" +
+        "</div>";
+      $$(".quiz-opt", box).forEach((b) => b.onclick = () => liarSteal(b.dataset.sw));
+    } else {
+      box.innerHTML =
+        '<div class="armory liar-wrap liar-center">' + liarHead("") +
+          '<div class="liar-hero">🫣</div>' +
+          '<p class="liar-sub"><b>' + esc(nameOf(g.liar)) + "</b>가 라이어로 지목됐다!<br>지금 단어 맞히기로 마지막 발악 중…</p>" +
+        "</div>";
+    }
+    return;
+  }
+
+  if (g.phase === "done") {
+    const votes = g.votes_j || {};
+    const counts = {};
+    ps.forEach((p) => counts[p] = 0);
+    Object.keys(votes).forEach((k) => { if (counts[votes[k]] !== undefined) counts[votes[k]]++; });
+    const maxV = Math.max.apply(null, ps.map((p) => counts[p]).concat([1]));
+    const citWin = g.outcome === "citizens";
+    box.innerHTML =
+      '<div class="armory liar-wrap">' + liarHead("") +
+        '<div class="liar-banner ' + (citWin ? "cit" : "liar") + '">' + (citWin ? "🕵️ 시민 승리" : "🎭 라이어 승리") + "</div>" +
+        '<p class="liar-reveal">라이어는 <b>' + esc(nameOf(g.liar)) + "</b> · 단어는 <b>" + esc(g.word) + "</b>" +
+          (g.steal_pick ? "<br>라이어의 답: <b>" + esc(g.steal_pick) + "</b> " + (g.steal_pick === g.word ? "→ 적중 😱" : "→ 오답") : "") + "</p>" +
+        '<div class="tally">' + ps.map((p) =>
+          '<div class="tally-row"><span class="tally-n">' + esc(nameOf(p)) + (p === g.liar ? " 🎭" : "") + "</span>" +
+          '<span class="tally-bar"><i style="width:' + Math.round((counts[p] / maxV) * 100) + '%"></i></span><b>' + counts[p] + "표</b></div>"
+        ).join("") + "</div>" +
+        '<p class="liar-sub" style="margin-top:10px">' + (citWin ? "시민 전원 ✨2배 쿠폰 10장씩 (무기 + 캐릭터)" : "라이어에게 💥10배 쿠폰 10장") + "</p>" +
+        '<div class="btn-row" style="margin-top:12px">' +
+          '<button class="btn ghost" id="lr-again" style="flex:1">🎭 한 판 더</button>' +
+          '<button class="btn" id="lr-x2" style="flex:1">닫기</button></div>' +
+      "</div>";
+    bind("#lr-again", () => { localStorage.setItem("kel_lr_seen", String(g.id)); liarCreate(); });
+    bind("#lr-x2", () => { localStorage.setItem("kel_lr_seen", String(g.id)); liarClose(); });
+    return;
+  }
+}
+
+function bind(sel, fn) { const el = document.querySelector(sel); if (el) el.onclick = fn; }
+
+async function liarCreate() {
+  if (needSb() || !me) return;
+  const { error } = await sb.from("liar_games").insert({ host: me, players: [me], phase: "lobby" });
+  if (error) { toast("판 생성 실패 — LIAR-SQL 돌렸어?"); return; }
+  sendPush("🎭 라이어 게임", nameOf(me) + "이(가) 판 열었다 — RADIO 탭에서 조인!", "liar");
+  liarRefresh();
+}
+
+async function liarJoin() {
+  if (!sb || !liarG) return;
+  for (let i = 0; i < 3; i++) {
+    const { data } = await sb.from("liar_games").select("*").eq("id", liarG.id).limit(1);
+    const g = data && data[0];
+    if (!g || g.phase !== "lobby") return liarRefresh();
+    if (g.players.indexOf(me) >= 0) { liarG = g; return liarRender(); }
+    await sb.from("liar_games").update({ players: g.players.concat([me]) }).eq("id", g.id).eq("phase", "lobby");
+    await new Promise((r) => setTimeout(r, 250 + Math.random() * 350));
+  }
+  liarRefresh();
+}
+
+async function liarStart() {
+  const g = liarG;
+  if (!sb || !g || g.phase !== "lobby" || g.players.length < 4) return;
+  const recent = JSON.parse(localStorage.getItem("kel_liar_recent") || "[]");
+  let pool = LIAR_WORDS.filter((x) => recent.indexOf(x.w) < 0);
+  if (!pool.length) pool = LIAR_WORDS;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const liar = g.players[Math.floor(Math.random() * g.players.length)];
+  const { data, error } = await sb.from("liar_games").update({
+    phase: "play", word: pick.w, category: pick.c, liar: liar, start_at: new Date().toISOString(),
+  }).eq("id", g.id).eq("phase", "lobby").select();
+  if (!error && data && data.length) {
+    localStorage.setItem("kel_liar_recent", JSON.stringify([pick.w].concat(recent).slice(0, 10)));
+    sendPush("🎭 라이어 게임 시작", "3초 뒤 단어 공개 — 폰 봐!", "liar");
+  }
+  liarRefresh();
+}
+
+async function liarDone() {
+  if (!sb || !liarG || liarG.phase !== "play") return;
+  for (let i = 0; i < 3; i++) {
+    const { data } = await sb.from("liar_games").select("*").eq("id", liarG.id).limit(1);
+    const g = data && data[0];
+    if (!g || g.phase !== "play") return liarRefresh();
+    const done = g.done_j || [];
+    if (done.indexOf(me) < 0) {
+      await sb.from("liar_games").update({ done_j: done.concat([me]) }).eq("id", g.id).eq("phase", "play");
+      await new Promise((r) => setTimeout(r, 250 + Math.random() * 350));
+      continue;
+    }
+    // 전원 끝났으면 투표로 전환 (한 명만 성공)
+    if (g.players.every((p) => done.indexOf(p) >= 0)) {
+      await sb.from("liar_games").update({ phase: "vote" }).eq("id", g.id).eq("phase", "play");
+    }
+    return liarRefresh();
+  }
+  liarRefresh();
+}
+
+async function liarVote(target) {
+  if (!sb || !liarG || liarG.phase !== "vote") return;
+  buzz([25]);
+  for (let i = 0; i < 3; i++) {
+    const { data } = await sb.from("liar_games").select("*").eq("id", liarG.id).limit(1);
+    const g = data && data[0];
+    if (!g || g.phase !== "vote") return liarRefresh();
+    const votes = Object.assign({}, g.votes_j || {});
+    votes[me] = target;
+    await sb.from("liar_games").update({ votes_j: votes }).eq("id", g.id).eq("phase", "vote").eq("vround", g.vround || 1);
+    const { data: d2 } = await sb.from("liar_games").select("*").eq("id", liarG.id).limit(1);
+    const g2 = d2 && d2[0];
+    if (g2 && g2.phase === "vote" && (g2.votes_j || {})[me] === target) { liarG = g2; liarSettle(g2); return liarRender(); }
+  }
+  liarRefresh();
+}
+
+async function liarSettle(g) {
+  // 전원 투표 완료 시 판정 — 조건부 업데이트라 한 폰만 성공한다
+  const ps = g.players, votes = g.votes_j || {};
+  if (!ps.every((p) => votes[p])) return;
+  const counts = {};
+  ps.forEach((p) => counts[p] = 0);
+  ps.forEach((p) => { const t = votes[p]; if (counts[t] !== undefined) counts[t]++; });
+  let top = null, max = -1, tie = false;
+  ps.forEach((p) => { if (counts[p] > max) { max = counts[p]; top = p; tie = false; } else if (counts[p] === max) tie = true; });
+  const vr = g.vround || 1;
+  if (tie) {
+    if (vr >= 2) await sb.from("liar_games").update({ phase: "done", outcome: "liar" }).eq("id", g.id).eq("phase", "vote").eq("vround", vr);
+    else await sb.from("liar_games").update({ votes_j: {}, vround: 2 }).eq("id", g.id).eq("phase", "vote").eq("vround", 1);
+  } else if (top === g.liar) {
+    await sb.from("liar_games").update({ phase: "steal" }).eq("id", g.id).eq("phase", "vote").eq("vround", vr);
+  } else {
+    await sb.from("liar_games").update({ phase: "done", outcome: "liar" }).eq("id", g.id).eq("phase", "vote").eq("vround", vr);
+  }
+  liarRefresh();
+}
+
+function liarOpts(g) {
+  const same = LIAR_WORDS.filter((x) => x.c === g.category && x.w !== g.word).map((x) => x.w);
+  let s = (Number(g.id) || 1) * 7 + 13;
+  const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+  const cp = same.slice(), d = [];
+  while (d.length < 3 && cp.length) d.push(cp.splice(Math.floor(rnd() * cp.length), 1)[0]);
+  const opts = d.concat([g.word]);
+  for (let i = opts.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = opts[i]; opts[i] = opts[j]; opts[j] = t; }
+  return opts;
+}
+
+async function liarSteal(pick) {
+  if (!sb || !liarG || liarG.phase !== "steal" || liarG.liar !== me) return;
+  await sb.from("liar_games").update({
+    steal_pick: pick, outcome: pick === liarG.word ? "liar" : "citizens", phase: "done",
+  }).eq("id", liarG.id).eq("phase", "steal");
+  liarRefresh();
+}
+
+function liarReward() {
+  const g = liarG;
+  if (!g || g.phase !== "done" || !g.outcome) return;
+  const key = "kel_lr_paid_" + g.id;
+  if (localStorage.getItem(key)) return;
+  if (liarPlayers().indexOf(me) < 0) return;
+  localStorage.setItem(key, "1");
+  if (g.outcome === "citizens" && me !== g.liar) {
+    addWb2(10);
+    localStorage.setItem("kel_coupon", String(coupons() + 10));
+    toast("🕵️ 시민 승리 — ✨2배 쿠폰: 무기 10장 + 캐릭터 10장");
+    try { specialFx("cupburst", "#E3B457", 4); } catch (e) {}
+  } else if (g.outcome === "liar" && me === g.liar) {
+    addUb10(10);
+    toast("🎭 완전 범죄 — 💥10배 쿠폰 10장 (무기·캐릭터 아무 데나)");
+    try { specialFx("ascend", "#F5E08A", 5); } catch (e) {}
+  }
+  buzz([50, 40, 90]);
+}
+
+/* ---------------- RADIO 탭 카드 ---------------- */
+function liarCardHtml() {
+  const g = liarG, act = g && g.phase !== "done";
+  return '<div class="liar-card"><div class="lc-l"><span class="lc-em">🎭</span><div>' +
+    '<div class="lc-t">라이어 게임</div>' +
+    '<div class="lc-s">' + (act ? (g.phase === "lobby" ? "판 열림 — " + g.players.length + "명 대기 중" : "진행 중!") : "말로 설명, 폰으로 투표 — 이기면 배수 쿠폰") + "</div></div></div>" +
+    '<button class="btn' + (act ? "" : " ghost") + ' lc-btn" id="liar-open">' + (act ? "참여" : "새 판") + "</button></div>";
+}
+
+/* ---------------- 전역 클릭 위임 + 부팅 ---------------- */
+document.addEventListener("click", (e) => {
+  if (e.target.closest && e.target.closest("#liar-open")) { openLiar(); return; }
+  const bb = e.target.closest && e.target.closest("[data-bm]");
+  if (bb) {
+    const host = bb.closest("#wbox") || bb.closest("#armorybox");
+    if (host) host.hidden = true;
+    openWeapon(bb.dataset.bm);
+  }
+});
+
+function kelV33Init() {
+  rushPill();
+  setInterval(rushTick, 1000);
+  liarInit();
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", kelV33Init);
+else kelV33Init();
