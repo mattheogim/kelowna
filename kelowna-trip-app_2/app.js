@@ -6002,13 +6002,72 @@ function renderBattleBanners(list) {
 }
 function foe() { return btG.a === me ? btG.b : btG.a; }
 function myPickCol() { return btG.a === me ? "pick_a" : "pick_b"; }
-function hpBar(m, hp) {
-  var mx = m === me ? maxHp(m) : maxHpReal(m);   // 본인은 낙인 반영 안 된 정가로 표시 (피만 살짝 까져 보임)
+function pkHpBox(mem, hp, side) {
+  var mx = mem === me ? maxHp(mem) : maxHpReal(mem);
   var pct = Math.max(0, Math.min(100, Math.round(hp / mx * 100)));
-  return '<div class="bt-side"><div class="bt-name">' + av(m, "mini") + " " + esc(nameOf(m)) +
-    ' <span class="bt-lv">Lv.' + lvOf(m) + "</span>" + dodgeBadge(m) + "</div>" +
+  return '<div class="pk-hpbox ' + side + '">' +
+    '<div class="pk-hpname">' + esc(nameOf(mem)) + ' <span class="bt-lv">Lv.' + lvOf(mem) + '</span>' + dodgeBadge(mem) + '</div>' +
     '<div class="bt-hp"><i style="width:' + pct + '%;background:' + (pct > 50 ? "#5E8C5A" : pct > 25 ? "#C79A3E" : "#C8503C") + '"></i></div>' +
-    '<div class="bt-hpn">' + Math.max(0, Math.round(hp)) + " / " + mx + "</div></div>";
+    '<div class="bt-hpn">' + Math.max(0, Math.round(hp)) + ' / ' + mx + '</div></div>';
+}
+var __btSeen = { id: 0, n: 0 };
+function pkStageHtml(g) {
+  var st = g.state || {}, en = foe();
+  var cm = charOf(me) || { id: "x", em: "🎩" }, cf = charOf(en) || { id: "x", em: "🎩" };
+  return '<div class="pk-stage" id="pk-stage">' +
+    pkHpBox(en, (st.hp || {})[en] || 0, "foe") +
+    '<div class="pk-side foe" id="pk-foe"><span class="pk-plat"></span>' + spriteHtml(cf, "battle") + '</div>' +
+    '<div class="pk-side mine" id="pk-mine"><span class="pk-plat"></span>' + spriteHtml(cm, "battle big") + '</div>' +
+    pkHpBox(me, (st.hp || {})[me] || 0, "mine") +
+    '<span class="pk-turn">' + (g.phase === "done" ? "🏁" : "T" + g.turn) + '</span></div>';
+}
+function sprCenter(id) {
+  var el = document.querySelector("#" + id + " .pk-spr");
+  if (!el) return [innerWidth / 2, innerHeight / 2];
+  var r = el.getBoundingClientRect();
+  return [r.left + r.width / 2, r.top + r.height / 2];
+}
+function playTheatre(g) {
+  var st = g.state || {}, logs = st.log || [];
+  if (__btSeen.id !== g.id) { __btSeen = { id: g.id, n: logs.length }; return; }
+  var fresh = logs.slice(__btSeen.n);
+  __btSeen.n = logs.length;
+  fresh.forEach(function (l, i) {
+    setTimeout(function () {
+      var box = document.getElementById("pk-box");
+      if (box) box.innerHTML = '<div class="bt-line">' + l.txt + "</div>";
+      if (!l.who) { if (l.fx) FX2.cast(l.fx, { quick: true }); return; }
+      var atkId = l.who === me ? "pk-mine" : "pk-foe";
+      var defId = l.who === me ? "pk-foe" : "pk-mine";
+      var atk = document.getElementById(atkId), def = document.getElementById(defId);
+      if (atk) { atk.classList.remove("lunge-m", "lunge-f"); void atk.offsetWidth; atk.classList.add(l.who === me ? "lunge-m" : "lunge-f"); }
+      var from = sprCenter(atkId), to = sprCenter(defId);
+      if (l.fx) FX2.cast(l.fx, { quick: true, from: from, x: to[0], y: to[1], lv: spellLvOf(l.who, l.fx) });
+      var dm = (l.txt || "").match(/— (\d+)/);
+      setTimeout(function () {
+        if (def) { def.classList.remove("hit"); void def.offsetWidth; def.classList.add("hit"); }
+        if (dm && def) {
+          var p = document.createElement("span"); p.className = "dmgpop"; p.textContent = "-" + dm[1];
+          def.appendChild(p); setTimeout(function () { p.remove(); }, 1200);
+        }
+      }, 520);
+    }, i * 1050);
+  });
+  // 막이 끝나고 기절 처리
+  setTimeout(function () {
+    [me, foe()].forEach(function (mm) {
+      if ((st.hp || {})[mm] <= 0) {
+        var el = document.getElementById(mm === me ? "pk-mine" : "pk-foe");
+        if (el) el.classList.add("faint");
+      }
+    });
+  }, fresh.length * 1050 + 400);
+}
+function playBattleFx(st) { /* 호환용 — 종료 화면 잔향 */
+  var last = (st.log || []).slice(-2);
+  last.forEach(function (l, i) {
+    if (l.fx) setTimeout(function () { FX2.cast(l.fx, { quick: true, lv: l.who ? spellLvOf(l.who, l.fx) : 1 }); }, i * 650);
+  });
 }
 function openBattle() {
   var g = btG; if (!g) return;
@@ -6017,35 +6076,37 @@ function openBattle() {
   box.hidden = false;
   var st = g.state || {}, en = foe();
   var myPicked = !!g[myPickCol()];
-  var head = '<div class="bt-arena">' + hpBar(g.a, (st.hp || {})[g.a] || 0) +
-    '<div class="bt-vs">' + (g.phase === "done" ? "🏁" : "T" + g.turn) + "</div>" +
-    hpBar(g.b, (st.hp || {})[g.b] || 0) + "</div>";
-  var logH = '<div class="bt-log" id="bt-log">' + (st.log || []).slice(-6).map(function (l) {
-    return '<div class="bt-line">' + l.txt + "</div>";
-  }).join("") + "</div>";
+  var lastLog = (st.log || []).slice(-1).map(function (l) { return '<div class="bt-line">' + l.txt + "</div>"; }).join("") || '<div class="bt-line muted2">주문을 골라 선공을 잡아라</div>';
 
   if (g.phase === "done") {
     var win = g.winner;
-    box.innerHTML = '<div class="armory bt-wrap"><button class="ovx" data-ovx>✕</button>' + head + logH +
+    box.innerHTML = '<div class="armory bt-wrap pk-wrap"><button class="ovx" data-ovx>✕</button>' + pkStageHtml(g) +
+      '<div class="pk-box" id="pk-box">' + lastLog + '</div>' +
       '<div class="liar-banner ' + (win === me ? "cit" : win ? "liar" : "") + '">' +
       (win ? (win === me ? "🏆 승리!" : "💀 패배…") : "무승부") + "</div>" +
       '<p class="liar-sub" id="bt-xp"></p>' +
       '<div class="btn-row"><button class="btn ghost" id="bt-re" style="flex:1">⚔️ 재대결</button>' +
       '<button class="btn" id="bt-x" style="flex:1">닫기</button></div></div>';
+    setTimeout(function () {
+      var wEl = win ? document.getElementById(win === me ? "pk-mine" : "pk-foe") : null;
+      var lEl = win ? document.getElementById(win === me ? "pk-foe" : "pk-mine") : null;
+      if (wEl) wEl.classList.add("winner");
+      if (lEl) lEl.classList.add("faint");
+    }, 300);
     battleReward(g);
-    $("#bt-x").onclick = function () { box.hidden = true; localStorage.setItem("kel_bt_seen", String(g.id)); btG = null; };
+    $("#bt-x").onclick = function () { box.hidden = true; localStorage.setItem("kel_bt_seen", String(g.id)); btG = null; kelLoad35(); };
     $("#bt-re").onclick = function () { box.hidden = true; localStorage.setItem("kel_bt_seen", String(g.id)); btG = null; duelInvite(en); };
     return;
   }
 
-  // pick 화면
   var forgot = (st.forget || {})[me] || [];
   var mine = myBook().filter(function (r) { return forgot.indexOf(r.spell_id) < 0; });
-  box.innerHTML = '<div class="armory bt-wrap">' + head + logH +
+  box.innerHTML = '<div class="armory bt-wrap pk-wrap">' + pkStageHtml(g) +
+    '<div class="pk-box" id="pk-box">' + lastLog + '</div>' +
     '<div class="bt-pickmsg">' + (myPicked ? "⏳ <b>" + esc(nameOf(en)) + "</b>의 주문 대기 중…" :
-      "이번 턴 주문을 골라 — <b id='bt-cd'>25</b>초") + "</div>" +
+      "이번 턴 주문을 골라 — <b id=\'bt-cd\'>25</b>초") + "</div>" +
     (myPicked ? "" :
-      '<div class="arm-grid book-grid">' + mine.map(function (r) {
+      '<div class="arm-grid book-grid pk-moves">' + mine.map(function (r) {
         var s = spellById[r.spell_id]; if (!s) return "";
         var dis = (s.id === "avada" && akLeft(me) <= 0) || (s.id === "expelliarmus" && expelLeft(me) <= 0);
         var t = tierById[s.t];
@@ -6055,6 +6116,7 @@ function openBattle() {
           (s.id === "avada" ? "☠️" + akLeft(me) : s.id === "expelliarmus" ? "🪄" + expelLeft(me) : "Lv" + r.lv) + "</span></button>";
       }).join("") + "</div>") +
     '<button class="btn ghost" id="bt-run" style="width:100%;margin-top:10px">🏳️ 기권</button></div>';
+  playTheatre(g);
   $$("[data-cast]", box).forEach(function (b) {
     b.onclick = function () {
       if (b.classList.contains("lock")) return toast("차지가 없어");
@@ -6205,12 +6267,7 @@ async function resolveTurn(g) {
   await sb.from("battles").update(patch).eq("id", g.id).eq("turn", g.turn);
   kelLoad35();
 }
-function playBattleFx(st) {
-  var last = (st.log || []).slice(-4);
-  last.forEach(function (l, i) {
-    if (l.fx) setTimeout(function () { FX2.cast(l.fx, { quick: true, lv: l.who ? spellLvOf(l.who, l.fx) : 1 }); }, i * 650);
-  });
-}
+
 async function battleReward(g) {
   var key = "kel_bt_paid_" + g.id;
   var el = document.getElementById("bt-xp");
@@ -6242,12 +6299,40 @@ function kelHubHtml() {
       '<button class="hub-b" data-hub="wand"><span class="hub-em">🪄</span>지팡이<span class="hub-s">🎟️ ' + wc + "</span></button>" +
       '<button class="hub-b" data-hub="spell"><span class="hub-em">📜</span>주문<span class="hub-s">📜 ' + sTickets() + "</span></button>" +
     "</div>" +
+    kelMyCardHtml() +
     '<div class="hub-row2">' +
       '<button class="hub-mini" data-hub="shop">💵 상점</button>' +
       '<button class="hub-mini" data-hub="book">📖 주문서</button>' +
       '<button class="hub-mini" data-hub="syn">💞 궁합</button>' +
       '<button class="hub-mini" data-hub="rank">🏆 전적</button>' +
     "</div></div>";
+}
+/* 스프라이트: repo에 chars/<캐릭터id>.png 를 넣으면 자동으로 이미지 사용, 없으면 이모지 */
+function spriteHtml(c, cls) {
+  return '<span class="pk-spr ' + (cls || "") + '" data-cid="' + c.id + '">' +
+    '<img src="chars/' + c.id + '.png" alt="" class="pk-img">' +
+    '<span class="pk-em">' + c.em + '</span></span>';
+}
+document.addEventListener("load", function (e) {
+  var t = e.target;
+  if (t && t.classList && t.classList.contains("pk-img")) { var w = t.closest(".pk-spr"); if (w) w.classList.add("hasimg"); }
+}, true);
+function kelMyCardHtml() {
+  var c = charOf(me);
+  if (!c) return '<button class="hub-me hub-me-empty" data-hub="char">🎴 아직 마법사가 없다 — 탭해서 뽑기</button>';
+  var t = tierById[c.t], w = weaponOf(me), mine = myBook(), s = statsOf(me);
+  return '<div class="hub-me">' +
+    '<button class="hub-me-sprbtn" data-hub="fxme">' + spriteHtml(c, "hub") + '</button>' +
+    '<div class="hub-me-info">' +
+      '<div class="hub-me-nm">' + esc(fullName(me)) + '</div>' +
+      '<div class="hub-me-sub"><span class="ai-t" style="background:' + t.color + '">' + t.en + '</span>' +
+      ' <span class="bt-lv">Lv.' + lvOf(me) + '</span> <span class="muted" style="font-size:10.5px">' + (s.wins || 0) + '승 ' + (s.losses || 0) + '패</span></div>' +
+      '<div class="hub-me-w">' + (w ? w.em + " " + esc(w.ko) + (isAwakened(me) ? ' <b style="color:var(--gold)">⚡각성</b>' : "") : '<span class="muted">지팡이 미장착</span>') + '</div>' +
+      '<button class="hub-me-sp" data-hub="book">' + (mine.length ?
+        mine.slice(0, 10).map(function (r) { var sp2 = spellById[r.spell_id]; return sp2 ? '<span class="hub-sp">' + sp2.em + (r.lv > 1 ? '<i>' + r.lv + '</i>' : '') + '</span>' : ""; }).join("") +
+        (mine.length > 10 ? '<span class="muted" style="font-size:10px">+' + (mine.length - 10) + '</span>' : "")
+        : '<span class="muted" style="font-size:11px">배운 주문 없음 — 탭해서 뽑기</span>') + '</button>' +
+    '</div></div>';
 }
 function openRank() {
   var box = document.getElementById("rankbox");
@@ -6498,6 +6583,7 @@ document.addEventListener("click", function (e) {
   var hb = e.target.closest && e.target.closest("[data-hub]");
   if (hb) {
     var k = hb.dataset.hub;
+    if (k === "fxme") { charFx(me, 3); return; }
     if (k === "char") { if (!me) return openWho(); if (!charOf(me)) { rollResult = drawCharacter(); openRoll(); } else openShop(); }
     else if (k === "wand") openArmory();
     else if (k === "spell") openSpellbook();
