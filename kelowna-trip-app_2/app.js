@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v45";
-const BUILD_NO = 45;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v46";
+const BUILD_NO = 46;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -6848,12 +6848,34 @@ function lockAndRestart(minv) {
   if (window.__restarting) return;
   window.__restarting = true;
   appLocked = true;
+  // 루프 브레이커: 같은 세션에서 3번 재시작해도 새 버전을 못 받으면 자동 중단 → 수동 안내
+  var n = Number(sessionStorage.getItem("kel_rst_n") || 0) + 1;
+  sessionStorage.setItem("kel_rst_n", String(n));
+  if (n > 3) {
+    window.__restarting = false;
+    try { showVersionWall(minv); } catch (e) {}
+    return;
+  }
   var s = document.createElement("div");
   s.id = "restart-splash";
   s.innerHTML = '<div class="rs-card"><div class="rs-ic">📦</div><div class="rs-t">v' + minv + ' 업데이트</div>' +
-    '<div class="rs-d">서버가 멈췄다 — 전원 재시작 중…</div><div class="rs-spin"></div></div>';
+    '<div class="rs-d">전원 재시작 중… (' + n + '/3 · 3초 안에 넘어감)</div><div class="rs-spin"></div></div>';
   document.body.appendChild(s);
-  setTimeout(function () { try { hardUpdate(); } catch (e) { location.reload(); } }, 1200);
+  // 빠른 재시작: 캐시·SW 정리를 최대 2초만 기다리고 무조건 이동 (매달림 방지)
+  var stamp = Date.now();
+  function go() {
+    var base = location.pathname.replace(/[^/]*$/, "");
+    try { location.replace(base + "index.html?v=" + stamp); } catch (e) { location.reload(); }
+  }
+  var purge = Promise.resolve();
+  try {
+    purge = Promise.all([
+      ("caches" in window) ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : null,
+      navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : null,
+    ]).catch(function () {});
+  } catch (e) {}
+  Promise.race([purge, new Promise(function (res) { setTimeout(res, 2000); })]).then(function () { setTimeout(go, 300); });
+  setTimeout(go, 3000);   // 이중 안전핀
 }
 async function versionWatch41() {
   try {
@@ -6861,6 +6883,7 @@ async function versionWatch41() {
     var r = await sb.from("settings").select("value").eq("key", "min_version").limit(1);
     var minv = r.data && r.data[0] ? Number(r.data[0].value || 0) : 0;
     if (minv && BUILD_NO < minv) lockAndRestart(minv);
+    else sessionStorage.removeItem("kel_rst_n");
   } catch (e) {}
 }
 
