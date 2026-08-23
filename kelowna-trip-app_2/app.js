@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v42";
-const BUILD_NO = 42;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v43";
+const BUILD_NO = 43;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -1195,7 +1195,8 @@ function dayTheme() {
 /* ---------------- Supabase + 송신 큐 ---------------- */
 function initSb() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { $("#nokey-banner").hidden = false; return; }
-  try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
+  try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
+    { global: { headers: { "x-app-version": String(BUILD_NO) } } }); }
   catch (e) { console.error(e); toast("Supabase 연결 실패 — config.js 확인"); }
 }
 function needSb() { if (!sb) { toast("config.js에 Supabase 키부터 넣어줘"); return true; } return false; }
