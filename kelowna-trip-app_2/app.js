@@ -1329,7 +1329,7 @@ function onLive(table, payload) {
   if (table === "checkins") {
     const isVoice = !!r.audio;
     const body = isVoice ? "음성 무전이 도착했어" : (r.note ? r.note : r.place);
-    if (r.spell) try { FX2.cast(r.spell, { quick: true }); } catch (e) {}
+    if (r.spell) try { FX2.cast(r.spell, { quick: true, lv: typeof spellLvOf === "function" ? spellLvOf(actor, r.spell) : 1 }); } catch (e) {}
     incoming({
       who: actor,
       name: nameOf(actor) + (isVoice ? " · 음성" : r.lat ? " · 위치" : ""),
@@ -5529,20 +5529,24 @@ var FX2 = (function () {
     var c = sp.c || "#EDE0B8";
     var cx = o.x != null ? o.x : innerWidth / 2, cy = o.y != null ? o.y : innerHeight * 0.42;
     var from = o.from || [innerWidth / 2, innerHeight - 90];
-    var big = sp.t >= 4 || spellId === "avada";
+    var lv = Math.max(1, o.lv || (typeof spLv === "function" ? spLv(spellId) : 1) || 1);
+    var LM = 1 + 0.18 * (lv - 1);          // Lv당 +18% — Lv5면 파티클·반동 1.72배
+    var big = sp.t >= 4 || spellId === "avada" || lv >= 4;
     // ① 예열
     ring(from[0], from[1], { c: c, sp: -3, n: 20, sz: 6, life: 0.4 });
     setTimeout(function () {
       // ② 발사 + ③ 비행
       flash(c, 140);
-      beamTo(from[0], from[1], cx, cy, { c: c, n: big ? 34 : 20, sz: big ? 12 : 8 });
+      beamTo(from[0], from[1], cx, cy, { c: c, n: Math.round((big ? 34 : 20) * LM), sz: big ? 12 : 8 });
       if (spellId === "crucio" || spellId === "sectumsempra") arc(from[0], from[1], cx, cy, c, 5);
       setTimeout(function () {
         // ④ 임팩트
-        if (big) { hitstop(spellId === "avada" ? 240 : 160); flash("#FFFFFF", 90); }
-        burst(cx, cy, { c: c, n: big ? 90 : 45, sp: big ? 11 : 7, sz: big ? 11 : 8, up: 1 });
-        ring(cx, cy, { c: c, sp: big ? 13 : 8, n: 54 });
-        shake(big ? 0.55 : 0.28);
+        if (big) { hitstop(spellId === "avada" ? 240 : Math.round(140 + lv * 12)); flash("#FFFFFF", 90); }
+        burst(cx, cy, { c: c, n: Math.round((big ? 90 : 45) * LM), sp: (big ? 11 : 7) * (1 + 0.08 * (lv - 1)), sz: big ? 11 : 8, up: 1 });
+        ring(cx, cy, { c: c, sp: (big ? 13 : 8) * LM, n: 54 });
+        if (lv >= 3) setTimeout(function () { ring(cx, cy, { c: "#FFFFFF", sp: 15 * LM, n: 40, sz: 5 }); }, 140);
+        if (lv >= 5) { flash(c, 160); setTimeout(function () { glyphBurst(sp.em, cx, cy - 30, { c: c, scale: 200, life: 1.4 }); }, 220); }
+        shake((big ? 0.55 : 0.28) * (1 + 0.12 * (lv - 1)));
         envGlow(c);
         // ⑤ 잔향 + 시그니처
         if (spellId === "avada") { glyphBurst("💀", cx, cy - 20, { c: "#7CFF9E", scale: 230 }); stamp("AVADA KEDAVRA", "#7CFF9E"); }
@@ -5551,7 +5555,7 @@ var FX2 = (function () {
         else if (spellId === "imperio") glyphBurst("🌀", cx, cy, { c: c, scale: 200 });
         else if (spellId === "wingardium") liftUI(1800);
         else if (spellId === "expelliarmus") stamp("EXPELLIARMUS", "#FF6A5E");
-        for (var i = 0; i < (big ? 26 : 12); i++)
+        for (var i = 0; i < Math.round((big ? 26 : 12) * LM); i++)
           spawn({ x: cx + (Math.random() - 0.5) * 90, y: cy + (Math.random() - 0.5) * 40,
             vx: (Math.random() - 0.5), vy: -0.6 - Math.random(), g: -0.02,
             life: 1.4, sz: 7, c: c, drag: 0.99, turb: 0.8, tw: 2 });
@@ -5613,6 +5617,7 @@ var spellById = {}; SPELLS.forEach(function (s) { spellById[s.id] = s; });
 var store35 = { spellbook: [], wstats: [], battles: [] };
 function myBook() { return store35.spellbook.filter(function (r) { return r.member === me; }); }
 function spLv(id) { var r = store35.spellbook.find(function (x) { return x.member === me && x.spell_id === id; }); return r ? r.lv : 0; }
+function spellLvOf(m2, id) { var r = store35.spellbook.find(function (x) { return x.member === m2 && x.spell_id === id; }); return r ? r.lv : 1; }
 function learned(m, id) { return store35.spellbook.some(function (x) { return x.member === m && x.spell_id === id; }); }
 function statsOf(m) { return store35.wstats.find(function (x) { return x.member === m; }) || { member: m, xp: 0, ak_used: 0, ak_bonus: 0, exp_map: {}, wins: 0, losses: 0, streak: 0, sp_spent: 0 }; }
 function lvOf(m) { return 1 + Math.floor(Math.sqrt(statsOf(m).xp / 15)); }
@@ -6162,7 +6167,7 @@ async function resolveTurn(g) {
 function playBattleFx(st) {
   var last = (st.log || []).slice(-4);
   last.forEach(function (l, i) {
-    if (l.fx) setTimeout(function () { FX2.cast(l.fx, { quick: true }); }, i * 650);
+    if (l.fx) setTimeout(function () { FX2.cast(l.fx, { quick: true, lv: l.who ? spellLvOf(l.who, l.fx) : 1 }); }, i * 650);
   });
 }
 async function battleReward(g) {
@@ -6514,11 +6519,12 @@ function kelV35Init() {
   // 라디오 3D 래핑
   var ptw = document.querySelector(".ptt-wrap");
   if (ptw) ptw.classList.add("ptt3d");
-  // 대격변 마이그레이션 — store 로드 후 1회
+  // 대격변 마이그레이션 — loadAll 완료(=settings 채워짐)가 확인된 뒤에만 실행
   var tries = 0;
   (function waitMig() {
-    if (me && store.characters && store.characters.length !== undefined) return runMig35();
-    if (tries++ < 12) setTimeout(waitMig, 900);
+    var loaded = store && store.settings && Object.keys(store.settings).length > 0;
+    if (me && loaded) return runMig35();
+    if (tries++ < 40) setTimeout(waitMig, 900);
   })();
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { setTimeout(kelV35Init, 600); });
@@ -6533,7 +6539,8 @@ var REMOVED_WEAPONS = ["firstphone","teslacar","falcon","micstand","nunchaku","y
 var REMOVED_KO = { jobs:"스티브 잡스", yoda:"요다", son:"손흥민", musk:"일론 머스크", freddie:"프레디 머큐리", bruce:"브루스 리", smaug:"스마우그", legolas:"레골라스" };
 
 function runMig35() {
-  if (!me || !store.characters) return;
+  // 데이터 로드 전엔 절대 플래그를 태우지 않는다 (쿠폰 미지급 레이스 방지)
+  if (!me || !store || !store.settings || !Object.keys(store.settings).length) return;
   // ② 보상 먼저
   if (!localStorage.getItem("kel_mig35_comp")) {
     var rec = (store.characters || []).find(function (c) { return c.member === me; });
@@ -6562,7 +6569,7 @@ function migCompModal(deadId) {
     FX2.burst(innerWidth / 2, innerHeight / 2, { c: "#C79A3E", n: 90, sp: 11, up: 2 });
     toast("🎁 울트라 150 · 프리미엄 150 지급");
     rollResult = drawCharacter(); openRoll();
-    setTimeout(runMig35, 2500);
+    setTimeout(runMig35, 15000);  // 재뽑기 연출 끝난 뒤 무기 소각
   };
 }
 async function migWipe() {
