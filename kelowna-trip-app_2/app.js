@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v56";
-const BUILD_NO = 56;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v57";
+const BUILD_NO = 57;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -3991,9 +3991,11 @@ function applyGrants() {
   const tok = setting("grant_token") || "";
   if (!tok || !me) return;
   if (localStorage.getItem("kel_grant_token") === tok) return;
+  if (typeof svMap === "function" && svMap().__gt === tok) return;   // 서버 기준 이중 가드 (재설치·명단 덮어쓰기 생존)
   let g = {};
   try { g = JSON.parse(setting("grants") || "{}"); } catch (e) { return; }
   localStorage.setItem("kel_grant_token", tok);
+  if (typeof svPatch === "function") svPatch({ __gt: tok });
   const mine = g[me];
   if (!mine) return;
   if (typeof svCoupon === "function") svCoupon(mine.ultra || 0, mine.premium || 0);
