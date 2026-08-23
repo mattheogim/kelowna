@@ -1954,3 +1954,25 @@ details.arch > .card, details.arch > h2 { margin-left: 4px; margin-right: 4px; }
 .pk-side.lunge-f { animation: lungeF3 .6s cubic-bezier(.3,1.3,.4,1); }
 @keyframes lungeM3 { 0%,100% { transform: none; } 40% { transform: translate(56px,-34px) translateZ(90px) rotateY(-8deg) scale(1.1); } }
 @keyframes lungeF3 { 0%,100% { transform: none; } 40% { transform: translate(-56px,34px) translateZ(90px) rotateY(8deg) scale(1.1); } }
+
+/* ---- v55 캐릭터 강림 시네마틱 ---- */
+.cc-morgul .cn-dim { background: rgba(6,9,20,.88); }
+.cn-bolt.morgul { background: linear-gradient(#C9F0DC, #5E9C7E, transparent); filter: drop-shadow(0 0 12px #8FD8B0); }
+.cn-bolt.b3 { left: 49%; transform: skewX(3deg); animation-delay: .26s; }
+.cc-fog { position: absolute; left: -10%; right: -10%; bottom: 0; height: 34vh;
+  background: linear-gradient(0deg, rgba(150,170,200,.4), transparent);
+  filter: blur(14px); animation: ccfog 1.9s ease-out; }
+@keyframes ccfog { 0% { transform: translateY(100%); opacity: 0; } 40% { opacity: 1; } 100% { transform: translateY(6%); } }
+.cc-holy .cn-dim { background: radial-gradient(closest-side at 50% 42%, rgba(255,255,255,.92), rgba(255,248,220,.55) 55%, rgba(40,36,24,.5) 100%); }
+.cc-holy .cn-name { color: #6B5A18; text-shadow: 0 0 22px #FFF3C8, 0 2px 8px rgba(0,0,0,.3); }
+.cc-holy .cn-who { color: #6B5A18; text-shadow: none; }
+.cc-beam { position: absolute; left: 50%; top: -10%; bottom: -5%; width: 120px; transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,246,214,.35) 70%, transparent);
+  filter: blur(6px); animation: ccbeam 1.6s ease-out; }
+@keyframes ccbeam { 0% { transform: translateX(-50%) scaleY(0); transform-origin: top; opacity: 0; } 30% { opacity: 1; } 100% { transform: translateX(-50%) scaleY(1); } }
+.cc-eye .cn-dim { background: radial-gradient(closest-side at 50% 45%, rgba(255,122,46,.25), rgba(20,6,0,.9) 90%); animation: cceye 1.8s ease-in-out; }
+@keyframes cceye { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }
+.cc-fire { position: absolute; left: 0; right: 0; bottom: 0; height: 28vh;
+  background: linear-gradient(0deg, rgba(200,60,20,.85), transparent); animation: cnlava3d 1.6s ease-out; }
+.cc-dark .cn-dim { background: rgba(4,10,5,.88); }
+.cc-tier .cn-dim { background: radial-gradient(120% 100% at 50% 45%, transparent 25%, rgba(6,5,3,.68) 100%); }

@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v54";
-const BUILD_NO = 54;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v56";
+const BUILD_NO = 56;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -4046,7 +4046,7 @@ function openMulti(kind) {
   if (kind === 1000 && !canBuy1000()) return toast("이번 주 울트라 캐릭터 슬롯은 이미 썼어 — 월요일 리셋");
   if (!me) return openWho();
   const n = kind === 1000 ? 3 : 5;
-  const boost = kind === 1000 ? 10 : 3;
+  const boost = kind === 1000 ? 100 : 3;
   const cards = drawMulti(n, boost);
   if (!cards.length) return toast("남은 캐릭터가 없어");
   if (kind === 100) {
@@ -5621,11 +5621,38 @@ function FX2C(c) {
   try {
     FX2.mount();
     var cx = innerWidth / 2, cy = innerHeight * 0.42;
-    if (c.id === "riddle") { FX2.hitstop(220); FX2.flash("#183A22", 160); FX2.arc(cx - 150, 60, cx, cy, "#57E07A", 6); FX2.arc(cx + 150, 60, cx, cy, "#57E07A", 6); FX2.glyphBurst("🐍", cx, cy, { c: "#7CFF9E", scale: 320, life: 2 }); FX2.stamp("I AM LORD VOLDEMORT", "#7CFF9E"); FX2.shake(0.6); }
-    else if (c.id === "sauron") { FX2.flash("#3A0E00", 180); FX2.glyphBurst("👁️", cx, cy - 10, { c: "#FF7A2E", scale: 330, life: 2.2 }); FX2.ring(cx, cy, { c: "#FF7A2E", sp: 14, n: 70 }); FX2.stamp("THE GREAT EYE", "#FF9A4E"); FX2.shake(0.6); }
-    else if (c.id === "saruman") { FX2.flash("#EDEDED", 130); FX2.burst(cx, cy, { c: "#F2F2F2", n: 80, sp: 10, sz: 10 }); FX2.glyphBurst("🗼", cx, cy, { c: "#DADADA", scale: 300 }); }
-    else if (c.t >= 5) { FX2.burst(cx, cy, { c: "#F2C744", n: 60, sp: 9, sz: 10, up: 1 }); FX2.shake(0.35); }
+    if (c.t >= 4) charCine(c);                       // t4+ 전원: 전체 화면 강림 시네마틱
+    if (c.id === "riddle") { FX2.hitstop(220); FX2.flash("#183A22", 160); FX2.arc(cx - 150, 60, cx, cy, "#57E07A", 6); FX2.arc(cx + 150, 60, cx, cy, "#57E07A", 6); FX2.glyphBurst("🐍", cx, cy, { c: "#7CFF9E", scale: 320, life: 2 }); FX2.stamp("I AM LORD VOLDEMORT", "#7CFF9E"); FX2.shake(0.8); }
+    else if (c.id === "sauron") { FX2.flash("#3A0E00", 180); FX2.glyphBurst("👁️", cx, cy - 10, { c: "#FF7A2E", scale: 330, life: 2.2 }); FX2.ring(cx, cy, { c: "#FF7A2E", sp: 14, n: 70 }); FX2.stamp("THE GREAT EYE", "#FF9A4E"); FX2.shake(0.8); }
+    else if (c.id === "saruman") { FX2.flash("#EDEDED", 130); FX2.burst(cx, cy, { c: "#F2F2F2", n: 90, sp: 11, sz: 11 }); FX2.glyphBurst("🗼", cx, cy, { c: "#DADADA", scale: 300 }); FX2.arc(cx, 40, cx, cy, "#B9E8FF", 5); }
+    else if (c.id === "witchking") { FX2.hitstop(180); FX2.flash("#0A0E1C", 220); FX2.arc(cx - 130, 40, cx, cy, "#8FD8B0", 6); FX2.arc(cx + 130, 40, cx, cy, "#8FD8B0", 6); FX2.arc(cx, 20, cx, cy, "#C9E8D8", 5); FX2.glyphBurst("👑", cx, cy - 10, { c: "#9FB4D8", scale: 320, life: 2 }); FX2.stamp("NO MAN CAN KILL ME", "#9FB4D8"); FX2.shake(0.9); }
+    else if (c.id === "galadriel") { FX2.flash("#FFFFFF", 160); FX2.ring(cx, cy, { c: "#CFE8FF", sp: 12, n: 70, sz: 7 }); FX2.ring(cx, cy, { c: "#FFF3C8", sp: 18, n: 60, sz: 6 }); FX2.glyphBurst("🌟", cx, cy - 20, { c: "#FFF6D8", scale: 300, life: 2 }); FX2.stamp("THE LADY OF LIGHT", "#EFE2A8"); FX2.shake(0.4); }
+    else if (c.id === "grey") { FX2.flash("#FFFFFF", 120); setTimeout(function () { FX2.flash("#FFFFFF", 160); }, 200); FX2.burst(cx, cy, { c: "#FFFFFF", n: 100, sp: 12, sz: 11, up: 1 }); FX2.glyphBurst("🤍", cx, cy - 10, { c: "#F2F6FF", scale: 310, life: 2 }); FX2.stamp("YOU SHALL NOT PASS", "#F2F6FF"); FX2.shake(0.8); }
+    else if (c.id === "voldemort") { FX2.glyphBurst("💀", cx, cy - 10, { c: "#7CFF9E", scale: 320, life: 2 }); FX2.shake(0.7); }
+    else if (c.t >= 5) { FX2.burst(cx, cy, { c: "#F2C744", n: 80, sp: 10, sz: 11, up: 1 }); FX2.shake(0.5); }
+    else if (c.t >= 4) { FX2.burst(cx, cy, { c: "#C79A3E", n: 60, sp: 9, sz: 10, up: 1 }); FX2.shake(0.35); }
   } catch (e) {}
+}
+/* 캐릭터 강림 시네마틱 — 볼드모트급 전면 연출 (t4+) */
+function charCine(c) {
+  var root = document.getElementById("spellcine");
+  if (!root) { root = document.createElement("div"); root.id = "spellcine"; document.body.appendChild(root); }
+  var t = tierById[c.t] || {};
+  var cls = c.id === "witchking" ? "cc-morgul" : c.id === "galadriel" || c.id === "grey" ? "cc-holy" :
+    c.id === "sauron" ? "cc-eye" : c.id === "riddle" || c.id === "voldemort" ? "cc-dark" :
+    c.id === "saruman" ? "cc-holy" : c.t >= 6 ? "cc-dark" : "cc-tier";
+  var scene = "";
+  if (cls === "cc-morgul") scene = '<div class="cn-bolt b1 morgul"></div><div class="cn-bolt b2 morgul"></div><div class="cn-bolt b3 morgul"></div><div class="cc-fog"></div><div class="cn-big">👑</div>';
+  if (cls === "cc-holy") scene = '<div class="cc-beam"></div><div class="cn-big">' + c.em + "</div>";
+  if (cls === "cc-eye") scene = '<div class="cc-fire"></div><div class="cn-big">👁️</div>';
+  if (cls === "cc-dark") scene = '<div class="cn-bolt b1"></div><div class="cn-bolt b2"></div><div class="cc-fog"></div><div class="cn-big">' + c.em + "</div>";
+  if (cls === "cc-tier") scene = '<div class="cn-ring"></div><div class="cn-big">' + c.em + "</div>";
+  root.innerHTML = '<div class="cn ' + cls + '" style="--cnc:' + (t.color || "#F2C744") + '">' +
+    '<div class="cn-dim"></div>' + scene +
+    '<div class="cn-title"><span class="cn-who">' + esc(t.en || "") + " 강림</span>" +
+    '<span class="cn-name">' + esc(c.ko) + "</span></div></div>";
+  clearTimeout(root.__t);
+  root.__t = setTimeout(function () { root.innerHTML = ""; }, 1900);
 }
 
 /* ---------------- 주문 도감 ---------------- */
@@ -7209,7 +7236,7 @@ function openShop() {
       '<button class="shop-item" data-buy="f-wand"><span class="shop-price">$10.99</span><span class="shop-t">🪄 지팡이 티켓 풀충전</span><span class="shop-d">무기 티켓 12장 · 무제한</span></button>' +
       '<button class="shop-item" data-buy="f-spell"><span class="shop-price">$10.99</span><span class="shop-t">📜 주문 티켓 풀충전</span><span class="shop-d">주문 티켓 12장 · 무제한</span></button>' +
       '<button class="shop-item' + (canBuy100() ? "" : " off") + '" data-buy="p100"><span class="shop-price">$100</span><span class="shop-t">프리미엄 팩</span><span class="shop-d">종류 선택 · 5장 중 1택 · 확률 3배</span><span class="shop-s">오늘 ' + used100Today() + "/" + P100_PER_DAY + (extraPrem() > 0 ? " · 🎟️" + extraPrem() : "") + "</span></button>" +
-      '<button class="shop-item ultra" data-buy="p1000"><span class="shop-price">$1,000</span><span class="shop-t">울트라 팩</span><span class="shop-d">확률 10배 · 주마다 캐릭터·지팡이·주문 각 1장</span><span class="shop-s">' + (extraUltra() > 0 ? '🎟️' + extraUltra() + ' · ' : '') + '이번 주 남음: ' +
+      '<button class="shop-item ultra" data-buy="p1000"><span class="shop-price">$1,000</span><span class="shop-t">울트라 팩</span><span class="shop-d">확률 100배 · 주마다 캐릭터·지팡이·주문 각 1장</span><span class="shop-s">' + (extraUltra() > 0 ? '🎟️' + extraUltra() + ' · ' : '') + '이번 주 남음: ' +
         ["char", "wand", "spell"].filter(function (t) { return u.indexOf(t) < 0; }).map(function (t) { return { char: "🧙", wand: "🪄", spell: "📜" }[t]; }).join(" ") + (extraUltra() > 0 ? " · 🎟️" + extraUltra() : "") + "</span></button>" +
     "</div></div>";
   $$("[data-buy]", box).forEach(function (b) {
@@ -7266,7 +7293,7 @@ function openPackChoose(kind) {
   });
 }
 function openMultiWS(kind, type) {
-  var n = kind === 1000 ? 3 : 5, boost = kind === 1000 ? 10 : 3;
+  var n = kind === 1000 ? 3 : 5, boost = kind === 1000 ? 100 : 3;
   var cards = [];
   for (var i = 0; i < n; i++) cards.push(type === "wand" ? drawWeapon(boost) : drawSpell(boost));
   var box = document.getElementById("multibox");
