@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v40";
-const BUILD_NO = 40;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v42";
+const BUILD_NO = 42;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -4900,17 +4900,19 @@ function liarAfterRefresh() {
   const box = document.getElementById("liarbox");
   const open = box && !box.hidden;
   const ph = liarG ? liarG.phase + ":" + liarG.id + ":" + (liarG.vround || 1) : "none";
-  // 판이 놀이/투표 단계로 넘어갔는데 내가 플레이어면 자동으로 화면 띄움
-  if (liarG && liarImIn() && !open && ["play", "vote", "steal", "done"].indexOf(liarG.phase) >= 0 && liarPrevPhase !== ph) {
+  // v41: 자동 오픈은 "진행 중 + 최근 3시간 판"만, 재부팅해도 재발동 금지(localStorage 기억), done은 제외
+  var fresh41 = true;
+  try { if (liarG && liarG.created_at) fresh41 = Date.now() - new Date(liarG.created_at).getTime() < 10800000; } catch (e) {}
+  if (localStorage.getItem("kel_liar_ph") === ph) liarPrevPhase = ph;
+  if (liarG && liarImIn() && !open && ["play", "vote", "steal"].indexOf(liarG.phase) >= 0 && liarPrevPhase !== ph && fresh41) {
     openLiar();
   } else if (open) {
     liarRender();
-  } else if (liarG && liarG.phase === "lobby" && !liarImIn() && liarPrevPhase !== ph) {
-    toast("🎭 라이어 게임 판 열림 — RADIO 탭에서 조인");
+  } else if (liarG && liarG.phase === "lobby" && !liarImIn() && liarPrevPhase !== ph && fresh41) {
+    toast("🎭 라이어 게임 판 열림 — 정보 탭 아카이브에서 조인");
   }
   liarPrevPhase = ph;
-  // RADIO 탭 카드 갱신
-  try { if (document.querySelector("#tab-stamp.active")) renderStamp(); } catch (e) {}
+  try { localStorage.setItem("kel_liar_ph", ph); } catch (e) {}
   // 보상 지급 (한 번만)
   liarReward();
 }
@@ -6684,18 +6686,55 @@ checkRequests = function () {
   if (_checkReq35) _checkReq35();
 };
 var _drawMap35 = drawMap;
+var __fsSeen = {};
 drawMap = function (id, opts) {
   _drawMap35(id, opts);
   var holder = document.getElementById(id);
   if (holder) holder.classList.add("marauder");
-  // 발자국: 마커 등장 연출
+  // 발자국: 같은 핀은 세션 중 1번만 (리렌더 때마다 재발동 → 깜빡임 원인이었음)
   setTimeout(function () {
+    __fsSeen[id] = __fsSeen[id] || {};
     document.querySelectorAll("#" + id + " .av-pin").forEach(function (p, i) {
+      var key = (p.innerHTML || "") + "|" + ((p.style && p.style.transform) || i);
+      if (__fsSeen[id][key]) return;
+      __fsSeen[id][key] = 1;
       p.classList.add("footstep");
-      p.style.animationDelay = (i * 0.15) + "s";
+      p.style.animationDelay = (i * 0.12) + "s";
     });
   }, 150);
 };
+
+/* v41: 리렌더 폭주 진정 — 180ms 코얼레싱 + 스크롤 위치 보존 */
+var _rr41 = rerender, _rrT41 = 0;
+rerender = function () {
+  clearTimeout(_rrT41);
+  _rrT41 = setTimeout(function () {
+    var y = window.scrollY;
+    try { _rr41(); } catch (e) { console.error(e); }
+    window.scrollTo(0, y);
+  }, 180);
+};
+
+/* v41: 즉시 강제 재시작 워치독 — 배포되면 열려 있는 폰도 그 자리에서 멈추고 재시작 */
+function lockAndRestart(minv) {
+  if (window.__restarting) return;
+  window.__restarting = true;
+  appLocked = true;
+  var s = document.createElement("div");
+  s.id = "restart-splash";
+  s.innerHTML = '<div class="rs-card"><div class="rs-ic">📦</div><div class="rs-t">v' + minv + ' 업데이트</div>' +
+    '<div class="rs-d">서버가 멈췄다 — 전원 재시작 중…</div><div class="rs-spin"></div></div>';
+  document.body.appendChild(s);
+  setTimeout(function () { try { hardUpdate(); } catch (e) { location.reload(); } }, 1200);
+}
+async function versionWatch41() {
+  try {
+    if (!sb || window.__restarting) return;
+    var r = await sb.from("settings").select("value").eq("key", "min_version").limit(1);
+    var minv = r.data && r.data[0] ? Number(r.data[0].value || 0) : 0;
+    if (minv && BUILD_NO < minv) lockAndRestart(minv);
+  } catch (e) {}
+}
 
 /* ---------------- 무전 이펙트 첨부 + 3D ---------------- */
 window.KSEL = null;
@@ -6729,7 +6768,22 @@ document.addEventListener("click", function (e) {
     else if (k === "rank") openRank();
   }
   var ox = e.target.closest && e.target.closest("[data-ovx]");
-  if (ox) { var ov = ox.closest("#armorybox,#synbox,#boxbox,#quizbox,#wbox,#spbox,#bookbox,#btbox,#rankbox,#shopbox,#pkbox,#multibox,#liarbox,#oddsov,#duelbox"); if (ov) { ov.hidden = true; } }
+  if (ox) {
+    var ov = ox;
+    while (ov.parentElement && ov.parentElement !== document.body) ov = ov.parentElement;
+    ov.hidden = true;
+    if (ov.id === "specbox") specId = null;
+    if (ov.id === "btbox" && btG && btG.phase === "done") { localStorage.setItem("kel_bt_seen", String(btG.id)); btG = null; }
+    e.stopPropagation();
+    return;
+  }
+  // 어두운 배경 탭 = 닫기 (배틀 진행·대격변 선택 화면은 제외)
+  if (e.target && e.target.parentElement === document.body && e.target.id &&
+      ["btbox", "migbox"].indexOf(e.target.id) < 0 &&
+      e.target.querySelector && e.target.querySelector(".armory,.quiz-card,.multi-wrap")) {
+    e.target.hidden = true;
+    if (e.target.id === "specbox") specId = null;
+  }
   var spb = e.target.closest && e.target.closest("[data-spec]");
   if (spb) {
     var gg = store35.battles.find(function (b) { return String(b.id) === spb.dataset.spec; });
@@ -6795,7 +6849,11 @@ function kelV35Init() {
       ["battles", "spellbook", "wiz_stats"].forEach(function (t) {
         btCh.on("postgres_changes", { event: "*", schema: "public", table: t }, function () { kelLoad35(); });
       });
+      btCh.on("postgres_changes", { event: "*", schema: "public", table: "settings" }, function () { versionWatch41(); });
       btCh.subscribe();
+      versionWatch41();
+      setInterval(versionWatch41, 45000);
+      document.addEventListener("visibilitychange", function () { if (!document.hidden) versionWatch41(); });
     } catch (e) {}
   } else setTimeout(kelV35Init, 1500);
   // 라디오 3D 래핑
