@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v47";
-const BUILD_NO = 47;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v49";
+const BUILD_NO = 49;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -5800,6 +5800,7 @@ function openBattleGuide() {
     '<p><b>방어 🛡</b> — 프로테고: 다음 피해 70% 경감. 패트로누스: 1회 완전 무효 + 12힐. 단 둘 다 ☠️아바다는 못 막음 — 아바다는 오직 🪄익스펠리아르무스(지팡이당 10회)만 튕겨냄.</p>' +
     '<p><b>상태 💤💫🌀</b> — 솜니움: 2턴 수면(행동 70% 실패). 잠들면 ⚡리네베이트만이 확정 기상 + 면역. 스투페파이 30% 기절, 임페리오는 상대 픽을 랜덤 강제, 오블리비아테는 주문 삭제.</p>' +
     '<p><b>심리전</b> — 상대가 아바다를 아낄 때 익스펠은 낭비(견제 8뿐). 도트 깔고 방어로 버티기, 수면 → 큰 한 방 콤보, 물 들고 불 유도 같은 수 싸움이 핵심.</p>' +
+    '<p><b>무응답</b> — 내가 픽하고 상대가 45초 넘게 조용하면 자동 패스 처리, 3턴 연속이면 몰수패. 앱을 꺼도 도망은 못 간다.</p>' +
     '<p><b>성장</b> — 져도 XP를 더 받음(연패 보너스). 레벨업 = 강화 포인트 = 주문 Lv(위력·이펙트 +). 도망(👻)치면 몰래 약해짐.</p>' +
     '</div></div>';
 }
@@ -6023,6 +6024,34 @@ function battleWatch() {
       !btSeenHas(b.id) &&
       Date.now() - new Date(b.created_at).getTime() < 21600000;
   });
+  // 양쪽 픽 완료 → 판정 (a폰 담당, a폰이 죽어 있으면 12초 뒤 b폰이 인수)
+  if (play && play.pick_a && play.pick_b && play.phase === "play") {
+    var rk = play.id + ":" + play.turn;
+    window.__bpAt = window.__bpAt || {};
+    if (!window.__bpAt[rk]) window.__bpAt[rk] = Date.now();
+    var canA = play.a === me;
+    var canB = play.b === me && Date.now() - window.__bpAt[rk] > 12000;
+    if ((canA || canB) && window.__rtLock !== rk) {
+      window.__rtLock = rk;
+      resolveTurn(play, canB).finally(function () { if (window.__rtLock === rk) window.__rtLock = null; });
+    }
+  }
+  // 내가 픽했는데 상대가 45초째 무응답 → 상대를 자동 패스 처리 (AFK)
+  if (play && play.phase === "play") {
+    var mineP = play.a === me ? play.pick_a : play.pick_b;
+    var foeP  = play.a === me ? play.pick_b : play.pick_a;
+    var wk = "w" + play.id + ":" + play.turn;
+    window.__bpAt = window.__bpAt || {};
+    if (mineP && !foeP) {
+      if (!window.__bpAt[wk]) window.__bpAt[wk] = Date.now();
+      else if (Date.now() - window.__bpAt[wk] > 45000) {
+        window.__bpAt[wk] = Date.now() + 9e12;   // 1회만
+        var col = play.a === me ? "pick_b" : "pick_a", pt = {}; pt[col] = "__afk";
+        sb.from("battles").update(pt).eq("id", play.id).eq("phase", "play").eq("turn", play.turn).is(col, null)
+          .then(function () { kelLoad35(); });
+      }
+    } else delete window.__bpAt[wk];
+  }
   var g = play || justDone;
   if (g) {
     var changed = !btG || btG.id !== g.id || btG.turn !== g.turn || btG.phase !== g.phase ||
@@ -6155,18 +6184,20 @@ function pkHpBox(mem, hp, side) {
     '<div class="bt-hp"><i style="width:' + pct + '%;background:' + (pct > 50 ? "#5E8C5A" : pct > 25 ? "#C79A3E" : "#C8503C") + '"></i></div>' +
     '<div class="bt-hpn">' + Math.max(0, Math.round(hp)) + ' / ' + mx + '</div></div>';
 }
-var __btSeen = { id: 0, n: 0 };
-var __pkMap = {};
-function pkStageHtml(g) {
+var __thSeen = {};      // ns별 연출 재생 위치
+var __pkMaps = {};      // ns별 좌우 배역
+var __pkBusy = {};      // ns별 연출 중 시각
+function pkStageHtml(g, ns) {
+  ns = ns || "bt";
   var st = g.state || {};
   var L = (g.a === me || g.b === me) ? me : g.a;      // 좌하단(큰 쪽): 나, 관전이면 a
   var R = L === g.a ? g.b : g.a;
-  __pkMap = {}; __pkMap[L] = "pk-mine"; __pkMap[R] = "pk-foe";
+  var mp = {}; mp[L] = ns + "-mine"; mp[R] = ns + "-foe"; __pkMaps[ns] = mp;
   var cL = charOf(L) || { id: "x", em: "🎩" }, cR = charOf(R) || { id: "x", em: "🎩" };
-  return '<div class="pk-stage" id="pk-stage">' +
+  return '<div class="pk-stage" id="' + ns + '-stage">' +
     pkHpBox(R, (st.hp || {})[R] || 0, "foe") +
-    '<div class="pk-side foe" id="pk-foe"><span class="pk-plat"></span>' + spriteHtml(cR, "battle") + '</div>' +
-    '<div class="pk-side mine" id="pk-mine"><span class="pk-plat"></span>' + spriteHtml(cL, "battle big") + '</div>' +
+    '<div class="pk-side foe" id="' + ns + '-foe"><span class="pk-plat"></span>' + spriteHtml(cR, "battle") + '</div>' +
+    '<div class="pk-side mine" id="' + ns + '-mine"><span class="pk-plat"></span>' + spriteHtml(cL, "battle big") + '</div>' +
     pkHpBox(L, (st.hp || {})[L] || 0, "mine") +
     '<span class="pk-turn">' + (g.phase === "done" ? "🏁" : "T" + g.turn) + '</span></div>';
 }
@@ -6176,24 +6207,33 @@ function sprCenter(id) {
   var r = el.getBoundingClientRect();
   return [r.left + r.width / 2, r.top + r.height / 2];
 }
-function playTheatre(g) {
+function playTheatre(g, ns, replay) {
+  ns = ns || "bt";
   var st = g.state || {}, logs = st.log || [];
-  if (__btSeen.id !== g.id) { __btSeen = { id: g.id, n: logs.length }; return; }
-  var fresh = logs.slice(__btSeen.n);
-  __btSeen.n = logs.length;
-  window.__pkBusyUntil = Date.now() + fresh.length * 1050 + 900;
-  var stg = document.getElementById("pk-stage");
+  var seen = __thSeen[ns];
+  if (!seen || seen.id !== g.id) {
+    __thSeen[ns] = { id: g.id, n: replay ? Math.max(0, logs.length - 8) : logs.length };
+    if (!replay) return;
+    seen = __thSeen[ns];
+  }
+  var fresh = logs.slice(seen.n);
+  seen.n = logs.length;
+  __pkBusy[ns] = Date.now() + fresh.length * 1050 + 900;
+  if (ns === "bt") window.__pkBusyUntil = __pkBusy[ns];
+  var mp = __pkMaps[ns] || {};
+  var stg = document.getElementById(ns + "-stage");
   fresh.forEach(function (l, i) {
     setTimeout(function () {
-      var box = document.getElementById("pk-box");
-      if (box) box.innerHTML = '<div class="bt-line">' + l.txt + "</div>";
+      var box2 = document.getElementById(ns + "-box");
+      if (box2) box2.innerHTML = '<div class="bt-line">' + l.txt + "</div>";
       if (!l.who) { if (l.fx) FX2.cast(l.fx, { quick: true }); return; }
-      var atkId = __pkMap[l.who] || "pk-foe";
-      var defId = atkId === "pk-mine" ? "pk-foe" : "pk-mine";
+      var atkId = mp[l.who] || (ns + "-foe");
+      var defId = atkId === ns + "-mine" ? ns + "-foe" : ns + "-mine";
       var atk = document.getElementById(atkId), def = document.getElementById(defId);
       if (atk) { atk.classList.remove("lunge-m", "lunge-f"); void atk.offsetWidth; atk.classList.add(l.who === me ? "lunge-m" : "lunge-f"); }
       var from = sprCenter(atkId), to = sprCenter(defId);
       if (stg) { stg.classList.add("casting"); setTimeout(function () { stg.classList.remove("casting"); }, 950); }
+      void 0;
       if (l.fx) FX2.cast(l.fx, { quick: true, from: from, x: to[0], y: to[1], lv: spellLvOf(l.who, l.fx) });
       var defEl = document.getElementById(defId);
       if (defEl && l.fx) setTimeout(function () {
@@ -6212,9 +6252,9 @@ function playTheatre(g) {
   });
   // 막이 끝나고 기절 처리
   setTimeout(function () {
-    Object.keys(__pkMap).forEach(function (mm) {
+    Object.keys(mp).forEach(function (mm) {
       if ((st.hp || {})[mm] <= 0) {
-        var el = document.getElementById(__pkMap[mm]);
+        var el = document.getElementById(mp[mm]);
         if (el) el.classList.add("faint");
       }
     });
@@ -6248,20 +6288,22 @@ function openBattle() {
 
   if (g.phase === "done") {
     var win = g.winner;
-    box.innerHTML = '<div class="armory bt-wrap pk-wrap"><button class="ovx" data-ovx>✕</button>' + pkStageHtml(g) +
-      '<div class="pk-box" id="pk-box">' + lastLog + '</div>' +
+    box.innerHTML = '<div class="armory bt-wrap pk-wrap"><button class="ovx" data-ovx>✕</button>' + pkStageHtml(g, "bt") +
+      '<div class="pk-box" id="bt-box">' + lastLog + '</div>' +
       '<div class="liar-banner ' + (win === me ? "cit" : win ? "liar" : "") + '">' +
       (win ? (win === me ? "🏆 승리!" : "💀 패배…") : "무승부") + "</div>" +
       '<p class="liar-sub" id="bt-xp"></p>' +
       '<div class="btn-row"><button class="btn ghost" id="bt-re" style="flex:1">⚔️ 재대결</button>' +
       '<button class="btn" id="bt-x" style="flex:1">닫기</button></div></div>';
     setTimeout(function () {
-      var wEl = win ? document.getElementById(__pkMap[win] || "pk-foe") : null;
-      var lEl = wEl ? document.getElementById(wEl.id === "pk-mine" ? "pk-foe" : "pk-mine") : null;
+      var mpb = __pkMaps.bt || {};
+      var wEl = win ? document.getElementById(mpb[win] || "bt-foe") : null;
+      var lEl = wEl ? document.getElementById(wEl.id === "bt-mine" ? "bt-foe" : "bt-mine") : null;
       if (wEl) wEl.classList.add("winner");
       if (lEl) lEl.classList.add("faint");
     }, 300);
     box.scrollTop = keepScroll;
+    playTheatre(g, "bt");
     battleReward(g);
     $("#bt-x").onclick = function () { box.hidden = true; btSeenAdd(g.id); btG = null; kelLoad35(); };
     $("#bt-re").onclick = function () { box.hidden = true; btSeenAdd(g.id); btG = null; duelInvite(en); };
@@ -6270,9 +6312,9 @@ function openBattle() {
 
   var forgot = (st.forget || {})[me] || [];
   var mine = myBook().filter(function (r) { return forgot.indexOf(r.spell_id) < 0; });
-  box.innerHTML = '<div class="armory bt-wrap pk-wrap">' + pkStageHtml(g) +
-    '<div class="pk-box" id="pk-box">' + lastLog + '</div>' +
-    '<div class="bt-pickmsg">' + (myPicked ? "⏳ <b>" + esc(nameOf(en)) + "</b>의 주문 대기 중…" :
+  box.innerHTML = '<div class="armory bt-wrap pk-wrap">' + pkStageHtml(g, "bt") +
+    '<div class="pk-box" id="bt-box">' + lastLog + '</div>' +
+    '<div class="bt-pickmsg">' + (myPicked ? "⏳ <b>" + esc(nameOf(en)) + "</b>의 주문 대기 중… <span class=\'muted2\'>(45초 무응답 시 자동 패스 · 3연속이면 몰수패)</span>" :
       "이번 턴 주문을 골라 — <b id=\'bt-cd\'>25</b>초") + "</div>" +
     (myPicked ? "" :
       '<div class="arm-grid book-grid pk-moves">' + mine.slice().sort(function (x, y) {
@@ -6292,7 +6334,7 @@ function openBattle() {
     '<div class="btn-row" style="margin-top:10px"><button class="btn ghost" id="bt-help" style="flex:1">❓ 이기는 법</button>' +
     '<button class="btn ghost" id="bt-run" style="flex:1">🏳️ 기권</button></div></div>';
   box.scrollTop = keepScroll;
-  playTheatre(g);
+  playTheatre(g, "bt");
   $$("[data-cast]", box).forEach(function (b) {
     b.onclick = function () {
       if (b.classList.contains("lock")) return toast("차지가 없어");
@@ -6342,9 +6384,9 @@ function effPow(s, caster, target, st) {
   if (c && c.id === "snape" && s.id === "sectumsempra") p *= 1.5;
   return Math.round(p);
 }
-async function resolveTurn(g) {
-  // a 쪽 폰만 판정 (조건부 update로 한 번만 성공)
-  if (g.a !== me) { btG = g; openBattle(); return; }
+async function resolveTurn(g, force) {
+  // a 쪽 폰이 판정 — a폰 부재 시 b폰이 force로 인수 (turn 조건부 update라 이중 판정 불가)
+  if (g.a !== me && !force) { btG = g; openBattle(); return; }
   var st = JSON.parse(JSON.stringify(g.state || {}));
   st.log = st.log || []; st.dot = st.dot || {}; st.shield = st.shield || {}; st.stun = st.stun || {};
   st.weak = st.weak || {}; st.buff = st.buff || {}; st.forget = st.forget || {};
@@ -6390,6 +6432,9 @@ async function resolveTurn(g) {
       if (Math.random() < 0.7) { line("😴 " + nameOf(caster) + " 잠꼬대 중… 행동 실패"); continue; }
       line("😪 " + nameOf(caster) + " 비몽사몽 시전!");
     }
+    st.afk = st.afk || {};
+    if (pick === "__afk") { st.afk[caster] = (st.afk[caster] || 0) + 1; line("⌛ " + nameOf(caster) + " 응답 없음 — 자동 패스 (" + st.afk[caster] + "/3)"); continue; }
+    st.afk[caster] = 0;
     if (!pick || pick === "__pass") { line("💨 " + nameOf(caster) + " 허둥지둥 (패스)"); continue; }
     var s = spellById[pick]; if (!s) continue;
     var enemyPick = caster === g.a ? pb : pa;
@@ -6471,6 +6516,16 @@ async function resolveTurn(g) {
     patch.phase = "done";
     patch.winner = dead.length === 2 ? (st.hp[g.a] >= st.hp[g.b] ? g.a : g.b) : (dead[0] === g.a ? g.b : g.a);
   }
+  // 3턴 연속 무응답 → 몰수패
+  if (patch.phase !== "done") {
+    var afkOut = [g.a, g.b].find(function (mm) { return (st.afk[mm] || 0) >= 3; });
+    if (afkOut) {
+      var other = afkOut === g.a ? g.b : g.a;
+      line("🏳️ " + nameOf(afkOut) + " 3턴 연속 무응답 — 몰수패!");
+      patch.phase = "done"; patch.winner = other;
+      sendPush("🏳️ 몰수패", nameOf(afkOut) + " 응답 없음 — " + nameOf(other) + " 승리", "duel");
+    }
+  }
   await sb.from("battles").update(patch).eq("id", g.id).eq("turn", g.turn);
   kelLoad35();
 }
@@ -6542,25 +6597,31 @@ function kelMyCardHtml() {
         : '<span class="muted" style="font-size:11px">배운 주문 없음 — 탭해서 뽑기</span>') + '</button>' +
     '</div></div>';
 }
-var specId = null, __specDigest = "";
-function openSpectate(g) {
-  if (g.a === me || g.b === me) { btG = g; return openBattle(); }
+var specId = null, __specCore = "";
+function specPicksHtml(g) {
+  return "🍿 관전 중 — 몰래 픽: " + (g.pick_a ? "●" : "○") + " " + esc(nameOf(g.a)) + " vs " + esc(nameOf(g.b)) + " " + (g.pick_b ? "●" : "○");
+}
+function openSpectate(g, opts) {
+  opts = opts || {};
+  if (g.a === me || g.b === me) { btG = g; __btUi.sig = ""; return openBattle(); }
   specId = g.id;
   var box = document.getElementById("specbox");
   if (!box) { box = document.createElement("div"); box.id = "specbox"; document.body.appendChild(box); }
   box.hidden = false;
+  var keep = box.scrollTop || 0;
   var st = g.state || {};
   var lastLog = (st.log || []).slice(-1).map(function (l) { return '<div class="bt-line">' + l.txt + "</div>"; }).join("") ||
     '<div class="bt-line muted2">첫 주문 대기 중…</div>';
-  var picks = (g.pick_a ? "●" : "○") + " " + esc(nameOf(g.a)) + " vs " + esc(nameOf(g.b)) + " " + (g.pick_b ? "●" : "○");
+  __specCore = g.phase + "|" + g.turn + "|" + ((st.log || []).length);
   box.innerHTML = '<div class="armory bt-wrap pk-wrap"><button class="ovx" data-ovx>✕</button>' +
-    pkStageHtml(g) +
-    '<div class="pk-box" id="pk-box">' + lastLog + '</div>' +
+    pkStageHtml(g, "sp") +
+    '<div class="pk-box" id="sp-box">' + lastLog + '</div>' +
     (g.phase === "done"
       ? '<div class="liar-banner">🏁 ' + (g.winner ? esc(nameOf(g.winner)) + " 승리!" : "무승부") + "</div>"
-      : '<div class="bt-pickmsg">🍿 관전 중 — 몰래 픽: ' + picks + "</div>") +
+      : '<div class="bt-pickmsg" id="sp-picks">' + specPicksHtml(g) + "</div>") +
     '</div>';
-  playTheatre(g);
+  box.scrollTop = keep;
+  playTheatre(g, "sp", opts.replay);
   var x = box.querySelector("[data-ovx]");
   if (x) x.onclick = function () { box.hidden = true; specId = null; };
 }
@@ -6568,8 +6629,18 @@ function spectateWatch() {
   if (!specId) return;
   var g = store35.battles.find(function (b) { return b.id === specId; });
   if (!g) { specId = null; return; }
-  var d = g.phase + "|" + g.turn + "|" + ((g.state || {}).log || []).length + "|" + (g.pick_a ? 1 : 0) + (g.pick_b ? 1 : 0);
-  if (d !== __specDigest) { __specDigest = d; openSpectate(g); }
+  var core = g.phase + "|" + g.turn + "|" + ((g.state || {}).log || []).length;
+  if (core === __specCore) {
+    var pi = document.getElementById("sp-picks");        // 픽 표시만 살짝 갱신 — 화면 재생성 없음
+    if (pi) pi.innerHTML = specPicksHtml(g);
+    return;
+  }
+  if (__pkBusy.sp && Date.now() < __pkBusy.sp) {          // 연출 끝날 때까지 리빌드 유예
+    clearTimeout(window.__spDefer);
+    window.__spDefer = setTimeout(spectateWatch, __pkBusy.sp - Date.now() + 120);
+    return;
+  }
+  openSpectate(g);
 }
 /* 홈 — 라이브 배틀 보드 (전원 공개) */
 var __liveDigest = "";
@@ -6944,7 +7015,7 @@ document.addEventListener("click", function (e) {
   var spb = e.target.closest && e.target.closest("[data-spec]");
   if (spb) {
     var gg = store35.battles.find(function (b) { return String(b.id) === spb.dataset.spec; });
-    if (gg) openSpectate(gg);
+    if (gg) openSpectate(gg, { replay: gg.phase === "done" });
   }
   var dl = e.target.closest && e.target.closest("[data-duel]");
   if (dl) { e.stopPropagation(); duelInvite(dl.dataset.duel); }
