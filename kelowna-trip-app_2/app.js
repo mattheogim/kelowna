@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v44";
-const BUILD_NO = 44;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v45";
+const BUILD_NO = 45;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -6984,6 +6984,12 @@ function kelV35Init() {
       document.addEventListener("visibilitychange", function () { if (!document.hidden) versionWatch41(); });
     } catch (e) {}
   } else setTimeout(kelV35Init, 1500);
+  // v45: 유령 오버레이 청소 — 과거 버전에서 hidden이 안 먹어 쌓인 창들 강제 정리
+  ["btbox","duelbox","spbox","bookbox","rankbox","shopbox","pkbox","specbox","guidebox","migbox","multibox","wbox","quizbox","boxbox","synbox","liarbox"].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el && el.hidden) { el.style.display = "none"; }
+    if (el && !el.hidden && !el.innerHTML.trim()) el.remove();
+  });
   // 라디오 3D 래핑
   var ptw = document.querySelector(".ptt-wrap");
   if (ptw) ptw.classList.add("ptt3d");

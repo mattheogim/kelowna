@@ -1816,3 +1816,6 @@ details.arch > .card, details.arch > h2 { margin-left: 4px; margin-right: 4px; }
 .guide p { font-size: 12.5px; line-height: 1.75; margin: 0 0 10px; }
 #guidebox { position: fixed; inset: 0; z-index: 630; background: rgba(10,9,7,.84);
   display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+
+/* ---- v45 핵심 수리: hidden은 무조건 이긴다 (오버레이 유령 스택 박멸) ---- */
+[hidden] { display: none !important; }
