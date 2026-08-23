@@ -5820,12 +5820,17 @@ function eggSeen(id) { return localStorage.getItem("kel_egg_" + id) === "1"; }
 function eggMark(id) { if (!eggSeen(id)) { localStorage.setItem("kel_egg_" + id, "1"); toast("🥚 이스터에그 발견 — 궁합표에 해금됨"); } }
 
 function maxHp(m) { var c = charOf(m); return 90 + (c ? c.t * 14 : 14) + lvOf(m) * 4; }
-function myBattle() {
-  return store35.battles.find(function (b) {
-    return (b.a === me || b.b === me) && b.phase !== "done" && b.phase !== "declined" && b.phase !== "expired" &&
-      Date.now() - new Date(b.created_at).getTime() < 30 * 60000;
+function myBattles() {
+  return store35.battles.filter(function (b) {
+    if (b.a !== me && b.b !== me) return false;
+    if (b.phase === "invite") return true;                       // 10분 스윕이 정리
+    if (b.phase === "sched") return Date.now() < new Date(b.sched_at || b.created_at).getTime() + 7200000;
+    if (b.phase === "play") return Date.now() - new Date(b.created_at).getTime() < 21600000;
+    return false;
   });
 }
+function myPlay() { return myBattles().find(function (b) { return b.phase === "play"; }); }
+function openWith(mid) { return myBattles().find(function (b) { return b.a === mid || b.b === mid; }); }
 function dodgeOf(m) { return Math.min(5, statsOf(m).dodge || 0); }
 function dodgeMul(m) { return 1 - 0.05 * dodgeOf(m); }           // HP·위력 -5%/스택 (최대 5)
 function maxHpReal(m) { return Math.round(maxHp(m) * dodgeMul(m)); }
@@ -5835,7 +5840,7 @@ function dodgeBadge(m) { // 본인 눈에는 절대 안 보임
 function duelInvite(mid) {
   if (needSb()) return;
   if (!charOf(me) || !charOf(mid)) return toast("둘 다 캐릭터가 있어야 배틀 가능");
-  if (myBattle()) return toast("이미 진행 중인 배틀이 있어");
+  if (openWith(mid)) return toast(nameOf(mid) + "와는 이미 잡혀 있어 — 끝나고 다시");
   if (!myBook().length) { toast("주문을 하나는 배워야 싸우지 — 주문서로 보낼게"); return openSpellbook(); }
   var box = document.getElementById("duelbox");
   if (!box) { box = document.createElement("div"); box.id = "duelbox"; document.body.appendChild(box); }
@@ -5892,72 +5897,108 @@ async function sweepInvites() {
       if (b.a === me) toast("👻 " + nameOf(b.b) + " 도주 — 낙인이 새겨졌다");
     }
   }
-  if (stale.length) kelLoad35();
+  var ghost = store35.battles.filter(function (b) {
+    return b.phase === "sched" && b.sched_at && Date.now() > new Date(b.sched_at).getTime() + 7200000;
+  });
+  for (var j = 0; j < ghost.length; j++)
+    await sb.from("battles").update({ phase: "expired" }).eq("id", ghost[j].id).eq("phase", "sched");
+  if (stale.length || ghost.length) kelLoad35();
 }
 function battleWatch() {
   sweepInvites();
-  var g = myBattle();
-  if (!g) { btG = null; return renderBattleBanner(null); }
-  var changed = !btG || btG.id !== g.id || btG.turn !== g.turn || btG.phase !== g.phase ||
-    JSON.stringify(g.state && g.state.log) !== JSON.stringify(btG.state && btG.state.log);
-  btG = g;
-  if (g.phase === "invite") return renderBattleBanner(g);
-  if (g.phase === "sched") return renderBattleBanner(g);
-  if (g.phase === "play" || g.phase === "done") { renderBattleBanner(null); if (changed) openBattle(); }
+  var list = myBattles();
+  var play = myPlay();
+  // 방금 끝난 판(결과 미확인) 우선 표시
+  var justDone = store35.battles.find(function (b) {
+    return (b.a === me || b.b === me) && b.phase === "done" &&
+      localStorage.getItem("kel_bt_seen") !== String(b.id) &&
+      Date.now() - new Date(b.created_at).getTime() < 21600000;
+  });
+  var g = play || justDone;
+  if (g) {
+    var changed = !btG || btG.id !== g.id || btG.turn !== g.turn || btG.phase !== g.phase ||
+      JSON.stringify(g.state && g.state.log) !== JSON.stringify(btG.state && btG.state.log);
+    btG = g;
+    if (changed) openBattle();
+  } else btG = null;
+  renderBattleBanners(list.filter(function (b) { return !g || b.id !== g.id; }));
+}
+async function earlyGo(g) {
+  // 예약전 조기 시작 — 내가 play 중이면 불가
+  if (myPlay()) return toast("지금 싸우는 판부터 끝내");
+  await sb.from("battles").update({ phase: "play" }).eq("id", g.id).in("phase", ["sched", "invite"]);
+  FX2.flash("#C8503C", 200); FX2.shake(0.4);
+  kelLoad35();
+}
+async function earlyPropose(g) {
+  var st = g.state || {}; st.early = me;
+  await sb.from("battles").update({ state: st }).eq("id", g.id).eq("phase", "sched");
+  sendPush("⚡ " + nameOf(me), "예약 결투, 지금 바로 하자는데?", "duel");
+  toast("⚡ 제안 보냄 — 상대가 ㄱㄱ 누르면 시작");
+  kelLoad35();
 }
 var btBnTimer = null;
-function renderBattleBanner(g) {
-  var b = document.getElementById("duel-banner");
+function renderBattleBanners(list) {
+  var wrap = document.getElementById("duel-banners");
   clearInterval(btBnTimer);
-  if (!g) { if (b) b.remove(); return; }
-  if (!b) { b = document.createElement("div"); b.id = "duel-banner"; document.body.appendChild(b); }
-  var sched = g.sched_at ? new Date(g.sched_at) : new Date();
-  var hm = sched.getHours().toString().padStart(2, "0") + ":" + sched.getMinutes().toString().padStart(2, "0");
-
-  if (g.phase === "invite" && g.b === me) {
-    var deadline = new Date(g.created_at).getTime() + 600000;
-    function drawInv() {
-      var left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      b.innerHTML = '⚔️ <b>' + esc(nameOf(g.a)) + "</b>: " + hm + " 결투 신청 · 응답까지 <b>" +
-        Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0") + "</b>" +
-        '<button class="btn small" id="duel-ok">수락</button><button class="btn small ghost" id="duel-no">거절</button>';
-      $("#duel-ok").onclick = async function () {
-        var immediate = sched - Date.now() < 90000;
-        await sb.from("battles").update({ phase: immediate ? "play" : "sched" }).eq("id", g.id).eq("phase", "invite");
-        sendPush("⚔️ " + nameOf(me), "수락! " + (immediate ? "지금 바로 붙는다" : hm + "에 보자"), "duel");
-        b.remove(); clearInterval(btBnTimer); kelLoad35();
-      };
-      $("#duel-no").onclick = async function () {
-        await sb.from("battles").update({ phase: "declined" }).eq("id", g.id).eq("phase", "invite");
-        b.remove(); clearInterval(btBnTimer); kelLoad35();   // 거절은 정당한 응답 — 낙인 없음
-      };
-    }
-    drawInv(); btBnTimer = setInterval(drawInv, 1000);
-    return;
-  }
-  if (g.phase === "invite") {   // 내가 보낸 쪽
-    b.innerHTML = '⚔️ ' + esc(nameOf(g.b)) + " 응답 대기 중 (" + hm + " 예정) — 10분 무응답이면 👻";
-    return;
-  }
-  if (g.phase === "sched") {
-    function drawSched() {
-      var left = sched - Date.now();
-      if (left <= 0) {
-        b.innerHTML = '⚔️ <b>결투 시간이다!</b> ' + esc(nameOf(g.a)) + " vs " + esc(nameOf(g.b)) +
-          '<button class="btn small" id="duel-enter">입장</button>';
-        var en = $("#duel-enter");
-        if (en) en.onclick = async function () {
-          await sb.from("battles").update({ phase: "play" }).eq("id", g.id).eq("phase", "sched");
-          FX2.flash("#C8503C", 200); FX2.shake(0.4);
-          b.remove(); clearInterval(btBnTimer); kelLoad35();
-        };
-      } else {
-        var mn = Math.floor(left / 60000), sc = Math.floor(left % 60000 / 1000);
-        b.innerHTML = '⚔️ ' + hm + " 결투 확정 — <b>" + (mn > 99 ? mn + "분" : mn + ":" + String(sc).padStart(2, "0")) + "</b> 남음";
+  if (!list || !list.length) { if (wrap) wrap.remove(); return; }
+  if (!wrap) { wrap = document.createElement("div"); wrap.id = "duel-banners"; document.body.appendChild(wrap); }
+  function hmOf(g) { var d = new Date(g.sched_at || g.created_at); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function draw() {
+    var rows = "";
+    list.slice(0, 4).forEach(function (g) {
+      var en = g.a === me ? g.b : g.a, hm = hmOf(g);
+      if (g.phase === "invite" && g.b === me) {
+        var left = Math.max(0, Math.ceil((new Date(g.created_at).getTime() + 600000 - Date.now()) / 1000));
+        rows += '<div class="duel-row" data-bid="' + g.id + '">⚔️ <b>' + esc(nameOf(g.a)) + "</b> " + hm + " 신청 · <b>" +
+          Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0") + "</b>" +
+          '<span class="duel-acts"><button class="btn small" data-act="now">⚡ 지금</button>' +
+          '<button class="btn small ghost" data-act="ok">예약 수락</button>' +
+          '<button class="btn small ghost" data-act="no">거절</button></span></div>';
+      } else if (g.phase === "invite") {
+        rows += '<div class="duel-row muted2">⚔️ ' + esc(nameOf(g.b)) + " 응답 대기 (" + hm + ") — 10분 무응답이면 👻</div>";
+      } else if (g.phase === "sched") {
+        var lf = new Date(g.sched_at).getTime() - Date.now();
+        var early = (g.state || {}).early;
+        if (lf <= 0) {
+          rows += '<div class="duel-row" data-bid="' + g.id + '">⚔️ <b>결투 시간!</b> vs ' + esc(nameOf(en)) +
+            '<span class="duel-acts"><button class="btn small" data-act="enter">입장</button></span></div>';
+        } else if (early && early !== me) {
+          rows += '<div class="duel-row" data-bid="' + g.id + '">⚡ <b>' + esc(nameOf(en)) + "</b>: 지금 바로 하재!" +
+            '<span class="duel-acts"><button class="btn small" data-act="enter">ㄱㄱ</button>' +
+            '<button class="btn small ghost" data-act="keep">예약대로</button></span></div>';
+        } else {
+          var mn = Math.floor(lf / 60000), sc = Math.floor(lf % 60000 / 1000);
+          rows += '<div class="duel-row" data-bid="' + g.id + '">⚔️ ' + hm + " vs " + esc(nameOf(en)) + " — <b>" +
+            (mn > 99 ? mn + "분" : mn + ":" + String(sc).padStart(2, "0")) + "</b>" +
+            '<span class="duel-acts">' + (early === me ? '<span class="muted2">⚡ 제안됨</span>' :
+              '<button class="btn small ghost" data-act="early">⚡ 지금 하자</button>') + "</span></div>";
+        }
       }
-    }
-    drawSched(); btBnTimer = setInterval(drawSched, 1000);
+    });
+    wrap.innerHTML = rows;
+    $$(".duel-row [data-act]", wrap).forEach(function (b) {
+      b.onclick = async function () {
+        var row = b.closest(".duel-row"), g = list.find(function (x) { return String(x.id) === row.dataset.bid; });
+        if (!g) return;
+        var act = b.dataset.act;
+        if (act === "no") { await sb.from("battles").update({ phase: "declined" }).eq("id", g.id).eq("phase", "invite"); kelLoad35(); }
+        else if (act === "ok") {
+          var immediate = new Date(g.sched_at || 0) - Date.now() < 90000;
+          if (immediate && myPlay()) return toast("지금 싸우는 판부터 끝내 — 예약으로 잡아둘게") || sb.from("battles").update({ phase: "sched" }).eq("id", g.id).eq("phase", "invite").then(kelLoad35);
+          await sb.from("battles").update({ phase: immediate ? "play" : "sched" }).eq("id", g.id).eq("phase", "invite");
+          sendPush("⚔️ " + nameOf(me), "수락! " + (immediate ? "지금 바로 붙는다" : hmOf(g) + "에 보자"), "duel");
+          kelLoad35();
+        }
+        else if (act === "now") { if (myPlay()) return toast("지금 싸우는 판부터 끝내"); await sb.from("battles").update({ phase: "play" }).eq("id", g.id).eq("phase", "invite"); sendPush("⚡ " + nameOf(me), "바로 붙자!", "duel"); kelLoad35(); }
+        else if (act === "enter") { earlyGo(g); }
+        else if (act === "early") { earlyPropose(g); }
+        else if (act === "keep") { var st = g.state || {}; delete st.early; await sb.from("battles").update({ state: st }).eq("id", g.id); toast("예약 시간대로 간다"); kelLoad35(); }
+      };
+    });
   }
+  draw();
+  btBnTimer = setInterval(draw, 1000);
 }
 function foe() { return btG.a === me ? btG.b : btG.a; }
 function myPickCol() { return btG.a === me ? "pick_a" : "pick_b"; }

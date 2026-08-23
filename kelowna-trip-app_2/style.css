@@ -1622,6 +1622,13 @@ body.forcelift #main { animation: v35lift 1.8s ease-in-out; }
 .bt-line { animation: btline .35s ease-out; }
 @keyframes btline { from { opacity: 0; transform: translateX(-8px); } }
 .bt-pickmsg { text-align: center; font-size: 13px; margin: 8px 0 10px; font-weight: 600; }
+#duel-banners { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 54px); left: 10px; right: 10px;
+  z-index: 560; display: flex; flex-direction: column; gap: 6px; }
+.duel-row { background: #26241E; color: #F3EDE0; border-radius: 12px; padding: 9px 12px; font-size: 12.5px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  animation: btline .3s ease-out; }
+.duel-row .duel-acts { margin-left: auto; display: flex; gap: 5px; }
+.duel-row.muted2, .muted2 { opacity: .75; }
 #duel-banner { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 54px); left: 10px; right: 10px;
   z-index: 560; background: #26241E; color: #F3EDE0; border-radius: 12px; padding: 10px 12px;
   font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
