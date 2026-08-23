@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v46";
-const BUILD_NO = 46;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v47";
+const BUILD_NO = 47;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -5918,6 +5918,12 @@ function myBattles() {
     return false;
   });
 }
+function btSeenHas(id) { return ("," + (localStorage.getItem("kel_bt_seen") || "") + ",").indexOf("," + id + ",") >= 0; }
+function btSeenAdd(id) {
+  var a = (localStorage.getItem("kel_bt_seen") || "").split(",").filter(Boolean);
+  if (a.indexOf(String(id)) < 0) a.push(String(id));
+  localStorage.setItem("kel_bt_seen", a.slice(-80).join(","));
+}
 function myPlay() { return myBattles().find(function (b) { return b.phase === "play"; }); }
 function openWith(mid) { return myBattles().find(function (b) { return b.a === mid || b.b === mid; }); }
 function dodgeOf(m) { return Math.min(5, statsOf(m).dodge || 0); }
@@ -6014,7 +6020,7 @@ function battleWatch() {
   // 방금 끝난 판(결과 미확인) 우선 표시
   var justDone = store35.battles.find(function (b) {
     return (b.a === me || b.b === me) && b.phase === "done" &&
-      localStorage.getItem("kel_bt_seen") !== String(b.id) &&
+      !btSeenHas(b.id) &&
       Date.now() - new Date(b.created_at).getTime() < 21600000;
   });
   var g = play || justDone;
@@ -6257,8 +6263,8 @@ function openBattle() {
     }, 300);
     box.scrollTop = keepScroll;
     battleReward(g);
-    $("#bt-x").onclick = function () { box.hidden = true; localStorage.setItem("kel_bt_seen", String(g.id)); btG = null; kelLoad35(); };
-    $("#bt-re").onclick = function () { box.hidden = true; localStorage.setItem("kel_bt_seen", String(g.id)); btG = null; duelInvite(en); };
+    $("#bt-x").onclick = function () { box.hidden = true; btSeenAdd(g.id); btG = null; kelLoad35(); };
+    $("#bt-re").onclick = function () { box.hidden = true; btSeenAdd(g.id); btG = null; duelInvite(en); };
     return;
   }
 
@@ -6924,7 +6930,7 @@ document.addEventListener("click", function (e) {
     while (ov.parentElement && ov.parentElement !== document.body) ov = ov.parentElement;
     ov.hidden = true;
     if (ov.id === "specbox") specId = null;
-    if (ov.id === "btbox" && btG && btG.phase === "done") { localStorage.setItem("kel_bt_seen", String(btG.id)); btG = null; }
+    if (ov.id === "btbox" && btG && btG.phase === "done") { btSeenAdd(btG.id); btG = null; }
     e.stopPropagation();
     return;
   }
