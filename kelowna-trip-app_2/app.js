@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v58";
-const BUILD_NO = 58;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v59";
+const BUILD_NO = 59;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -5730,18 +5730,20 @@ function svMap() { return (statsOf(me).exp_map || {}); }
 async function svPatch(kv) {
   if (!store35.wstats.length) { try { await kelLoad35Now(); } catch (e) {} }
   await ensureStats();
-  var em = Object.assign({}, svMap(), kv);
-  await sb.from("wiz_stats").update({ exp_map: em }).eq("member", me);
+  await sb.rpc("exp_merge", { p_member: me, p_patch: kv });   // 서버가 현재값 기준 병합 — 캐시 무관
   var row = store35.wstats.find(function (x) { return x.member === me; });
-  if (row) row.exp_map = em;
+  if (row) row.exp_map = Object.assign({}, row.exp_map || {}, kv);
   kelLoad35();
 }
 /* 쿠폰: 서버 보관 (exp_map.__xu/__xp) — 재설치·기기변경 생존 */
 extraUltra = function () { return Number(svMap().__xu || 0); };
 extraPrem  = function () { return Number(svMap().__xp || 0); };
 async function svCoupon(du, dp) {
-  await svPatch({ __xu: Math.max(0, extraUltra() + (du || 0)), __xp: Math.max(0, extraPrem() + (dp || 0)) });
+  await ensureStats();
+  if (du) await sb.rpc("exp_add", { p_member: me, p_key: "__xu", p_delta: du });   // 서버 증감 — 절대값 아님
+  if (dp) await sb.rpc("exp_add", { p_member: me, p_key: "__xp", p_delta: dp });
   if (du || dp) glog("coupon", (du ? "울트라 " + (du > 0 ? "+" : "") + du + " " : "") + (dp ? "프리미엄 " + (dp > 0 ? "+" : "") + dp : ""));
+  kelLoad35();
 }
 async function couponMigrate() {
   if (!me || svMap().__cm) return;
@@ -6709,8 +6711,7 @@ async function resolveBrawl(g, force) {
       var tp = parsePick(picks[target]);
       var blocked = tp && tp.sp === "expelliarmus" && expelLeft(target) > 0 && (!tp.tgt || tp.tgt === caster);
       if (blocked) {
-        var ts2 = statsOf(target), em2 = ts2.exp_map || {}; em2[equippedOf(target)] = (em2[equippedOf(target)] || 0) + 1;
-        sb.from("wiz_stats").update({ exp_map: em2 }).eq("member", target);
+        sb.rpc("exp_add", { p_member: target, p_key: equippedOf(target), p_delta: 1 });
         line("🪄 " + nameOf(target) + "가 ☠️를 튕겨냈다!", "expelliarmus", target, caster);
       } else {
         st.hp[target] = 0;
@@ -6850,8 +6851,7 @@ async function resolveTurn(g, force) {
       await sb.from("wiz_stats").update({ ak_used: (stt.ak_used || 0) + 1 }).eq("member", caster);
       var blocked = enemyPick === "expelliarmus" && expelLeft(target) > 0;
       if (blocked) {
-        var ts2 = statsOf(target), em2 = ts2.exp_map || {}; em2[equippedOf(target)] = (em2[equippedOf(target)] || 0) + 1;
-        await sb.from("wiz_stats").update({ exp_map: em2 }).eq("member", target);
+        await sb.rpc("exp_add", { p_member: target, p_key: equippedOf(target), p_delta: 1 });
         // 프리오리 인칸타템: 해리+해리 지팡이 vs 볼드모트 → 반사
         var tc = charOf(target), cc = charOf(caster);
         if (tc && tc.id === "potter" && equippedOf(target) === "potterwand" && cc && (cc.id === "voldemort" || cc.id === "riddle")) {
