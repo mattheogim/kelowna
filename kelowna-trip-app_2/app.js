@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v59";
-const BUILD_NO = 59;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v60";
+const BUILD_NO = 60;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -6129,8 +6129,9 @@ function battleWatch() {
   var justDone = store35.battles.find(function (b) {
     return (b.a === me || b.b === me) && b.phase === "done" &&
       !btSeenHas(b.id) &&
-      Date.now() - new Date(b.created_at).getTime() < 21600000;
+      Date.now() - new Date(b.created_at).getTime() < 1800000;   // 30분 안 따끈한 결과만
   });
+  if (justDone) btSeenAdd(justDone.id);   // 뜨는 순간 도장 — 패치 재시작에도 부활 없음
   brawlWatch();
   // 양쪽 픽 완료 → 판정 (a폰 담당, a폰이 죽어 있으면 12초 뒤 b폰이 인수)
   if (play && play.pick_a && play.pick_b && play.phase === "play") {
@@ -6173,6 +6174,7 @@ function brawlWatch() {
   var g = myBrawl();
   var boxOpen = document.getElementById("brawlbox") && !document.getElementById("brawlbox").hidden;
   if (!g) { if (boxOpen && window.__brDone !== 1) {} window.__brId = null; return; }
+  if (g.phase === "done" && !btSeenHas("br" + g.id)) btSeenAdd("br" + g.id);   // 결과도 1회만
   if (g.phase === "invite") {
     // 개설 10분 경과 or 호스트 시작 → play (2인 이상)
     if (brawlPlayers(g)[0] === me && Date.now() - new Date(g.created_at).getTime() > 600000 && brawlPlayers(g).length >= 2)
@@ -6629,8 +6631,10 @@ function effPow(s, caster, target, st) {
 }
 function myBrawl() {
   return store35.battles.find(function (b) {
-    return isBrawl(b) && brawlPlayers(b).indexOf(me) >= 0 && ["invite", "play"].indexOf(b.phase) >= 0 &&
-      Date.now() - new Date(b.created_at).getTime() < 21600000;
+    if (!isBrawl(b) || brawlPlayers(b).indexOf(me) < 0) return false;
+    if (["invite", "play"].indexOf(b.phase) >= 0) return Date.now() - new Date(b.created_at).getTime() < 21600000;
+    if (b.phase === "done") return !btSeenHas("br" + b.id) && Date.now() - new Date(b.created_at).getTime() < 1800000;
+    return false;
   });
 }
 function liveBrawls() {
@@ -6702,6 +6706,7 @@ async function resolveBrawl(g, force) {
       var bk = store35.spellbook.filter(function (r) { return r.member === caster; });
       if (bk.length) { pick = bk[Math.floor(Math.random() * bk.length)].spell_id; s = spellById[pick] || s; line("🌀 " + nameOf(caster) + " 조종당해 " + ((spellById[pick] || {}).ko || "?") + "!"); }
     }
+    if (pick === "__ff") { st.hp[caster] = 0; line("🏳️ " + nameOf(caster) + " 기권"); continue; }
     if (pick === "__afk") { st.afk[caster] = (st.afk[caster] || 0) + 1; line("⌛ " + nameOf(caster) + " 무응답 (" + st.afk[caster] + "/3)"); continue; }
     st.afk[caster] = 0;
     if (!pick || pick === "__pass" || !s) { line("💨 " + nameOf(caster) + " 허둥지둥"); continue; }
@@ -7062,8 +7067,11 @@ function openBrawl(g) {
   if (g.phase === "invite") {
     html += '<div class="bt-pickmsg">' + pl.map(nameOf).join(" · ") + "</div>" +
       (pl.indexOf(me) < 0 ? '<button class="btn" id="br-join" style="width:100%">⚔️ 참전한다</button>'
-        : pl[0] === me ? '<button class="btn" id="br-start" style="width:100%"' + (pl.length < 2 ? " disabled" : "") + '>🔥 개시 (' + pl.length + '명)</button>'
-        : '<p class="liar-sub">개시 대기 중…</p>');
+        : pl[0] === me
+          ? '<div class="btn-row"><button class="btn" id="br-start" style="flex:1"' + (pl.length < 2 ? " disabled" : "") + '>🔥 개시 (' + pl.length + '명)</button>' +
+            '<button class="btn ghost" id="br-disband" style="flex:1">🗑 해산</button></div>'
+          : '<div class="btn-row"><p class="liar-sub" style="flex:1;margin:auto 0">개시 대기 중…</p>' +
+            '<button class="btn ghost" id="br-leave" style="flex:1">🚪 나가기</button></div>');
   } else if (g.phase === "done") {
     var rk = (st.rank || []);
     html += '<div class="liar-banner ' + (g.winner === me ? "cit" : "") + '">🏆 ' + (g.winner ? esc(nameOf(g.winner)) + " 우승!" : "전멸") + "</div>" +
@@ -7081,6 +7089,7 @@ function openBrawl(g) {
         "주문 선택 — <b id=\"bt-cd\">25</b>초") + "</div>";
       var forgot = (st.forget || {})[me] || [];
       html += movesHtml(myBook().filter(function (r) { return forgot.indexOf(r.spell_id) < 0; }));
+      html += '<button class="btn ghost" id="br-ff" style="width:100%;margin-top:8px">🏳️ 기권 (탈락)</button>';
     }
   } else {
     html += '<div class="bt-pickmsg">🍿 관전 — 픽: ' + pl.map(function (p) { return ((g.picks || {})[p] ? "●" : "○"); }).join(" ") + "</div>";
@@ -7091,6 +7100,19 @@ function openBrawl(g) {
   playTheatre(g, "br");
   var jb = box.querySelector("#br-join"); if (jb) jb.onclick = function () { brawlJoin(g); };
   var sb2 = box.querySelector("#br-start"); if (sb2) sb2.onclick = function () { brawlStart(g); };
+  var db = box.querySelector("#br-disband");
+  if (db) db.onclick = async function () {
+    if (!confirm("난투를 해산할까?")) return;
+    await sb.from("battles").update({ phase: "canceled" }).eq("id", g.id).eq("phase", "invite");
+    sendPush("🗑 " + nameOf(me), "난투를 해산했다", "duel");
+    box.hidden = true; toast("해산"); kelLoad35();
+  };
+  var lv = box.querySelector("#br-leave");
+  if (lv) lv.onclick = async function () {
+    var pl2 = brawlPlayers(g).filter(function (x) { return x !== me; });
+    await sb.from("battles").update({ players: pl2 }).eq("id", g.id).eq("phase", "invite");
+    box.hidden = true; toast("🚪 빠졌어"); kelLoad35();
+  };
   var xb = box.querySelector("#br-x"); if (xb) xb.onclick = function () { box.hidden = true; btSeenAdd("br" + g.id); };
   if (g.phase === "done" && brawlPlayers(g).indexOf(me) >= 0) brawlReward(g);
   bindMoves(box);
@@ -7118,6 +7140,11 @@ function openBrawl(g) {
       brawlSubmit(__brArm, tgt); __brArm = null;
     };
   });
+  var ffb = box.querySelector("#br-ff");
+  if (ffb) ffb.onclick = function () {
+    if (!confirm("기권할까? 이번 난투에서 탈락해")) return;
+    brawlSubmit("__ff", null);
+  };
   if (g.phase === "play" && (st.hp || {})[me] > 0) startPickTimerBr(g);
 }
 var brTimer = null;
@@ -7201,6 +7228,12 @@ function kelLiveHtml() {
   if (!live.length && !recent.length && !upcoming.length) return "";
   function vs(b) { return esc(nameOf(b.a)) + ' <span class="lv-vs">vs</span> ' + esc(nameOf(b.b)); }
   var h = '<div class="livebd"><div class="livebd-top">⚔️ 결투장 <button class="livebd-mk" data-brawl-new>🔥 난투 개설</button></div>';
+  store35.battles.filter(function (b) {
+    return isBrawl(b) && b.phase === "done" && Date.now() - new Date(b.created_at).getTime() < 3600000;
+  }).slice(0, 2).forEach(function (b) {
+    h += '<button class="livebd-row done" data-brawl="' + b.id + '">🏁 난투 — <b>' +
+      (b.winner ? esc(nameOf(b.winner)) + " 우승" : "전멸") + '</b><span class="livebd-go">결과</span></button>';
+  });
   liveBrawls().forEach(function (b) {
     var pl = brawlPlayers(b);
     h += '<button class="livebd-row live" data-brawl="' + b.id + '">' +
