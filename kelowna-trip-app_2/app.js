@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v39";
-const BUILD_NO = 39;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v40";
+const BUILD_NO = 40;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -5268,7 +5268,7 @@ var FX2 = (function () {
     if (cv) return;
     cv = document.createElement("canvas");
     cv.id = "fx2";
-    cv.style.cssText = "position:fixed;inset:0;z-index:640;pointer-events:none;mix-blend-mode:screen";
+    cv.style.cssText = "position:fixed;inset:0;z-index:640;pointer-events:none;display:none";
     document.body.appendChild(cv);
     resize();
     window.addEventListener("resize", resize);
@@ -5332,6 +5332,7 @@ var FX2 = (function () {
     kick();
   }
   function kick() {
+    if (cv) cv.style.display = "";
     if (running) return;
     running = true; lastT = performance.now();
     requestAnimationFrame(loop);
@@ -5359,7 +5360,7 @@ var FX2 = (function () {
     }
     draw();
     if (parts.length || trauma > 0.003) requestAnimationFrame(loop);
-    else { running = false; clear(); document.body.style.transform = ""; }
+    else { running = false; clear(); document.body.style.transform = ""; if (cv) cv.style.display = "none"; }
   }
   function clear() {
     if (mode === "gl" && gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
@@ -5640,7 +5641,12 @@ async function statPatch(patch) {
   await sb.from("wiz_stats").update(patch).eq("member", me);
   kelLoad35();
 }
-async function kelLoad35() {
+var __k35t = 0;
+function kelLoad35() {
+  clearTimeout(__k35t);
+  __k35t = setTimeout(kelLoad35Now, 350);
+}
+async function kelLoad35Now() {
   if (!sb) return;
   try {
     var r = await Promise.all([
@@ -5822,8 +5828,17 @@ function eggSeen(id) { return localStorage.getItem("kel_egg_" + id) === "1"; }
 function eggMark(id) { if (!eggSeen(id)) { localStorage.setItem("kel_egg_" + id, "1"); toast("🥚 이스터에그 발견 — 궁합표에 해금됨"); } }
 
 function maxHp(m) { var c = charOf(m); return 90 + (c ? c.t * 14 : 14) + lvOf(m) * 4; }
+function dedupeBattles(arr) {
+  var seen = {}, out = [];
+  arr.slice().sort(function (x, y) { return y.id - x.id; }).forEach(function (b) {
+    var k = [b.a, b.b].sort().join("|") + "|" + (b.phase === "play" ? "p" : "s");
+    if (seen[k]) { b.__dupe = true; return; }
+    seen[k] = 1; out.push(b);
+  });
+  return out;
+}
 function myBattles() {
-  return store35.battles.filter(function (b) {
+  return dedupeBattles(store35.battles).filter(function (b) {
     if (b.a !== me && b.b !== me) return false;
     if (b.phase === "invite") return true;                       // 10분 스윕이 정리
     if (b.phase === "sched") return Date.now() < new Date(b.sched_at || b.created_at).getTime() + 7200000;
@@ -5873,7 +5888,12 @@ function duelInvite(mid) {
     fire(d);
   };
 }
+var __duelBusy = false;
 async function duelSend(mid, when) {
+  if (__duelBusy) return;
+  if (openWith(mid)) return toast(nameOf(mid) + "와는 이미 잡혀 있어");
+  __duelBusy = true;
+  setTimeout(function () { __duelBusy = false; }, 2500);
   var st = { hp: {}, dot: {}, shield: {}, stun: {}, weak: {}, buff: {}, forget: {}, log: [] };
   st.hp[me] = maxHpReal(me); st.hp[mid] = maxHpReal(mid);   // 낙인 있으면 피통이 소리 없이 깎인 채 시작
   var ins = await sb.from("battles").insert({ a: me, b: mid, phase: "invite", state: st, sched_at: when.toISOString() }).select();
@@ -5885,6 +5905,15 @@ async function duelSend(mid, when) {
   kelLoad35();
 }
 async function sweepInvites() {
+  // 같은 매치업 중복분(연타 사고) → 최신 것만 남기고 자동 취소
+  var dupes = [];
+  dedupeBattles(store35.battles);
+  store35.battles.forEach(function (b) {
+    if (b.__dupe && (b.phase === "invite" || b.phase === "sched")) dupes.push(b);
+  });
+  for (var d = 0; d < dupes.length; d++)
+    await sb.from("battles").update({ phase: "canceled" }).eq("id", dupes[d].id).in("phase", ["invite", "sched"]);
+  if (dupes.length) { toast("🧹 중복 도전장 " + dupes.length + "건 정리"); }
   // 10분 넘게 방치된 도전장 → 만료 + 받은 쪽에 도주 낙인 (경쟁 조건은 조건부 update로 1회만)
   var stale = store35.battles.filter(function (b) {
     return b.phase === "invite" && Date.now() - new Date(b.created_at).getTime() > 600000;
@@ -5939,21 +5968,21 @@ async function earlyPropose(g) {
   toast("⚡ 제안 보냄 — 상대가 ㄱㄱ 누르면 시작");
   kelLoad35();
 }
-var btBnTimer = null;
+var btBnTimer = null, __bnSig = "";
 function renderBattleBanners(list) {
   var wrap = document.getElementById("duel-banners");
-  clearInterval(btBnTimer);
-  if (!list || !list.length) { if (wrap) wrap.remove(); return; }
+  if (!list || !list.length) { clearInterval(btBnTimer); __bnSig = ""; if (wrap) wrap.remove(); return; }
   if (!wrap) { wrap = document.createElement("div"); wrap.id = "duel-banners"; document.body.appendChild(wrap); }
   function hmOf(g) { var d = new Date(g.sched_at || g.created_at); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
-  function draw() {
+  var sig = list.slice(0, 4).map(function (g) { return g.id + g.phase + ((g.state || {}).early || ""); }).join(",");
+  var rebuilt = sig !== __bnSig;
+  if (rebuilt) {
+    __bnSig = sig;
     var rows = "";
     list.slice(0, 4).forEach(function (g) {
       var en = g.a === me ? g.b : g.a, hm = hmOf(g);
       if (g.phase === "invite" && g.b === me) {
-        var left = Math.max(0, Math.ceil((new Date(g.created_at).getTime() + 600000 - Date.now()) / 1000));
-        rows += '<div class="duel-row" data-bid="' + g.id + '">⚔️ <b>' + esc(nameOf(g.a)) + "</b> " + hm + " 신청 · <b>" +
-          Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0") + "</b>" +
+        rows += '<div class="duel-row" data-bid="' + g.id + '" data-kind="inv">⚔️ <b>' + esc(nameOf(g.a)) + "</b> " + hm + ' 신청 · <b class="bn-t"></b>' +
           '<span class="duel-acts"><button class="btn small" data-act="now">⚡ 지금</button>' +
           '<button class="btn small ghost" data-act="ok">예약 수락</button>' +
           '<button class="btn small ghost" data-act="no">거절</button></span></div>';
@@ -5961,37 +5990,32 @@ function renderBattleBanners(list) {
         rows += '<div class="duel-row muted2" data-bid="' + g.id + '">⚔️ ' + esc(nameOf(g.b)) + " 응답 대기 (" + hm + ") — 무응답 👻" +
           '<span class="duel-acts"><button class="btn small ghost" data-act="retract">✖ 회수</button></span></div>';
       } else if (g.phase === "sched") {
-        var lf = new Date(g.sched_at).getTime() - Date.now();
         var early = (g.state || {}).early;
-        if (lf <= 0) {
-          rows += '<div class="duel-row" data-bid="' + g.id + '">⚔️ <b>결투 시간!</b> vs ' + esc(nameOf(en)) +
-            '<span class="duel-acts"><button class="btn small" data-act="enter">입장</button>' +
-            '<button class="btn small ghost" data-act="cancel">✖</button></span></div>';
-        } else if (early && early !== me) {
+        if (early && early !== me) {
           rows += '<div class="duel-row" data-bid="' + g.id + '">⚡ <b>' + esc(nameOf(en)) + "</b>: 지금 바로 하재!" +
             '<span class="duel-acts"><button class="btn small" data-act="enter">ㄱㄱ</button>' +
             '<button class="btn small ghost" data-act="keep">예약대로</button>' +
             '<button class="btn small ghost" data-act="cancel">✖</button></span></div>';
         } else {
-          var mn = Math.floor(lf / 60000), sc = Math.floor(lf % 60000 / 1000);
-          rows += '<div class="duel-row" data-bid="' + g.id + '">⚔️ ' + hm + " vs " + esc(nameOf(en)) + " — <b>" +
-            (mn > 99 ? mn + "분" : mn + ":" + String(sc).padStart(2, "0")) + "</b>" +
-            '<span class="duel-acts">' + (early === me ? '<span class="muted2">⚡ 제안됨</span>' :
-              '<button class="btn small ghost" data-act="early">⚡ 지금 하자</button>') +
-              '<button class="btn small ghost" data-act="cancel">✖</button></span></div>';
+          rows += '<div class="duel-row" data-bid="' + g.id + '" data-kind="sched" data-at="' + new Date(g.sched_at || g.created_at).getTime() + '">' +
+            '⚔️ ' + hm + " vs " + esc(nameOf(en)) + ' — <b class="bn-t"></b>' +
+            '<span class="duel-acts"><span class="bn-enter"></span>' +
+            (early === me ? '<span class="muted2">⚡ 제안됨</span>' : '<button class="btn small ghost" data-act="early">⚡ 지금 하자</button>') +
+            '<button class="btn small ghost" data-act="cancel">✖</button></span></div>';
         }
       }
     });
     wrap.innerHTML = rows;
-    $$(".duel-row [data-act]", wrap).forEach(function (b) {
-      b.onclick = async function () {
-        var row = b.closest(".duel-row"), g = list.find(function (x) { return String(x.id) === row.dataset.bid; });
+    $$(".duel-row [data-act]", wrap).forEach(function (b2) {
+      b2.onclick = async function () {
+        var row = b2.closest(".duel-row"), g = list.find(function (x) { return String(x.id) === row.dataset.bid; });
         if (!g) return;
-        var act = b.dataset.act;
+        var en2 = g.a === me ? g.b : g.a;
+        var act = b2.dataset.act;
         if (act === "no") { await sb.from("battles").update({ phase: "declined" }).eq("id", g.id).eq("phase", "invite"); kelLoad35(); }
         else if (act === "ok") {
           var immediate = new Date(g.sched_at || 0) - Date.now() < 90000;
-          if (immediate && myPlay()) return toast("지금 싸우는 판부터 끝내 — 예약으로 잡아둘게") || sb.from("battles").update({ phase: "sched" }).eq("id", g.id).eq("phase", "invite").then(kelLoad35);
+          if (immediate && myPlay()) { toast("지금 싸우는 판부터 끝내 — 예약으로 잡아둘게"); await sb.from("battles").update({ phase: "sched" }).eq("id", g.id).eq("phase", "invite"); return kelLoad35(); }
           await sb.from("battles").update({ phase: immediate ? "play" : "sched" }).eq("id", g.id).eq("phase", "invite");
           sendPush("⚔️ " + nameOf(me), "수락! " + (immediate ? "지금 바로 붙는다" : hmOf(g) + "에 보자"), "duel");
           kelLoad35();
@@ -6000,22 +6024,48 @@ function renderBattleBanners(list) {
         else if (act === "enter") { earlyGo(g); }
         else if (act === "early") { earlyPropose(g); }
         else if (act === "retract") {
-          if (!confirm(nameOf(en) + "에게 보낸 도전장을 회수할까?")) return;
+          if (!confirm(nameOf(en2) + "에게 보낸 도전장을 회수할까?")) return;
           await sb.from("battles").update({ phase: "canceled" }).eq("id", g.id).eq("phase", "invite");
           toast("✖ 도전장 회수"); kelLoad35();
         }
         else if (act === "cancel") {
-          if (!confirm(nameOf(en) + "와의 예약 결투를 파토낼까?\n(낙인은 없지만 전원에게 통보됨)")) return;
+          if (!confirm(nameOf(en2) + "와의 예약 결투를 파토낼까?\n(낙인은 없지만 전원에게 통보됨)")) return;
           await sb.from("battles").update({ phase: "canceled" }).eq("id", g.id).in("phase", ["sched"]);
-          sendPush("🚫 " + nameOf(me), nameOf(en) + "와의 예약 결투를 파토냈다", "duel");
+          sendPush("🚫 " + nameOf(me), nameOf(en2) + "와의 예약 결투를 파토냈다", "duel");
           toast("✖ 파토 — 전원에게 알렸어"); kelLoad35();
         }
-        else if (act === "keep") { var st = g.state || {}; delete st.early; await sb.from("battles").update({ state: st }).eq("id", g.id); toast("예약 시간대로 간다"); kelLoad35(); }
       };
     });
   }
-  draw();
-  btBnTimer = setInterval(draw, 1000);
+  function tick() {
+    $$(".duel-row", wrap).forEach(function (row) {
+      var g = list.find(function (x) { return String(x.id) === row.dataset.bid; });
+      if (!g) return;
+      var t = row.querySelector(".bn-t");
+      if (row.dataset.kind === "inv" && t) {
+        var left = Math.max(0, Math.ceil((new Date(g.created_at).getTime() + 600000 - Date.now()) / 1000));
+        t.textContent = Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
+      } else if (row.dataset.kind === "sched") {
+        var lf = Number(row.dataset.at) - Date.now();
+        if (lf <= 0) {
+          if (t) t.textContent = "결투 시간!";
+          var slot = row.querySelector(".bn-enter");
+          if (slot && !slot.firstChild) {
+            var eb = document.createElement("button");
+            eb.className = "btn small"; eb.textContent = "입장"; eb.dataset.act = "enter";
+            eb.onclick = function () { earlyGo(g); };
+            slot.appendChild(eb);
+          }
+        } else if (t) {
+          var mn = Math.floor(lf / 60000), sc = Math.floor(lf % 60000 / 1000);
+          t.textContent = mn > 99 ? mn + "분" : mn + ":" + String(sc).padStart(2, "0");
+        }
+      }
+    });
+  }
+  tick();
+  clearInterval(btBnTimer);
+  btBnTimer = setInterval(tick, 1000);
 }
 function foe() { return btG.a === me ? btG.b : btG.a; }
 function myPickCol() { return btG.a === me ? "pick_a" : "pick_b"; }
@@ -6412,10 +6462,11 @@ function kelLiveHtml() {
   });
   return h + "</div>";
 }
+var __liveAt = 0;
 function liveWatch() {
   var d = store35.battles.map(function (b) { return b.id + b.phase + b.turn; }).join(",");
-  if (d !== __liveDigest) {
-    __liveDigest = d;
+  if (d !== __liveDigest && Date.now() - __liveAt > 2500) {
+    __liveDigest = d; __liveAt = Date.now();
     if (typeof currentTab !== "undefined" && currentTab === "home") try { renderHome(); } catch (e) {}
   }
 }
