@@ -1446,3 +1446,257 @@ body.slowmo #fx .pw{animation-play-state:paused}
 .quiz-st span{background:rgba(26,26,24,.05);border-left:3.5px solid var(--ink);border-radius:8px;
   padding:9px 11px;font-size:14px;font-weight:700;color:var(--ink);text-align:left;line-height:1.5}
 .quiz-opt.wrongonly{box-shadow:0 0 0 2px var(--accent) inset;color:var(--accent)}
+/* ============ v35 — 마법사 대전 ============ */
+
+/* FX2 플래시 · 타이포 스탬프 */
+#fx2flash{position:fixed;inset:0;z-index:645;pointer-events:none;opacity:0;--fd:220ms}
+#fx2flash.go{animation:fx2f var(--fd) ease-out}
+@keyframes fx2f{0%{opacity:.85}100%{opacity:0}}
+.fx2stamp{position:fixed;left:50%;top:34%;transform:translateX(-50%);z-index:646;pointer-events:none;
+  font-family:Archivo,sans-serif;font-weight:900;font-size:clamp(26px,8vw,46px);letter-spacing:.08em;
+  text-shadow:0 0 18px currentColor,0 2px 0 rgba(0,0,0,.5);white-space:nowrap}
+.fx2stamp span{display:inline-block;opacity:0;animation:fx2s .9s cubic-bezier(.2,1.4,.4,1) forwards}
+@keyframes fx2s{0%{opacity:0;transform:scale(2.6) rotate(6deg)}55%{opacity:1;transform:scale(.92)}100%{opacity:1;transform:scale(1)}}
+.fx2stamp{animation:fx2out 2.6s forwards}
+@keyframes fx2out{0%,72%{opacity:1}100%{opacity:0}}
+
+/* 뽑기 허브 */
+.hub{background:linear-gradient(160deg,#221D2E 0%,#191524 100%);border:1px solid #3A2F52;border-radius:16px;
+  padding:14px 14px 12px;margin:0 0 14px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.hub-top{font-weight:900;font-size:13px;letter-spacing:.14em;color:#B9A8E8;margin-bottom:10px}
+.hub-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.hub-b{display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(255,255,255,.05);
+  border:1px solid #443767;border-radius:14px;padding:12px 4px 10px;color:#F0EAFF;font-weight:800;font-size:13px;
+  transition:transform .12s}
+.hub-b:active{transform:scale(.94)}
+.hub-em{font-size:30px;filter:drop-shadow(0 2px 6px rgba(180,140,255,.45))}
+.hub-s{font-size:10.5px;font-weight:600;color:#9E8CCB}
+.hub-row2{display:flex;gap:6px;margin-top:8px}
+.hub-mini{flex:1;background:rgba(255,255,255,.04);border:1px solid #3A2F52;border-radius:10px;
+  padding:7px 2px;color:#C9BCEB;font-size:11.5px;font-weight:700}
+
+/* 새 오버레이 박스 공통 */
+#spbox,#bookbox,#btbox,#rankbox,#shopbox,#pkbox{position:fixed;inset:0;z-index:700;background:rgba(18,17,15,.88);
+  display:flex;align-items:center;justify-content:center;padding:20px}
+#spbox[hidden],#bookbox[hidden],#btbox[hidden],#rankbox[hidden],#shopbox[hidden],#pkbox[hidden]{display:none}
+.ovx{position:absolute;top:10px;right:10px;z-index:5;width:32px;height:32px;border-radius:50%;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#EEE;font-size:15px;font-weight:800;line-height:1}
+.armory{position:relative}
+.quiz-card{position:relative}
+
+/* 주문서 */
+.book-grid .sp-item.lock{opacity:.42;filter:grayscale(.7)}
+.wiz-line{font-size:12.5px;color:var(--ink-soft,#8b8577);margin:2px 0 12px;font-weight:600}
+.ai-q{position:absolute;top:6px;left:6px;background:var(--gold,#C79A3E);color:#221C10;font-size:10px;
+  font-weight:900;border-radius:8px;padding:1px 6px}
+
+/* 배틀 */
+.bt-wrap{max-height:86vh;overflow-y:auto}
+.bt-arena{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.bt-side{flex:1;min-width:0}
+.bt-name{font-weight:800;font-size:13px;display:flex;align-items:center;gap:4px}
+.bt-lv{font-size:10px;background:#3A2F52;color:#C9BCEB;border-radius:8px;padding:1px 6px;font-weight:800}
+.bt-hp{height:10px;border-radius:6px;background:rgba(0,0,0,.25);overflow:hidden;margin-top:5px;border:1px solid rgba(0,0,0,.2)}
+.bt-hp i{display:block;height:100%;border-radius:6px;transition:width .6s cubic-bezier(.2,.9,.3,1.2)}
+.bt-hpn{font-size:10.5px;color:#9E9585;margin-top:3px;font-weight:700}
+.bt-vs{font-weight:900;font-size:15px;color:#C8503C;flex:0 0 auto}
+.bt-log{background:rgba(0,0,0,.22);border-radius:12px;padding:10px 12px;margin:8px 0;max-height:150px;overflow-y:auto}
+.bt-line{font-size:12.5px;line-height:1.55;padding:2px 0;border-bottom:1px dashed rgba(255,255,255,.06)}
+.bt-line:last-child{border-bottom:0;font-weight:800}
+.bt-pickmsg{font-size:13.5px;font-weight:700;margin:10px 0;text-align:center}
+#duel-banner{position:fixed;top:calc(env(safe-area-inset-top) + 54px);left:12px;right:12px;z-index:660;
+  background:#2A1E33;color:#F0EAFF;border:1px solid #6B4FA0;border-radius:14px;padding:12px 14px;
+  display:flex;align-items:center;gap:8px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.4);
+  animation:duelin .5s cubic-bezier(.2,1.3,.4,1)}
+@keyframes duelin{0%{transform:translateY(-80px);opacity:0}100%{transform:none;opacity:1}}
+#duel-banner .btn{margin-left:auto}
+
+/* 도적의 지도 */
+.mmap-card{background:#EFE3C8;border:1px solid #C9B187;border-radius:16px;padding:12px;margin-bottom:14px;
+  box-shadow:inset 0 0 40px rgba(140,110,60,.25),0 4px 14px rgba(0,0,0,.12)}
+.mmap-head{font-weight:900;font-size:14px;color:#5A4326;display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+.mmap-oath{font-size:10.5px;font-weight:600;color:#8A7452;font-style:italic}
+.mmap{height:240px;border-radius:12px;overflow:hidden;border:2px solid #B99C6E}
+.marauder .leaflet-tile-pane{filter:sepia(.85) saturate(.55) contrast(.92) brightness(1.04)}
+.footstep{animation:foot .6s cubic-bezier(.2,1.5,.4,1) backwards}
+@keyframes foot{0%{transform:scale(0) rotate(-30deg);opacity:0}60%{transform:scale(1.25)}100%{transform:scale(1);opacity:1}}
+#mm-auto.on{background:#5E8C5A;color:#fff;border-color:#5E8C5A}
+
+/* 무전 이펙트 칩 · 3D */
+.spellrow{margin:8px 0 0;flex-wrap:wrap}
+.spx.on{background:#3A2F52;color:#E8DEFF;border-color:#6B4FA0}
+.ptt3d{perspective:600px}
+.ptt3d .ptt{transition:transform .15s;transform-style:preserve-3d}
+.ptt3d .ptt:active{transform:rotateX(14deg) scale(.97)}
+.ptt3d .ptt.rec{animation:ptt3d 1.1s ease-in-out infinite;box-shadow:0 0 0 4px rgba(200,80,60,.25),0 0 30px rgba(200,80,60,.5)}
+@keyframes ptt3d{0%,100%{transform:rotateX(0) scale(1)}50%{transform:rotateX(7deg) scale(1.03)}}
+
+/* 아카이브 */
+details.arch{background:var(--paper2,#EDE6D4);border:1px solid var(--line,#D8CFBA);border-radius:14px;
+  padding:4px 14px;margin:0 0 14px}
+details.arch>summary{font-weight:800;font-size:13.5px;padding:10px 0;cursor:pointer;list-style:none}
+details.arch>summary::-webkit-details-marker{display:none}
+details.arch>summary::after{content:"▾";float:right;color:#9E9585;transition:transform .2s}
+details.arch[open]>summary::after{transform:rotate(180deg)}
+.mission-row.done-view{pointer-events:none;opacity:.85}
+
+/* 궁합표 v2 */
+.syn-mine{background:rgba(199,154,62,.12);border:1px solid rgba(199,154,62,.4);border-radius:12px;
+  padding:10px 12px;margin-bottom:12px;font-size:13px}
+.syn-tier{border-left:3px solid var(--rc);border-radius:8px;padding:8px 10px;margin:10px 0;background:rgba(0,0,0,.14)}
+.syn-th{font-weight:900;font-size:11px;letter-spacing:.12em;color:var(--rc);margin-bottom:6px}
+.syn-row{display:flex;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:12.5px}
+.syn-row:last-child{border-bottom:0}
+.syn-w{font-weight:700;flex:0 0 46%}
+.syn-c{color:#B8AE9C;font-size:11.5px}
+.syn-row.egg .syn-w{color:#C9A0E8}
+.syn-row.egg.open .syn-w{color:#E8C43C}
+
+/* 상점 v2 */
+.shop-item.ultra{border-color:#C8503C;background:linear-gradient(150deg,rgba(200,80,60,.14),rgba(0,0,0,0))}
+.shop-s{display:block;font-size:10.5px;color:#9E9585;margin-top:3px;font-weight:700}
+.mcard.on .mc-em,.mcard.on .mc-ko,.mcard.on .mc-t{opacity:1}
+.mcard.on{animation:mcpop .5s cubic-bezier(.2,1.4,.4,1) backwards}
+@keyframes mcpop{0%{transform:scale(.4) rotate(-6deg);opacity:0}100%{transform:scale(1);opacity:1}}
+.mc-em{font-size:34px}.mc-ko{font-weight:800;font-size:12px;margin-top:4px}
+.mc-t{font-size:9px;font-weight:900;letter-spacing:.1em;border-radius:6px;padding:2px 6px;margin-top:5px;color:#1B1710}
+
+/* 초월 등급 색 보정 */
+.pack-tier{text-shadow:0 0 24px var(--rc)}
+.board-duel{margin-left:auto;font-size:15px;opacity:.85;padding:2px 4px}
+.board-duel:active{transform:scale(1.3)}
+
+/* ============================================================
+   v35 — 마법사 대전 스타일
+   ============================================================ */
+
+/* ---- FX 2.0 보조 레이어 ---- */
+#fx2flash { position: fixed; inset: 0; z-index: 645; pointer-events: none; opacity: 0; --fd: 300ms; }
+#fx2flash.go { animation: fx2fl var(--fd) ease-out; }
+@keyframes fx2fl { 0% { opacity: .85; } 100% { opacity: 0; } }
+.fx2stamp {
+  position: fixed; left: 50%; top: 30%; transform: translateX(-50%) rotate(-4deg);
+  z-index: 646; pointer-events: none; font-family: "Archivo", sans-serif;
+  font-weight: 900; font-size: clamp(26px, 9vw, 54px); letter-spacing: .06em;
+  text-shadow: 0 0 18px currentColor, 0 2px 0 rgba(0,0,0,.4); white-space: nowrap;
+}
+.fx2stamp span { display: inline-block; opacity: 0; animation: stampin .5s cubic-bezier(.2,1.6,.4,1) forwards, stampout .6s ease-in 1.8s forwards; }
+@keyframes stampin { 0% { opacity: 0; transform: scale(2.6) translateY(-10px); filter: blur(6px); } 100% { opacity: 1; transform: none; filter: none; } }
+@keyframes stampout { to { opacity: 0; transform: translateY(-14px); } }
+body.forcelift #main { animation: v35lift 1.8s ease-in-out; }
+@keyframes v35lift { 0%,100% { transform: none; } 30% { transform: translateY(-22px) rotate(.6deg); } 65% { transform: translateY(-16px) rotate(-.5deg); } }
+
+/* ---- 뽑기 허브 ---- */
+.hub { background: linear-gradient(160deg, #211B14, #14110C); border: 1px solid #3A3226;
+  border-radius: var(--r, 14px); padding: 14px; margin-bottom: 14px; color: #EFE7D6;
+  box-shadow: inset 0 0 40px rgba(0,0,0,.5), 0 2px 10px rgba(0,0,0,.25); }
+.hub-top { font-weight: 900; font-size: 13px; letter-spacing: .12em; opacity: .8; margin-bottom: 10px; }
+.hub-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.hub-b { border: 1px solid #4A4030; border-radius: 12px; background: linear-gradient(180deg, #2B2418, #1C1710);
+  color: #EFE7D6; padding: 12px 4px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-weight: 800; font-size: 13px; transition: transform .12s; }
+.hub-b:active { transform: scale(.94); }
+.hub-em { font-size: 30px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+.hub-s { font-size: 10.5px; font-weight: 600; color: #C7A96A; }
+.hub-row2 { display: flex; gap: 6px; margin-top: 8px; }
+.hub-mini { flex: 1; border: 1px solid #3A3226; background: #1A1610; color: #CFC4A8;
+  border-radius: 10px; padding: 7px 0; font-size: 11.5px; font-weight: 700; }
+
+/* ---- 배틀 ---- */
+#btbox, #duelbox, #rankbox, #shopbox, #pkbox, #spbox, #bookbox { position: fixed; inset: 0; z-index: 610;
+  background: rgba(10, 9, 7, .78); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+.bt-wrap { position: relative; }
+.bt-arena { display: grid; grid-template-columns: 1fr 40px 1fr; align-items: center; gap: 4px; margin-bottom: 10px; }
+.bt-side { min-width: 0; }
+.bt-name { font-weight: 800; font-size: 12.5px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.bt-lv { font-size: 10px; background: var(--ink, #26241E); color: #F3EDE0; border-radius: 6px; padding: 1px 5px; }
+.bt-dodge { font-size: 10px; color: #9A8FB8; background: #241E30; border-radius: 6px; padding: 1px 5px; }
+.bt-hp { height: 10px; border-radius: 6px; background: #1B1712; overflow: hidden; margin-top: 5px;
+  border: 1px solid rgba(0,0,0,.4); }
+.bt-hp i { display: block; height: 100%; transition: width .6s cubic-bezier(.3,1.2,.4,1); }
+.bt-hpn { font-size: 10.5px; opacity: .7; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.bt-vs { text-align: center; font-weight: 900; font-size: 15px; opacity: .8; }
+.bt-log { background: rgba(0,0,0,.25); border-radius: 10px; padding: 8px 10px; margin: 8px 0;
+  font-size: 12px; line-height: 1.7; max-height: 132px; overflow-y: auto; }
+.bt-line { animation: btline .35s ease-out; }
+@keyframes btline { from { opacity: 0; transform: translateX(-8px); } }
+.bt-pickmsg { text-align: center; font-size: 13px; margin: 8px 0 10px; font-weight: 600; }
+#duel-banner { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 54px); left: 10px; right: 10px;
+  z-index: 560; background: #26241E; color: #F3EDE0; border-radius: 12px; padding: 10px 12px;
+  font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  box-shadow: 0 6px 20px rgba(0,0,0,.4); animation: btline .3s ease-out; }
+#duel-banner .btn.small { margin-left: auto; }
+#duel-banner .btn.small + .btn.small { margin-left: 0; }
+
+/* ---- 주문서 ---- */
+.book-grid .sp-item { position: relative; }
+.sp-item.lock { filter: grayscale(1); opacity: .45; }
+.wiz-line { font-size: 12px; margin: 2px 0 12px; opacity: .85; }
+.ai-q { position: absolute; top: 4px; right: 4px; font-size: 9.5px; font-weight: 900;
+  background: var(--gold, #C79A3E); color: #1B1712; border-radius: 6px; padding: 1px 4px; }
+
+/* ---- 도적의 지도 ---- */
+.mmap-card { background: linear-gradient(160deg, #E8DCC0, #D9CCA8); border: 1px solid #B8A67C;
+  border-radius: var(--r, 14px); padding: 12px; margin-bottom: 14px;
+  box-shadow: inset 0 0 34px rgba(120, 90, 40, .25), 0 2px 8px rgba(0,0,0,.12); }
+.mmap-head { font-weight: 900; font-size: 14px; color: #4A3A20; display: flex; flex-direction: column; gap: 2px; }
+.mmap-oath { font-size: 10.5px; font-weight: 600; font-style: italic; color: #8A7448; }
+.mmap { height: 250px; border-radius: 10px; margin-top: 10px; border: 2px solid #B8A67C; }
+#map.marauder .leaflet-tile-pane { filter: sepia(.75) saturate(.65) brightness(1.02) contrast(.94); }
+.mmap .leaflet-container { background: #E4D7B4; }
+.footstep { animation: footin .8s cubic-bezier(.2,1.5,.4,1) both; }
+@keyframes footin {
+  0% { opacity: 0; transform: scale(.2) translateY(-16px); }
+  55% { opacity: 1; transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.btn.ghost.on { border-color: var(--pine, #5E8C5A); color: var(--pine, #5E8C5A); font-weight: 800; }
+
+/* ---- 무전 이펙트 첨부 + 3D ---- */
+.spellrow { margin-top: 8px; }
+.spx.on { background: var(--ink, #26241E); color: #F3EDE0; border-color: var(--ink, #26241E); }
+.ptt3d { perspective: 700px; }
+.ptt3d .ptt { transition: transform .18s cubic-bezier(.3,1.4,.4,1), box-shadow .18s; transform-style: preserve-3d; }
+.ptt3d .ptt:active { transform: rotateX(16deg) scale(.96) translateY(2px); box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.ptt3d .ptt.rec { animation: ptt3drec 1s ease-in-out infinite; box-shadow: 0 0 0 4px rgba(200,80,60,.25), 0 0 26px rgba(200,80,60,.5); }
+@keyframes ptt3drec { 0%,100% { transform: rotateX(6deg) scale(1.02); } 50% { transform: rotateX(10deg) scale(1.05); } }
+
+/* ---- 궁합표 v2 ---- */
+.syn-mine { background: rgba(199,154,62,.12); border: 1px dashed var(--gold, #C79A3E);
+  border-radius: 10px; padding: 10px; margin-bottom: 12px; font-size: 12.5px; }
+.syn-tier { border-left: 3px solid var(--rc); border-radius: 6px; padding: 6px 10px; margin: 10px 0; }
+.syn-th { font-weight: 900; font-size: 11px; letter-spacing: .1em; color: var(--rc); margin-bottom: 6px; }
+.syn-row { display: flex; gap: 8px; font-size: 12px; padding: 3px 0; align-items: baseline; }
+.syn-w { font-weight: 700; white-space: nowrap; }
+.syn-c { opacity: .75; font-size: 11.5px; min-width: 0; }
+.syn-row.egg { opacity: .55; }
+.syn-row.egg.open { opacity: 1; }
+.syn-row.egg.open .syn-w { color: #8000A8; }
+
+/* ---- 오버레이 공통 ✕ ---- */
+.armory, .quiz-card { position: relative; }
+.ovx { position: absolute; top: 8px; right: 8px; z-index: 5; width: 32px; height: 32px;
+  border-radius: 50%; border: 1px solid rgba(127,127,127,.35); background: rgba(0,0,0,.18);
+  color: inherit; font-size: 15px; font-weight: 800; line-height: 1;
+  display: flex; align-items: center; justify-content: center; }
+.ovx:active { transform: scale(.9); }
+
+/* ---- 여행 아카이브 ---- */
+details.arch { margin: 18px 0 6px; }
+details.arch > summary { cursor: pointer; list-style: none; font-weight: 900; font-size: 14px;
+  padding: 12px 14px; border: 1px dashed var(--line, #C9BFA8); border-radius: 12px;
+  background: repeating-linear-gradient(-45deg, transparent 0 10px, rgba(140,120,80,.05) 10px 20px); }
+details.arch > summary::-webkit-details-marker { display: none; }
+details.arch > summary::after { content: "▾"; float: right; opacity: .5; }
+details.arch[open] > summary::after { content: "▴"; }
+details.arch > .card, details.arch > h2 { margin-left: 4px; margin-right: 4px; }
+.mission-row.done-view { pointer-events: none; opacity: .85; }
+
+/* ---- 팩 등급 티징 ---- */
+.pack-tease { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.pack-tease.t { box-shadow: inset 0 0 120px var(--tc, #888); animation: teasepulse .5s ease-in-out infinite alternate; }
+@keyframes teasepulse { from { opacity: .55; } to { opacity: 1; } }
+
+/* ---- 초월 등급 광택 ---- */
+.t6glow { text-shadow: 0 0 30px #B44AE0; }

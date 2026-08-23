@@ -8,16 +8,17 @@
    fx = 무전 보낼 때 받는 사람 화면에 뜨는 시그니처 이펙트
    ============================================================ */
 const TIERS = [
-  { t: 1, name: "일반",  en: "COMMON",    p: 45.7, color: "#7E9A6F" },
+  { t: 1, name: "일반",  en: "COMMON",    p: 45.6, color: "#7E9A6F" },
   { t: 2, name: "희귀",  en: "RARE",      p: 30,   color: "#5B7FA8" },
   { t: 3, name: "영웅",  en: "EPIC",      p: 18,   color: "#8A6BA8" },
   { t: 4, name: "전설",  en: "LEGENDARY", p: 6,    color: "#C79A3E" },
   { t: 5, name: "신화",  en: "MYTHIC",    p: 0.4,  color: "#C8503C" },
+  { t: 6, name: "초월",  en: "TRANSCENDENT", p: 0.1, color: "#8000A8" },
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-22 v34";
-const BUILD_NO = 34;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v35";
+const BUILD_NO = 35;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -26,6 +27,9 @@ const FX = {
   youshallnot:{ shape:"streak",motion:"burst", c:"#EDE6D2", n:26, special:"youshallnot", quake:true },
   forcelift:{ shape:"star",  motion:"rise",  c:"#9FD48A", n:22, special:"forcelift" },
   goldengoal:{ shape:"streak",motion:"sweep", c:"#F2C744", n:26, special:"goldengoal", quake:true },
+  darklord: { shape:"streak",motion:"burst", c:"#57E07A", n:34, special:"darklord", quake:true },
+  greateye: { shape:"streak",motion:"sweep", c:"#FF7A2E", n:34, special:"greateye", quake:true },
+  whitehand:{ shape:"star",  motion:"burst", c:"#EDEDED", n:28, special:"whitehand", quake:true },
   keynote:  { shape:"star",  motion:"rise",  c:"#E8E8ED", n:18, special:"keynote" },
   warn:     { shape:"warn",  motion:"fall",  c:"#C8503C", n:14 },
   ascend:   { shape:"star",  motion:"rise",  c:"#F5E08A", n:40, special:"ascend", quake:true },
@@ -89,26 +93,23 @@ const FX = {
 function C(id, last, first, em, t, ko, fx) { return { id, last, first, em, t, ko, fx }; }
 const ROSTER = [
   /* ---------- 신화 0.1% × 7 ---------- */
-  C("potter","Potter","Harry","⚡",5,"해리 포터","bolt"),
+  C("potter","Potter","Harry","⚡",4,"해리 포터","bolt"),
   C("voldemort","Riddle","Tom","💀",5,"볼드모트","skull"),
+  C("riddle","Riddle","the Heir","🐍",6,"톰 리들 (계승자)","darklord"),
+  C("sauron","Sauron","the Great Eye","👁️",6,"사우론","greateye"),
+  C("saruman","Saruman","the Wise","🗼",5,"사루만","whitehand"),
   C("dumbledore","Dumbledore","Albus","🧙",5,"덤블도어","phoenix"),
-  C("jobs","Jobs","Steve","🍎",5,"스티브 잡스","keynote"),
-  C("grey","Gandalf","the Grey","🧙‍♂️",5,"간달프","youshallnot"),
-  C("yoda","Yoda","Grand Master","🐸",5,"요다","forcelift"),
-  C("son","Son","Heungmin","⚽",5,"손흥민","goldengoal"),
+  C("grey","Gandalf","the White","🤍",5,"간달프 (백색)","youshallnot"),
   /* ---------- 전설 1% × 6 ---------- */
-  C("snape","Snape","Severus","🧪",4,"스네이프","patronus"),
+  C("snape","Snape","Severus","🧪",5,"스네이프","patronus"),
   C("granger","Granger","Hermione","📚",4,"헤르미온느","book"),
   C("ron","Weasley","Ron","🍗",4,"론 위즐리","chess"),
   C("sirius","Black","Sirius","🐕",4,"시리우스","paw"),
   C("mcgonagall","McGonagall","Minerva","🐈",4,"맥고나걸","cat"),
   C("bellatrix","Lestrange","Bellatrix","🗡️",4,"벨라트릭스","curse"),
-  C("smaug","Smaug","the Dragon","🐉",4,"스마우그","firebreath"),
-  C("legolas","Greenleaf","Legolas","🏹",4,"레골라스","arrowrain"),
-  C("grindelwald","Grindelwald","Gellert","🦇",4,"그린델왈드","darkbolt"),
-  C("musk","Musk","Elon","🚀",4,"일론 머스크","rocket"),
-  C("freddie","Mercury","Freddie","🎤",4,"프레디 머큐리","stage"),
-  C("bruce","Lee","Bruce","🥋",4,"브루스 리","impact"),
+  C("galadriel","Galadriel","of Lórien","🌟",4,"갈라드리엘","starfall"),
+  C("witchking","Witch-king","of Angmar","👑",4,"앙마르의 마술사왕","darkbolt"),
+  C("grindelwald","Grindelwald","Gellert","🦇",5,"그린델왈드","darkbolt"),
   /* ---------- 영웅 18% ---------- */
   C("luna","Lovegood","Luna","🌙",3,"루나 러브굿","starfall"),
   C("draco","Malfoy","Draco","🐍",3,"드레이코","swarm"),
@@ -120,6 +121,8 @@ const ROSTER = [
   C("lupin","Lupin","Remus","🐺",3,"리무스 루핀","moon"),
   C("tonks","Tonks","Nymphadora","💗",3,"톤크스","heart"),
   C("moody","Moody","Alastor","👁️",3,"매드아이 무디","eyescan"),
+  C("elrond","Elrond","of Rivendell","💫",3,"엘론드","charm"),
+  C("radagast","Radagast","the Brown","🐦",3,"라다가스트","bird"),
   C("slughorn","Slughorn","Horace","⏳",3,"슬러그혼","sandflood"),
   C("flitwick","Flitwick","Filius","🪄",3,"플리트윅","charm"),
   /* ---------- 희귀 30% ---------- */
@@ -258,13 +261,15 @@ const WEAPONS = [
   W("elderwand","딱총나무 지팡이","The Elder Wand","🪄",5,["potter","voldemort","dumbledore","grindelwald"]),
   W("resurrection","부활의 돌","Resurrection Stone","💎",5,["voldemort","dumbledore"]),
   W("truecloak","진짜 투명 망토","The True Cloak","🫥",5,["potter","sirius"]),
-  W("onering","절대 반지","The One Ring","💍",5,["gollum","grey"]),
-  W("firstphone","첫 번째 아이폰","The First iPhone","📱",5,["jobs"]),
+  W("voldywand","볼드모트의 지팡이","Voldemort's Wand","🦴",5,["voldemort","riddle"]),
+  W("sauronmace","사우론의 철퇴","Mace of Sauron","🔨",5,["sauron","witchking"]),
+  W("potterwand","해리의 지팡이","Harry's Wand","🪄",4,["potter"]),
+  W("whitestaff","사루만의 지팡이","Staff of Saruman","🗼",4,["saruman"]),
+  W("morgulblade","모르굴의 검","Morgul-blade","🔪",4,["witchking","sauron"]),
+  W("nenya","네냐 (물의 반지)","Nenya","💧",4,["galadriel"]),
+  W("vilya","빌랴 (바람의 반지)","Vilya","🌀",3,["elrond","galadriel"]),
+  W("onering","절대 반지","The One Ring","💍",5,["gollum","sauron"]),
   W("timeturner_o","원본 시간 돌리개","Original Time-Turner","⏳",5,["granger","slughorn"]),
-  W("teslacar","테슬라","Tesla","🚗",4,["musk"]),
-  W("falcon","팰컨 로켓","Falcon Rocket","🚀",4,["musk"]),
-  W("micstand","반쪽 마이크스탠드","Half Mic Stand","🎙️",4,["freddie"]),
-  W("nunchaku","쌍절곤","Nunchaku","🥢",4,["bruce"]),
   W("basilisk","바실리스크 송곳니","Basilisk Fang","🦷",4,["potter","voldemort","ginny"]),
   W("gryffindorsword","그리핀도르의 검","Sword of Gryffindor","⚔️",4,["potter","neville"]),
   W("firebolt","파이어볼트","Firebolt","🧹",4,["potter","ginny","wood"]),
@@ -458,18 +463,10 @@ const WEAPONS = [
   W("hope","희망","Hope","✨",1,[]),
   W("regret","후회","Regret","😔",1,[]),
   /* ---------- v33 신규 ---------- */
-  W("yodasaber","요다의 광선검","Yoda's Lightsaber","🟢",5,["yoda"]),
-  W("sonboots","손흥민의 축구화","Sonny's Boots","👟",5,["son"]),
-  W("palantir","팔란티어","The Palantir","🔮",5,["grey"]),
+  W("palantir","팔란티어","The Palantir","🔮",5,["saruman","sauron"]),
   W("glamdring","글람드링","Glamdring","⚔️",4,["grey"]),
-  W("holocron","포스 홀로크론","Force Holocron","🔷",4,["yoda"]),
-  W("captainband","주장 완장","Captain's Armband","🎽",4,["son"]),
-  W("soccerball","월드컵 공인구","World Cup Ball","⚽",3,["son"]),
   W("gandalfworks","간달프의 폭죽","Gandalf's Fireworks","🎆",3,["grey"]),
-  W("jedirobe","제다이 로브","Jedi Robe","🥋",3,["yoda"]),
-  W("varmonitor","VAR 모니터","VAR Monitor","📺",3,["son"]),
   W("teamvest","팀 조끼","Team Bib","🦺",2,[]),
-  W("scarf_son","응원 머플러","Supporter Scarf","🧣",2,["son"]),
   W("foamcup","스티로폼 컵","Styrofoam Cup","🥤",1,[]),
   W("chopstick1","젓가락 한 짝","Single Chopstick","🥢",1,[]),
   W("wetwipe","물티슈 한 장","One Wet Wipe","🧻",1,[]),
@@ -720,6 +717,8 @@ function charFx(memberId, level) {
   if (f.quake && !calmFx) { document.body.classList.add("quake"); setTimeout(() => document.body.classList.remove("quake"), 1100); }
   if (c.t >= 3) edgeGlow(f.c || colorOf(memberId), c.t >= 4);
   if (f.special) specialFx(f.special, f.c, isAwakened(memberId) ? 6 : c.t, memberId);
+  if (typeof FX2C === "function") FX2C(c);
+  if (typeof FX2C === "function" && c.t >= 5) FX2C(c);
   else { const o = document.getElementById("sfx"); if (o) { o.hidden = true; o.innerHTML = ""; o.className = ""; o.style.display = "none"; } }
   return true;
 }
@@ -757,6 +756,12 @@ function specialFx(kind, color, tier, memberId) {
     youshallnot:{ wash:"#CFC8B4", glyph:"🧙‍♂️", cls:"w-ysn" },
     forcelift:{ wash:"#6FA85C", glyph:"🐸", cls:"w-force" },
     goldengoal:{ wash:"#0F5132", glyph:"⚽", cls:"w-goal" },
+    darklord: { wash:"#12291A", glyph:"🐍", cls:"w-skull" },
+    greateye: { wash:"#3A0E00", glyph:"👁️", cls:"w-eye" },
+    whitehand:{ wash:"#D8D8D8", glyph:"🗼", cls:"w-chess" },
+    darklord: { wash:"#12301C", glyph:"🐍", cls:"w-skull" },
+    greateye: { wash:"#3A0E00", glyph:"👁️", cls:"w-eye" },
+    whitehand:{ wash:"#D8D8D8", glyph:"🗼", cls:"w-chess" },
   }[kind];
   if (!T) return;
 
@@ -1324,6 +1329,7 @@ function onLive(table, payload) {
   if (table === "checkins") {
     const isVoice = !!r.audio;
     const body = isVoice ? "음성 무전이 도착했어" : (r.note ? r.note : r.place);
+    if (r.spell) try { FX2.cast(r.spell, { quick: true }); } catch (e) {}
     incoming({
       who: actor,
       name: nameOf(actor) + (isVoice ? " · 음성" : r.lat ? " · 위치" : ""),
@@ -1848,6 +1854,7 @@ function renderHome() {
   const el = $("#tab-home");
   const p = modeOverride ? "during" : phase();
   let html = "";
+  html += kelHubHtml();
 
   if (p === "before") {
     const fd = firstDestination();
@@ -2262,14 +2269,12 @@ function renderStamp() {
   html += '<div class="radio-row" style="margin-top:8px">' +
     '<button class="stamp-big half" id="do-stamp">📮 도장+한마디</button>' +
     '<button class="stamp-big half" id="do-text" style="background:var(--ink)">💬 문자 교신</button></div>' +
-    '<div class="shop-add" id="text-row" hidden><input class="input" id="radio-text" placeholder="짧게 한 마디 (신호 없으면 자동 대기)"><button class="btn" id="radio-send">📨</button></div>';
-
-  html += liarCardHtml();
+    '<div class="shop-add" id="text-row" hidden><input class="input" id="radio-text" placeholder="짧게 한 마디 (신호 없으면 자동 대기)"><button class="btn" id="radio-send">📨</button></div>' + spellChipRow();
 
   html += '<h2 class="sec">교신 — 카드 탭하면 위치 요청</h2><div class="board">';
   for (const m of MEMBERS) {
     const c = latest[m.id];
-    html += '<div class="board-card" data-mid="' + m.id + '"><div class="board-name">' + av(m.id, "mini") + esc(m.name) + (m.id !== me ? '<span class="board-req">📍</span>' : "") + "</div>" +
+    html += '<div class="board-card" data-mid="' + m.id + '"><div class="board-name">' + av(m.id, "mini") + esc(m.name) + (m.id !== me ? '<span class="board-req">📍</span>' : "") + (m.id !== me && charOf(me) && charOf(m.id) ? '<span class="board-duel" data-duel="' + m.id + '">⚔️</span>' : "") + "</div>" +
       (c ? '<div class="board-place">' + esc(c.place) + (c.audio ? ' <button class="play-btn" data-audio="' + esc(c.audio) + '">▶️</button>' : "") + '</div><div class="board-when">' + relTime(c.created_at) + (c.lat ? " · 📍" : "") + "</div>" +
         (c.note ? '<div class="board-note">' + esc(c.note) + "</div>" : "")
         : '<div class="board-when">아직 소식 없음</div>') +
@@ -2277,20 +2282,7 @@ function renderStamp() {
   }
   html += "</div>";
 
-  html += '<h2 class="sec">지도</h2><div id="map"></div>';
-
-  html += '<h2 class="sec">같이 할 것</h2><div class="card">';
-  for (const mi of MISSIONS) {
-    const label = mi.e + " " + mi.t;
-    const doneBy = MEMBERS.filter((m2) => store.checkins.some((c) => c.member === m2.id && c.place === label));
-    const mine = me && doneBy.some((m2) => m2.id === me);
-    html += '<div class="mission-row' + (mine ? " done" : "") + '" data-label="' + esc(label) + '">' +
-      '<span class="mi-badge">' + mi.e + "</span>" +
-      '<span class="mi-title">' + esc(mi.t) + "</span>" +
-      '<span class="mi-who">' + doneBy.map((m2) => av(m2.id, "mini")).join("") + "</span>" +
-      '<span class="mi-act">' + (mine ? "✔" : "완료") + "</span></div>";
-  }
-  html += "</div>";
+  html += marauderCardHtml();
 
   const hideFeed = localStorage.getItem("kel_hidefeed") === "1";
   if (!hideFeed) {
@@ -2318,6 +2310,7 @@ function renderStamp() {
     '<p class="muted" id="siren-hint" style="margin:10px 0 0">익명 · 10분에 1번 · 두 번 눌러야 발사 (전원 폰에 사이렌)</p></div></div>';
 
   el.innerHTML = html;
+  bindMarauder();
   $("#do-stamp").onclick = openStampModal;
   const ptt = $("#do-ping");
   ptt.onpointerdown = pttDown;
@@ -2337,7 +2330,7 @@ function renderStamp() {
   });
 
   $$(".board-card", el).forEach((bc) => bc.onclick = async (ev) => {
-    if (ev.target.closest(".play-btn")) return;
+    if (ev.target.closest(".play-btn") || ev.target.closest(".board-duel")) return;
     const mid = bc.dataset.mid;
     if (!mid || mid === me) return;
     if (!me) return openWho();
@@ -2371,7 +2364,8 @@ function renderStamp() {
     if (!me) return openWho();
     const v = rt.value.trim();
     if (!v) return;
-    const res = await qInsert("checkins", { member: me, place: "💬", note: v, lat: null, lng: null });
+    const res = await qInsert("checkins", { member: me, place: "💬", note: v, lat: null, lng: null, spell: window.KSEL || null });
+    if (window.KSEL) FX2.cast(window.KSEL);
     rt.value = "";
     if (res === true) { selfFx(); sendPush(nameOf(me), v, "radio"); loadAll(); }
   }
@@ -2582,7 +2576,7 @@ async function sendVoice(blob, mime) {
     const ins = await sb.from("checkins").insert({
       member: me, place: "📻 음성 교신", note: null,
       lat: lastPos ? lastPos.lat : null, lng: lastPos ? lastPos.lng : null,
-      audio: pub.data.publicUrl,
+      audio: pub.data.publicUrl, spell: window.KSEL || null,
     });
     if (ins.error) throw ins.error;
     beep(); stampFx("📻 음성 교신");
@@ -2857,6 +2851,7 @@ function renderInfo() {
     '<div class="kv"><b>📲 설치</b><span class="code-line"><button class="btn ghost small" id="ig-open2">설치 방법 보기</button></span></div>' +
     "</div>";
 
+  html += '<details class="arch"><summary>🗄️ 여행 아카이브 — 켈로나 2026.08</summary>';
   html += '<h2 class="sec">숙소</h2><div class="card">' +
     "<b>" + esc(TRIP.cabinName) + "</b>" +
     '<div class="kv"><b>주소</b><span class="code-line"><span style="font-size:13.5px">Unit #1, 9995 McCulloch Rd</span><button class="btn ghost small cp" data-copy="9995 McCulloch Rd, Kelowna, BC" data-lb="주소">복사</button></span></div>' +
@@ -2888,6 +2883,9 @@ function renderInfo() {
     '<div class="kv"><b>음식</b><span>상우 · 다흰 (장보기 리스트는 장부 탭)</span></div>' +
     '<div class="kv"><b>벙커베드</b><span>게임 져서 정함 · 이틀 연속 금지</span></div>' +
     "</div>";
+  html += liarCardHtml();
+  html += '<h2 class="sec">같이 한 것</h2>' + archMissionsHtml();
+  html += '</details>';
 
   html += '<h2 class="sec">현지 체크 — 자동</h2>' +
     '<div id="aq-info">' + aqHtml() + "</div>" +
@@ -2913,6 +2911,9 @@ function renderInfo() {
     ' <span class="muted" style="font-size:12px">🎟️' + wTickets() + "</span>" +
     '<button class="btn ghost small" id="armory-btn">무기고</button>' +
     '<button class="btn ghost small" id="wdraw-btn">뽑기</button></span></div>' +
+    '<div class="kv"><b>📜 주문</b><span class="code-line"><span class="muted" style="font-size:12px">Lv.' + lvOf(me) + ' · ' + myBook().length + '개 · 📜' + sTickets() + '</span>' +
+    '<button class="btn ghost small" id="book-btn">주문서</button>' +
+    '<button class="btn ghost small" id="rank-btn">전적</button></span></div>' +
     '<div class="kv"><b>교신 기록</b><span class="code-line">' +
     (localStorage.getItem("kel_hidefeed") === "1" ? '<span class="muted">숨김</span>' : '<b style="color:var(--pine)">표시 중</b>') +
     '<button class="btn ghost small" id="feed-toggle">' + (localStorage.getItem("kel_hidefeed") === "1" ? "다시 보기" : "숨기기") + "</button></span></div>" +
@@ -2967,13 +2968,13 @@ function renderInfo() {
     '<div class="muted" style="font-size:11px">사실 공짜</div></div></div>' +
     '<div class="btn-row" style="margin-top:12px;gap:8px">' +
     '<button class="btn ghost" id="quiz-btn" style="flex:1">🧠 퀴즈 만점 = 확률 2배</button>' +
-    '<button class="btn ghost" id="ad-btn" style="flex:1">📺 광고 보고 10번</button></div>' +
+    '</div>' +
     '<button class="btn" id="fate-btn" style="width:100%;margin-top:8px">$10.99 결제 (가짜)</button>' +
     '<div class="shop">' +
       '<button class="shop-item' + (canBuy100() ? "" : " off") + '" id="buy100">' +
         '<span class="shop-price">$100</span>' +
         '<span class="shop-t">프리미엄 팩</span>' +
-        '<span class="shop-d">카드 5장 · 확률 3배 · 하루 ' + P100_PER_DAY + "번</span>" +
+        '<span class="shop-d">종류 선택 · 5장 · 확률 3배 · 하루 ' + P100_PER_DAY + "번</span>" +
         '<span class="shop-s">' + (extraPrem() > 0 ? "🎁 보유 " + extraPrem() + "장 · " : "") +
           "오늘 " + used100Today() + "/" + P100_PER_DAY +
           (used100Today() < P100_PER_DAY ? " · 구매 가능" : (extraPrem() > 0 ? " · 선물로 가능" : " · 내일 다시")) + "</span></button>" +
@@ -3061,20 +3062,15 @@ function renderInfo() {
     toast("💸 결제 완료(가짜). 20번 새로 받았어");
     setTimeout(openRoll, myTitle() && localStorage.getItem("kel_title_seen") === String(myTitle().n) ? 300 : 0);
   };
-  const ab = $("#ad-btn");
-  if (ab) ab.onclick = () => showAd(() => { rollResult = drawCharacter(); openRoll(); });
   const b100 = $("#buy100");
   if (b100) b100.onclick = () => {
     if (!canBuy100()) return toast("오늘 " + P100_PER_DAY + "번 다 썼어. 내일 다시");
-    if (!confirm("$100 프리미엄 팩\n카드 5장 · 확률 3배\n오늘 " + used100Today() + "/" + P100_PER_DAY + " 사용\n\n(진짜 결제 아님)")) return;
-    openMulti(100);
+    openPackChoose(100);
   };
   const b1000 = $("#buy1000");
-  if (b1000) b1000.onclick = () => {
-    if (!canBuy1000()) return toast("평생 한 번인데 이미 썼어");
-    if (!confirm("$1,000 울트라 팩\n카드 3장 · 확률 10배\n\n평생 딱 한 번뿐이야. 진짜 열까?")) return;
-    openMulti(1000);
-  };
+  if (b1000) b1000.onclick = () => openPackChoose(1000);
+  const bkb = $("#book-btn"); if (bkb) bkb.onclick = openSpellbook;
+  const rkb = $("#rank-btn"); if (rkb) rkb.onclick = openRank;
   const qb = $("#quiz-btn");
   if (qb) qb.onclick = () => showQuiz(() => { rollResult = drawCharacter(); openRoll(); });
   const pon = $("#push-on"); if (pon) pon.onclick = enablePush;
@@ -3500,7 +3496,7 @@ function drawTut() {
   const a = $("#tut-act");
   if (a && !isDone) a.onclick = () => { try { st.run(); } catch (e) { console.error(e); } };
 }
-function closeTut() { localStorage.setItem("kel_tut", "1"); tutPaused = false; $("#tut-modal").hidden = true; rerender(); }
+function closeTut() { localStorage.setItem("kel_tut", "35"); tutPaused = false; $("#tut-modal").hidden = true; rerender(); }
 
 /* ---------- 연출용 레이어가 없으면 직접 만든다 (옛 HTML 캐시 대비) ---------- */
 function ensureLayers() {
@@ -3822,7 +3818,7 @@ function openPack(c, done) {
   if (!pack) { done && done(); return; }
   packClear();
   const tier = tierById[c.t];
-  const myth = c.t === 5;
+  const myth = c.t >= 5;
   const calm = reduceMotion();
   const dur = calm ? 1800 : (myth ? 6200 : 4600), scale = dur / 4600;
   const F = FX[c.fx] || {};
@@ -3884,6 +3880,28 @@ function openPack(c, done) {
     buzz(c.t >= 5 ? [60, 40, 60, 40, 140] : c.t >= 4 ? [40, 50, 90] : [30]);
   }, tBeam);
 
+  // 1.5) 등급 티징 — 테두리 색이 아래 등급부터 차오르다 진짜 색으로 스냅
+  if (c.t >= 3 && !calm) {
+    const ladder = [1, 2, 3, 4, 5, 6].filter((x) => x <= c.t).map((x) => tierById[x].color);
+    ladder.forEach((col, i) => PT(() => {
+      pack.style.setProperty("--rc", col);
+      front.style.setProperty("--rc", col);
+      bg.style.setProperty("--rc", col);
+      if (i === ladder.length - 1 && typeof FX2 !== "undefined") FX2.flash(col, 160);
+    }, Math.round(tFlip * 0.35) + i * Math.round((tFlip * 0.55) / ladder.length)));
+  }
+
+  // 1.5) 등급 티징 — 한 단계 낮은 색으로 예열하다 마지막에 진짜 색으로 스냅
+  PT(() => {
+    let tz = pack.querySelector(".pack-tease");
+    if (!tz) { tz = document.createElement("div"); tz.className = "pack-tease"; pack.appendChild(tz); }
+    const fakeT = c.t >= 4 ? tierById[c.t - 1] : tier;
+    tz.style.setProperty("--tc", fakeT.color);
+    tz.classList.add("t");
+    PT(() => { tz.style.setProperty("--tc", tier.color); }, Math.round(700 * scale));
+    PT(() => { tz.classList.remove("t"); }, Math.round(1100 * scale));
+  }, tFlip - Math.round(1300 * scale));
+
   // 2) 공개 직전 섬광
   PT(() => { const f = $("#p-flash"); f.className = "flash"; void f.offsetWidth; f.className = "flash go" + (c.t >= 4 ? " big" : ""); },
      tFlip - Math.round(220 * scale));
@@ -3897,6 +3915,11 @@ function openPack(c, done) {
     document.body.classList.add("sfx-shake");
     setTimeout(() => document.body.classList.remove("sfx-shake"), 1500);
     if (F.special) specialFx(F.special, F.c, c.t);
+    if (typeof FX2 !== "undefined") {
+      if (c.t >= 5) { FX2.hitstop(c.t >= 6 ? 260 : 180); FX2.shake(c.t >= 6 ? 0.7 : 0.45); }
+      FX2.burst(innerWidth / 2, innerHeight * 0.42, { c: tier.color, n: c.t >= 5 ? 90 : 40 + c.t * 10, sp: 8 + c.t, sz: 9, up: 1 });
+      if (c.t >= 6) FX2.stamp("TRANSCENDENT", tier.color);
+    }
   }, tFlip);
 
   // 4) 정보 등장 + 색종이(전 등급)
@@ -3950,13 +3973,13 @@ function ascendFx() {
 function today() { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
 function extraUltra() { return Number(localStorage.getItem("kel_x_ultra") || 0); }
 function extraPrem() { return Number(localStorage.getItem("kel_x_prem") || 0); }
-const P100_PER_DAY = 2;
+const P100_PER_DAY = 6;
 function used100Today() {
   const rec = (localStorage.getItem("kel_p100") || "").split("|");
   return rec[0] === today() ? Number(rec[1] || 1) : 0;
 }
 function canBuy100() { return used100Today() < P100_PER_DAY || extraPrem() > 0; }
-function canBuy1000() { return !localStorage.getItem("kel_p1000") || extraUltra() > 0; }
+function canBuy1000() { return ultraLeftType("char") || extraUltra() > 0; }
 function applyGrants() {
   const tok = setting("grant_token") || "";
   if (!tok || !me) return;
@@ -4010,7 +4033,7 @@ function drawMulti(n, boost) {
 }
 function openMulti(kind) {
   if (kind === 100 && !canBuy100()) return toast("100달러 팩은 하루 " + P100_PER_DAY + "번이야");
-  if (kind === 1000 && !canBuy1000()) return toast("1000달러 팩은 평생 한 번뿐이야");
+  if (kind === 1000 && !canBuy1000()) return toast("이번 주 울트라 캐릭터 슬롯은 이미 썼어 — 월요일 리셋");
   if (!me) return openWho();
   const n = kind === 1000 ? 3 : 5;
   const boost = kind === 1000 ? 10 : 3;
@@ -4020,11 +4043,7 @@ function openMulti(kind) {
     if (used100Today() >= P100_PER_DAY && extraPrem() > 0)
       localStorage.setItem("kel_x_prem", String(extraPrem() - 1));
     else localStorage.setItem("kel_p100", today() + "|" + (used100Today() + 1));
-  } else {
-    if (localStorage.getItem("kel_p1000") && extraUltra() > 0)
-      localStorage.setItem("kel_x_ultra", String(extraUltra() - 1));
-    else localStorage.setItem("kel_p1000", today());
-  }
+  } else { /* 울트라 캐릭터 슬롯은 openPackChoose에서 ultraMark 처리 */ }
 
   let box = document.getElementById("multibox");
   if (!box) { box = document.createElement("div"); box.id = "multibox"; document.body.appendChild(box); }
@@ -4096,7 +4115,7 @@ function drawWeaponResult(w, mode) {
   if (!box) { box = document.createElement("div"); box.id = "wbox"; document.body.appendChild(box); }
   box.hidden = false;
   box.innerHTML =
-    '<div class="quiz-card">' +
+    '<div class="quiz-card"><button class="ovx" data-ovx>✕</button>' +
       '<div class="wres-em">' + w.em + "</div>" +
       '<div class="wres-t">' + esc(w.ko) + "</div>" +
       '<div class="wres-en">' + esc(w.en) + " · " + t.name + "</div>" +
@@ -4138,7 +4157,7 @@ function openArmory() {
   const rush = rushActive();
   box.hidden = false;
   box.innerHTML =
-    '<div class="armory">' +
+    '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
       '<div class="arm-top">무기고 <span>' + owned.length + " / " + WEAPONS.length + "</span></div>" +
       (rush ? '<div class="rush-note">⚡ 무제한 진행 중 — ' + fmtMS(rushLeftMs()) + " 동안 티켓 없이 뽑기</div>" : "") +
       (wants.length ? '<div class="arm-want">' + (c ? esc(c.ko) : "") + '이(가) 원하는 무기<div class="arm-wrow">' +
@@ -4183,7 +4202,7 @@ function openBoxes() {
   if (!box) { box = document.createElement("div"); box.id = "boxbox"; document.body.appendChild(box); }
   box.hidden = false;
   box.innerHTML =
-    '<div class="armory">' +
+    '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
       '<div class="arm-top">위험한 상자 <span>🎟️ ' + wTickets() + "</span></div>" +
       '<p class="muted" style="font-size:12.5px;margin:0 0 12px">잃을 수도 있고, 신화를 얻을 수도 있어</p>' +
       BOXES.map((b) =>
@@ -4235,7 +4254,7 @@ function showBoxResult(win, lost, w) {
   if (!box) { box = document.createElement("div"); box.id = "wbox"; document.body.appendChild(box); }
   box.hidden = false;
   if (!win) {
-    box.innerHTML = '<div class="quiz-card">' +
+    box.innerHTML = '<div class="quiz-card"><button class="ovx" data-ovx>✕</button>' +
       '<div class="wres-em">💀</div><div class="wres-t">무기 ' + lost + "개 소멸</div>" +
       '<div class="wres-en">그러게 열지 말랬는데</div>' +
       '<button class="btn" id="w-close" style="width:100%;margin-top:16px">…</button></div>';
@@ -4244,7 +4263,7 @@ function showBoxResult(win, lost, w) {
     const t = tierById[w.t];
     const c = charOf(me);
     const fit = c && (w.want || []).indexOf(c.id) >= 0;
-    box.innerHTML = '<div class="quiz-card">' +
+    box.innerHTML = '<div class="quiz-card"><button class="ovx" data-ovx>✕</button>' +
       '<div class="wres-em">' + w.em + "</div>" +
       '<div class="wres-t">' + esc(w.ko) + "</div>" +
       '<div class="wres-en">' + esc(w.en) + " · " + t.name + "</div>" +
@@ -4344,9 +4363,7 @@ function drawRoll() {
     '<p class="muted" style="text-align:center;margin:12px 0 0;font-size:12.5px">확정 후에도 <b>INFO 탭 → 운명 거스르기</b>에서 다시 뽑을 수 있어</p>';
   $("#roll-again").onclick = () => {
     if (myRolls() >= MAX_ROLLS) {
-      if (adsWatched() < MAX_ADS && confirm("뽑기 20번을 다 썼어.\n광고 보고 10번 더 받을까?"))
-        return showAd(() => { rollResult = drawCharacter(); drawRoll(); });
-      if (confirm("퀴즈 만점 맞히면 확률 2배 쿠폰을 줘. 풀어볼래?"))
+      if (confirm("뽑기 20번을 다 썼어.\n퀴즈 만점 맞히면 확률 2배 쿠폰을 줘. 풀어볼래?"))
         return showQuiz(() => { rollResult = drawCharacter(); drawRoll(); });
       return toast("INFO 탭 → 운명 거스르기에서 충전할 수 있어");
     }
@@ -4401,7 +4418,7 @@ async function confirmRoll() {
   } else if (c.t === 4) {
     sendPush("🏅 전설 등장", nameOf(me) + " → " + c.em + " " + c.ko, "legend");
   }
-  if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 2600);
+  if (localStorage.getItem("kel_tut") !== "35") setTimeout(openTut, 2600);
   else setTimeout(() => toast("다시 뽑고 싶으면 INFO 탭 → 운명 거스르기"), 3000);
 }
 function openOdds() {
@@ -4447,7 +4464,7 @@ function openWho() {
       toast("🎮 " + nameOf(me) + " 선택! (상단 아바타를 누르면 언제든 바꿀 수 있어)");
       if (tutPaused) setTimeout(tutResume, 300);
       else if (!charOf(me)) setTimeout(openRoll, 400);
-      else if (!localStorage.getItem("kel_tut")) setTimeout(openTut, 400);
+      else if (localStorage.getItem("kel_tut") !== "35") setTimeout(openTut, 400);
     }, 320);
   });
   $("#who-modal").hidden = false;
@@ -5234,3 +5251,1260 @@ function kelV33Init() {
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", kelV33Init);
 else kelV33Init();
+
+/* ============================================================
+   v35 — 마법사 대전 업데이트 (여행 종료 → 상시 게임 앱)
+   FX 2.0(WebGL+Canvas) · 주문 수집 · 실시간 배틀 · 도적의 지도
+   ============================================================ */
+
+/* ---------------- FX 2.0 — 이중 렌더러 엔진 ---------------- */
+var FX2 = (function () {
+  var cv, gl, ctx2, W2 = 0, H2 = 0, dpr = 1, mode = "none";
+  var parts = [], pool = [], MAXP = 420, running = false, lastT = 0;
+  var trauma = 0, hitUntil = 0, timeScale = 1;
+  var glProg, glBuf, glLoc = {};
+
+  function mount() {
+    if (cv) return;
+    cv = document.createElement("canvas");
+    cv.id = "fx2";
+    cv.style.cssText = "position:fixed;inset:0;z-index:640;pointer-events:none;mix-blend-mode:screen";
+    document.body.appendChild(cv);
+    resize();
+    window.addEventListener("resize", resize);
+    // WebGL 우선, 실패하면 2D 폴백 — API는 동일
+    try {
+      gl = cv.getContext("webgl2", { alpha: true, premultipliedAlpha: true }) ||
+           cv.getContext("webgl", { alpha: true, premultipliedAlpha: true });
+      if (gl) initGL();
+    } catch (e) { gl = null; }
+    if (gl && glProg) mode = "gl";
+    else { ctx2 = cv.getContext("2d"); mode = "2d"; }
+    cv.addEventListener("webglcontextlost", function (e) {
+      e.preventDefault(); gl = null; glProg = null; ctx2 = cv.getContext("2d"); mode = "2d";
+    });
+  }
+  function resize() {
+    if (!cv) return;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W2 = cv.width = Math.round(innerWidth * dpr);
+    H2 = cv.height = Math.round(innerHeight * dpr);
+    cv.style.width = innerWidth + "px"; cv.style.height = innerHeight + "px";
+    if (gl) gl.viewport(0, 0, W2, H2);
+  }
+  function initGL() {
+    var vs = "attribute vec2 p;attribute float s;attribute vec4 c;varying vec4 vc;uniform vec2 r;" +
+      "void main(){vc=c;gl_PointSize=s;gl_Position=vec4(p/r*2.0-1.0,0.0,1.0);gl_Position.y*=-1.0;}";
+    var fs = "precision mediump float;varying vec4 vc;void main(){vec2 d=gl_PointCoord-vec2(.5);" +
+      "float a=smoothstep(.5,.06,length(d));float core=smoothstep(.24,.0,length(d));" +
+      "vec3 col=mix(vc.rgb,vec3(1.0),core*.85);gl_FragColor=vec4(col*a*vc.a,a*vc.a);}";
+    function sh(t, src) { var s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s); return s; }
+    glProg = gl.createProgram();
+    gl.attachShader(glProg, sh(gl.VERTEX_SHADER, vs));
+    gl.attachShader(glProg, sh(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(glProg);
+    if (!gl.getProgramParameter(glProg, gl.LINK_STATUS)) { glProg = null; return; }
+    gl.useProgram(glProg);
+    glBuf = gl.createBuffer();
+    glLoc.p = gl.getAttribLocation(glProg, "p");
+    glLoc.s = gl.getAttribLocation(glProg, "s");
+    glLoc.c = gl.getAttribLocation(glProg, "c");
+    glLoc.r = gl.getUniformLocation(glProg, "r");
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // additive-ish premultiplied
+  }
+  function hex(c) {
+    var n = parseInt((c || "#ffffff").replace("#", ""), 16);
+    return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
+  }
+  function P2() { return pool.pop() || {}; }
+  function spawn(o) {
+    if (parts.length >= MAXP) { pool.push(parts.shift()); }
+    var p = P2();
+    p.x = o.x; p.y = o.y; p.vx = o.vx || 0; p.vy = o.vy || 0;
+    p.g = o.g || 0; p.drag = o.drag == null ? 0.995 : o.drag;
+    p.life = p.life0 = o.life || 0.9;
+    p.sz = o.sz || 6; p.c = o.c || "#fff"; p.rgb = hex(p.c);
+    p.tw = o.tw || 0; p.turb = o.turb || 0; p.stretch = o.stretch || 0;
+    p.seed = Math.random() * 6.28;
+    parts.push(p);
+    kick();
+  }
+  function kick() {
+    if (running) return;
+    running = true; lastT = performance.now();
+    requestAnimationFrame(loop);
+  }
+  function loop(t) {
+    var dt = Math.min(0.05, (t - lastT) / 1000); lastT = t;
+    var ts = performance.now() < hitUntil ? 0.22 : 1; // 히트스톱
+    dt *= ts * timeScale;
+    // 트라우마 셰이크 (지수 감쇠 + 미세 회전)
+    if (trauma > 0.003) {
+      trauma *= Math.pow(0.86, dt * 60);
+      var sh2 = trauma * trauma;
+      document.body.style.transform = "translate(" + ((Math.random() * 2 - 1) * 14 * sh2) + "px," +
+        ((Math.random() * 2 - 1) * 10 * sh2) + "px) rotate(" + ((Math.random() * 2 - 1) * 1.4 * sh2) + "deg)";
+    } else if (trauma !== 0) { trauma = 0; document.body.style.transform = ""; }
+
+    for (var i = parts.length - 1; i >= 0; i--) {
+      var p = parts[i];
+      p.life -= dt;
+      if (p.life <= 0) { pool.push(p); parts.splice(i, 1); continue; }
+      if (p.turb) { p.vx += Math.sin(t / 300 + p.seed) * p.turb * dt * 60; }
+      p.vy += p.g * dt * 60;
+      p.vx *= p.drag; p.vy *= p.drag;
+      p.x += p.vx * dt * 60; p.y += p.vy * dt * 60;
+    }
+    draw();
+    if (parts.length || trauma > 0.003) requestAnimationFrame(loop);
+    else { running = false; clear(); document.body.style.transform = ""; }
+  }
+  function clear() {
+    if (mode === "gl" && gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+    else if (ctx2) ctx2.clearRect(0, 0, W2, H2);
+  }
+  var buf = new Float32Array(MAXP * 7);
+  function draw() {
+    if (mode === "gl" && gl && glProg) {
+      // 잔상 트레일: 프레임을 지우지 않고 어두운 사각형으로 살짝 덮는다
+      gl.blendFunc(gl.ZERO, gl.SRC_ALPHA); // dst *= alpha
+      fadeQuad(0.86);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      var n = 0;
+      for (var i = 0; i < parts.length; i++) {
+        var p = parts[i], a = Math.min(1, p.life / p.life0 * 1.4);
+        var k = n * 7;
+        buf[k] = p.x * dpr; buf[k + 1] = p.y * dpr;
+        buf[k + 2] = (p.sz + (p.tw ? Math.sin(lastT / 60 + p.seed) * p.tw : 0)) * dpr;
+        buf[k + 3] = p.rgb[0]; buf[k + 4] = p.rgb[1]; buf[k + 5] = p.rgb[2]; buf[k + 6] = a;
+        n++;
+      }
+      gl.useProgram(glProg);
+      gl.uniform2f(glLoc.r, W2, H2);
+      gl.bindBuffer(gl.ARRAY_BUFFER, glBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, buf.subarray(0, n * 7), gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(glLoc.p); gl.vertexAttribPointer(glLoc.p, 2, gl.FLOAT, false, 28, 0);
+      gl.enableVertexAttribArray(glLoc.s); gl.vertexAttribPointer(glLoc.s, 1, gl.FLOAT, false, 28, 8);
+      gl.enableVertexAttribArray(glLoc.c); gl.vertexAttribPointer(glLoc.c, 4, gl.FLOAT, false, 28, 12);
+      gl.drawArrays(gl.POINTS, 0, n);
+    } else if (ctx2) {
+      ctx2.globalCompositeOperation = "destination-in";
+      ctx2.fillStyle = "rgba(0,0,0,0.86)";
+      ctx2.fillRect(0, 0, W2, H2);
+      ctx2.globalCompositeOperation = "lighter";
+      for (var j = 0; j < parts.length; j++) {
+        var q = parts[j], al = Math.min(1, q.life / q.life0 * 1.4);
+        var sz = (q.sz + (q.tw ? Math.sin(lastT / 60 + q.seed) * q.tw : 0)) * dpr * 0.5;
+        var sp = Math.hypot(q.vx, q.vy);
+        ctx2.save();
+        ctx2.translate(q.x * dpr, q.y * dpr);
+        if (q.stretch && sp > 2) { ctx2.rotate(Math.atan2(q.vy, q.vx)); ctx2.scale(1 + sp * 0.12, 1); }
+        var g2 = ctx2.createRadialGradient(0, 0, 0, 0, 0, sz);
+        g2.addColorStop(0, "rgba(255,255,255," + (0.9 * al) + ")");
+        g2.addColorStop(0.35, q.c);
+        g2.addColorStop(1, "rgba(0,0,0,0)");
+        ctx2.globalAlpha = al;
+        ctx2.fillStyle = g2;
+        ctx2.beginPath(); ctx2.arc(0, 0, sz, 0, 6.283); ctx2.fill();
+        ctx2.restore();
+      }
+      ctx2.globalAlpha = 1;
+    }
+  }
+  var fadeBuf;
+  function fadeQuad(alpha) {
+    // 화면 전체를 point 하나로 덮을 수 없으니 거대 포인트 하나로 근사
+    if (!fadeBuf) fadeBuf = gl.createBuffer();
+    var m = Math.max(W2, H2) * 2.2;
+    var arr = new Float32Array([W2 / 2, H2 / 2, m, 0, 0, 0, alpha]);
+    gl.useProgram(glProg);
+    gl.uniform2f(glLoc.r, W2, H2);
+    gl.bindBuffer(gl.ARRAY_BUFFER, fadeBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
+    gl.enableVertexAttribArray(glLoc.p); gl.vertexAttribPointer(glLoc.p, 2, gl.FLOAT, false, 28, 0);
+    gl.enableVertexAttribArray(glLoc.s); gl.vertexAttribPointer(glLoc.s, 1, gl.FLOAT, false, 28, 8);
+    gl.enableVertexAttribArray(glLoc.c); gl.vertexAttribPointer(glLoc.c, 4, gl.FLOAT, false, 28, 12);
+    gl.drawArrays(gl.POINTS, 0, 1);
+  }
+
+  /* ---- 상위 프리미티브 ---- */
+  function burst(x, y, o) {
+    o = o || {};
+    var n = o.n || 40;
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * 6.283, sp = (o.sp || 7) * (0.3 + Math.random());
+      spawn({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - (o.up || 0),
+        g: o.g || 0.12, life: (o.life || 0.9) * (0.6 + Math.random() * 0.7),
+        sz: (o.sz || 9) * (0.5 + Math.random()), c: o.c, drag: 0.965, stretch: 1, tw: 2, turb: o.turb || 0 });
+    }
+  }
+  function beamTo(x1, y1, x2, y2, o) {
+    o = o || {};
+    var n = o.n || 26, dx = x2 - x1, dy = y2 - y1;
+    for (var i = 0; i < n; i++) {
+      var t = i / n;
+      spawn({ x: x1 + dx * t + (Math.random() - 0.5) * 10, y: y1 + dy * t + (Math.random() - 0.5) * 10,
+        vx: dx * 0.012, vy: dy * 0.012, life: 0.5 + t * 0.4, sz: o.sz || 10, c: o.c, drag: 0.94, stretch: 1 });
+    }
+  }
+  function ring(x, y, o) {
+    o = o || {};
+    var n = o.n || 46;
+    for (var i = 0; i < n; i++) {
+      var a = i / n * 6.283, sp = o.sp || 9;
+      spawn({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 0,
+        life: o.life || 0.55, sz: o.sz || 7, c: o.c, drag: 0.9, stretch: 1 });
+    }
+  }
+  function arc(x1, y1, x2, y2, c, depth) {
+    // 미드포인트 변위 — 전기 아크
+    var pts = [[x1, y1], [x2, y2]];
+    for (var d = 0; d < (depth || 5); d++) {
+      var nx = [pts[0]];
+      for (var i = 1; i < pts.length; i++) {
+        var mx = (pts[i - 1][0] + pts[i][0]) / 2 + (Math.random() - 0.5) * 60 / (d + 1);
+        var my = (pts[i - 1][1] + pts[i][1]) / 2 + (Math.random() - 0.5) * 60 / (d + 1);
+        nx.push([mx, my], pts[i]);
+      }
+      pts = nx;
+    }
+    for (var k = 0; k < pts.length; k++)
+      spawn({ x: pts[k][0], y: pts[k][1], vx: 0, vy: 0, life: 0.22 + Math.random() * 0.15, sz: 8, c: c, drag: 1, tw: 3 });
+  }
+  var glyphCache = {};
+  function glyphPts(gy, step) {
+    var key = gy + "|" + step;
+    if (glyphCache[key]) return glyphCache[key];
+    var c = document.createElement("canvas"); c.width = c.height = 120;
+    var x = c.getContext("2d");
+    x.font = "100px serif"; x.textAlign = "center"; x.textBaseline = "middle";
+    x.fillText(gy, 60, 66);
+    var d = x.getImageData(0, 0, 120, 120).data, out = [];
+    for (var yy = 0; yy < 120; yy += step) for (var xx = 0; xx < 120; xx += step)
+      if (d[(yy * 120 + xx) * 4 + 3] > 120) out.push([xx / 120 - 0.5, yy / 120 - 0.5]);
+    glyphCache[key] = out;
+    return out;
+  }
+  function glyphBurst(gy, x, y, o) {
+    // 이모지 실루엣 점군 — 파티클이 모양대로 서서히 나타났다 흩어짐
+    o = o || {};
+    var pts = glyphPts(gy, o.step || 5), sc = o.scale || 260;
+    for (var i = 0; i < pts.length; i++) {
+      var tx = x + pts[i][0] * sc, ty = y + pts[i][1] * sc;
+      spawn({ x: tx + (Math.random() - 0.5) * 8, y: ty + (Math.random() - 0.5) * 8,
+        vx: (Math.random() - 0.5) * 0.6, vy: -0.3 - Math.random() * 0.5,
+        g: -0.01, life: (o.life || 1.6) * (0.7 + Math.random() * 0.5),
+        sz: o.sz || 6, c: o.c || "#BFE9FF", drag: 0.985, tw: 2, turb: 0.4 });
+    }
+  }
+  function flash(color, ms) {
+    var f = document.getElementById("fx2flash");
+    if (!f) { f = document.createElement("div"); f.id = "fx2flash"; document.body.appendChild(f); }
+    f.style.background = color || "#fff";
+    f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+    if (ms) f.style.setProperty("--fd", ms + "ms");
+  }
+  function stamp(txt, color) {
+    var s = document.createElement("div");
+    s.className = "fx2stamp";
+    s.style.color = color || "#DFF7E4";
+    s.innerHTML = String(txt).split("").map(function (ch, i) {
+      return "<span style='animation-delay:" + (i * 0.05) + "s'>" + ch + "</span>";
+    }).join("");
+    document.body.appendChild(s);
+    setTimeout(function () { s.remove(); }, 2600);
+  }
+  function shake(n) { trauma = Math.min(1, trauma + n); kick(); }
+  function hitstop(ms) { hitUntil = performance.now() + (ms || 180); }
+  function envGlow(color) { try { edgeGlow(color, true); } catch (e) {} }
+  function center() { return [innerWidth / 2, innerHeight / 2]; }
+
+  /* ---- 주문 연출 프리셋: 예열→발사→비행→임팩트→잔향 ---- */
+  function cast(spellId, o) {
+    o = o || {};
+    mount();
+    var sp = (typeof spellById !== "undefined" && spellById[spellId]) || { em: "✨", c: "#EDE0B8", ko: spellId };
+    var c = sp.c || "#EDE0B8";
+    var cx = o.x != null ? o.x : innerWidth / 2, cy = o.y != null ? o.y : innerHeight * 0.42;
+    var from = o.from || [innerWidth / 2, innerHeight - 90];
+    var big = sp.t >= 4 || spellId === "avada";
+    // ① 예열
+    ring(from[0], from[1], { c: c, sp: -3, n: 20, sz: 6, life: 0.4 });
+    setTimeout(function () {
+      // ② 발사 + ③ 비행
+      flash(c, 140);
+      beamTo(from[0], from[1], cx, cy, { c: c, n: big ? 34 : 20, sz: big ? 12 : 8 });
+      if (spellId === "crucio" || spellId === "sectumsempra") arc(from[0], from[1], cx, cy, c, 5);
+      setTimeout(function () {
+        // ④ 임팩트
+        if (big) { hitstop(spellId === "avada" ? 240 : 160); flash("#FFFFFF", 90); }
+        burst(cx, cy, { c: c, n: big ? 90 : 45, sp: big ? 11 : 7, sz: big ? 11 : 8, up: 1 });
+        ring(cx, cy, { c: c, sp: big ? 13 : 8, n: 54 });
+        shake(big ? 0.55 : 0.28);
+        envGlow(c);
+        // ⑤ 잔향 + 시그니처
+        if (spellId === "avada") { glyphBurst("💀", cx, cy - 20, { c: "#7CFF9E", scale: 230 }); stamp("AVADA KEDAVRA", "#7CFF9E"); }
+        else if (spellId === "patronum") glyphBurst("🦌", cx, cy - 10, { c: "#BFE9FF", scale: 300, life: 2.1 });
+        else if (spellId === "fiendfyre") glyphBurst("🐍", cx, cy, { c: "#FF8A3C", scale: 280 });
+        else if (spellId === "imperio") glyphBurst("🌀", cx, cy, { c: c, scale: 200 });
+        else if (spellId === "wingardium") liftUI(1800);
+        else if (spellId === "expelliarmus") stamp("EXPELLIARMUS", "#FF6A5E");
+        for (var i = 0; i < (big ? 26 : 12); i++)
+          spawn({ x: cx + (Math.random() - 0.5) * 90, y: cy + (Math.random() - 0.5) * 40,
+            vx: (Math.random() - 0.5), vy: -0.6 - Math.random(), g: -0.02,
+            life: 1.4, sz: 7, c: c, drag: 0.99, turb: 0.8, tw: 2 });
+        if (o.done) setTimeout(o.done, 500);
+      }, 260);
+    }, o.quick ? 60 : 340);
+  }
+  function liftUI(ms) {
+    document.body.classList.add("forcelift");
+    setTimeout(function () { document.body.classList.remove("forcelift"); }, ms || 1800);
+  }
+  return { mount: mount, burst: burst, ring: ring, beamTo: beamTo, arc: arc, glyphBurst: glyphBurst,
+    flash: flash, stamp: stamp, shake: shake, hitstop: hitstop, cast: cast, liftUI: liftUI,
+    mode: function () { return mode; } };
+})();
+
+/* 캐릭터 시그니처를 FX2로 증폭 (신규 초월·신화) */
+function FX2C(c) {
+  try {
+    FX2.mount();
+    var cx = innerWidth / 2, cy = innerHeight * 0.42;
+    if (c.id === "riddle") { FX2.hitstop(220); FX2.flash("#183A22", 160); FX2.arc(cx - 150, 60, cx, cy, "#57E07A", 6); FX2.arc(cx + 150, 60, cx, cy, "#57E07A", 6); FX2.glyphBurst("🐍", cx, cy, { c: "#7CFF9E", scale: 320, life: 2 }); FX2.stamp("I AM LORD VOLDEMORT", "#7CFF9E"); FX2.shake(0.6); }
+    else if (c.id === "sauron") { FX2.flash("#3A0E00", 180); FX2.glyphBurst("👁️", cx, cy - 10, { c: "#FF7A2E", scale: 330, life: 2.2 }); FX2.ring(cx, cy, { c: "#FF7A2E", sp: 14, n: 70 }); FX2.stamp("THE GREAT EYE", "#FF9A4E"); FX2.shake(0.6); }
+    else if (c.id === "saruman") { FX2.flash("#EDEDED", 130); FX2.burst(cx, cy, { c: "#F2F2F2", n: 80, sp: 10, sz: 10 }); FX2.glyphBurst("🗼", cx, cy, { c: "#DADADA", scale: 300 }); }
+    else if (c.t >= 5) { FX2.burst(cx, cy, { c: "#F2C744", n: 60, sp: 9, sz: 10, up: 1 }); FX2.shake(0.35); }
+  } catch (e) {}
+}
+
+/* ---------------- 주문 도감 ---------------- */
+function SP(id, ko, en, em, t, kind, pow, c, d) { return { id: id, ko: ko, en: en, em: em, t: t, kind: kind, pow: pow, c: c, d: d }; }
+var SPELLS = [
+  SP("avada","아바다 케다브라","Avada Kedavra","☠️",5,"kill",999,"#57E07A","즉사 · 평생 10발 · 성공 시 1발 환급 · 익스펠리아르무스만이 막는다"),
+  SP("patronum","익스펙토 패트로눔","Expecto Patronum","🦌",5,"guard",0,"#BFE9FF","다음에 맞을 공격 1회 완전 무효 + HP 12 회복 (아바다는 못 막음)"),
+  SP("fiendfyre","피엔디파이어","Fiendfyre","🔥",5,"atk",34,"#FF8A3C","저주받은 불 — 최고 화력"),
+  SP("crucio","크루시오","Crucio","🩸",4,"dot",8,"#E0453C","고문 저주 — 3턴간 매턴 8 도트 피해"),
+  SP("sectumsempra","세크텀셈프라","Sectumsempra","🗡️",4,"dot2",10,"#B03A6E","즉시 8 + 3턴 출혈 10 (스네이프 각성 시 위력 ↑)"),
+  SP("imperio","임페리오","Imperio","🌀",4,"ctrl",6,"#9A6BC4","상대의 다음 주문을 랜덤으로 강제"),
+  SP("expelliarmus","익스펠리아르무스","Expelliarmus","🪄",4,"counter",8,"#FF6A5E","아바다 케다브라 전용 카운터 · 지팡이당 10회 · 그 외엔 견제 8"),
+  SP("obliviate","오블리비아테","Obliviate","💫",4,"forget",6,"#C4B0E8","상대가 배운 주문 하나를 이 판 동안 지운다 (록하트는 50% 자기 기절)"),
+  SP("stupefy","스투페파이","Stupefy","🔻",3,"stun",14,"#E85D4A","14 피해 + 30% 확률로 상대 1턴 기절"),
+  SP("bombarda","봄바다","Bombarda","💥",3,"atk",20,"#E8A23C","폭파 — 큰 한 방"),
+  SP("reducto","리덕토","Reducto","🧱",3,"atk",16,"#C4763C","분쇄 저주"),
+  SP("confringo","콘프링고","Confringo","🎇",3,"atk",17,"#FF6B2B","작열 폭발"),
+  SP("levicorpus","레비코퍼스","Levicorpus","🙃",3,"weak",8,"#7FB8E8","거꾸로 매달기 — 상대 다음 주문 위력 절반"),
+  SP("protego","프로테고","Protego","🛡️",2,"shield",0,"#8FD4F0","다음에 맞을 일반 공격 70% 경감 (아바다는 못 막음)"),
+  SP("incendio","인센디오","Incendio","🔥",2,"atk",10,"#F08A3C","불꽃"),
+  SP("wingardium","윙가르디움 레비오사","Wingardium Leviosa","🪶",2,"weak",6,"#C8E0A0","상대를 띄운다 — 다음 주문 위력 절반 (무전에선 화면이 떠오름)"),
+  SP("petrificus","페트리피쿠스 토탈루스","Petrificus Totalus","🗿",2,"stun",6,"#A8A8A8","6 피해 + 20% 기절"),
+  SP("riddikulus","리디큘러스","Riddikulus","😂",2,"atk",8,"#E8C43C","웃음 공격"),
+  SP("lumos","루모스","Lumos","💡",1,"buff",0,"#F5E8A0","다음 내 주문 위력 +30%"),
+  SP("rictusempra","릭투셈프라","Rictusempra","🤣",1,"atk",6,"#E8D07C","간지럼 저주"),
+  SP("aguamenti","아구아멘티","Aguamenti","💧",1,"atk",5,"#7FB8E8","물줄기"),
+  SP("alohomora","알로호모라","Alohomora","🔓",1,"atk",4,"#C4B07C","자물쇠 열기 — 급하면 때리는 용도"),
+  SP("tarantallegra","타란탈레그라","Tarantallegra","🕺",1,"atk",5,"#E87CA0","막춤 저주"),
+];
+var spellById = {}; SPELLS.forEach(function (s) { spellById[s.id] = s; });
+
+/* ---- 서버 상태 (spellbook · wiz_stats · battles) ---- */
+var store35 = { spellbook: [], wstats: [], battles: [] };
+function myBook() { return store35.spellbook.filter(function (r) { return r.member === me; }); }
+function spLv(id) { var r = store35.spellbook.find(function (x) { return x.member === me && x.spell_id === id; }); return r ? r.lv : 0; }
+function learned(m, id) { return store35.spellbook.some(function (x) { return x.member === m && x.spell_id === id; }); }
+function statsOf(m) { return store35.wstats.find(function (x) { return x.member === m; }) || { member: m, xp: 0, ak_used: 0, ak_bonus: 0, exp_map: {}, wins: 0, losses: 0, streak: 0, sp_spent: 0 }; }
+function lvOf(m) { return 1 + Math.floor(Math.sqrt(statsOf(m).xp / 15)); }
+function spPoints() { var s = statsOf(me); return Math.max(0, lvOf(me) - 1 - (s.sp_spent || 0)); }
+function akLeft(m) { var s = statsOf(m); return Math.max(0, 10 + (s.ak_bonus || 0) - (s.ak_used || 0)); }
+function expelLeft(m) {
+  var eq = typeof equippedOf === "function" ? equippedOf(m) : null;
+  if (!eq) return 0;
+  var s = statsOf(m); var used = (s.exp_map || {})[eq] || 0;
+  return Math.max(0, 10 - used);
+}
+async function ensureStats() {
+  if (!sb || !me) return;
+  if (!store35.wstats.some(function (x) { return x.member === me; }))
+    await sb.from("wiz_stats").upsert({ member: me }, { onConflict: "member" });
+}
+async function statPatch(patch) {
+  if (!sb || !me) return;
+  await ensureStats();
+  await sb.from("wiz_stats").update(patch).eq("member", me);
+  kelLoad35();
+}
+async function kelLoad35() {
+  if (!sb) return;
+  try {
+    var r = await Promise.all([
+      sb.from("spellbook").select("*"),
+      sb.from("wiz_stats").select("*"),
+      sb.from("battles").select("*").order("id", { ascending: false }).limit(12),
+    ]);
+    if (r[0].data) store35.spellbook = r[0].data;
+    if (r[1].data) store35.wstats = r[1].data;
+    if (r[2].data) store35.battles = r[2].data;
+    battleWatch();
+  } catch (e) {}
+}
+
+/* ---- 주문 티켓 (20분당 1장 · 최대 12) ---- */
+var STICKET_MAX = 12;
+function sTickets() {
+  var n = Number(localStorage.getItem("kel_st") || 5);
+  var last = Number(localStorage.getItem("kel_st_t") || Date.now());
+  var gained = Math.floor((Date.now() - last) / 1200000);
+  if (gained > 0) {
+    n = Math.min(STICKET_MAX, n + gained);
+    localStorage.setItem("kel_st", String(n));
+    localStorage.setItem("kel_st_t", String(last + gained * 1200000));
+  }
+  if (!localStorage.getItem("kel_st_t")) localStorage.setItem("kel_st_t", String(Date.now()));
+  return n;
+}
+function useSTicket() { var n = sTickets(); if (n <= 0) return false; localStorage.setItem("kel_st", String(n - 1)); return true; }
+function addSTicket(k) { localStorage.setItem("kel_st", String(Math.min(STICKET_MAX, sTickets() + k))); }
+function fillSTicket() { localStorage.setItem("kel_st", String(STICKET_MAX)); }
+
+/* ---- 주문 뽑기 ---- */
+function drawSpell(boost) {
+  // 아바다는 절대 0.1% (부스트 시 ×배수), 나머지는 등급 확률
+  var akP = 0.001 * (boost || 1);
+  if (!learned(me, "avada") && Math.random() < akP) return spellById.avada;
+  var ts = TIERS.filter(function (t) { return t.t <= 5; });
+  var ws = ts.map(function (t) { return { t: t.t, p: boost && t.t >= 3 ? t.p * boost : t.p }; });
+  var tot = ws.reduce(function (a, b) { return a + b.p; }, 0);
+  var roll = Math.random() * tot, acc = 0, tier = 1;
+  ws.slice().sort(function (a, b) { return a.p - b.p; }).forEach(function (w) { if (tier === 1 && (acc += w.p) >= roll) tier = w.t; });
+  var pool = SPELLS.filter(function (s) { return s.t === tier && s.id !== "avada"; });
+  if (!pool.length) pool = SPELLS.filter(function (s) { return s.id !== "avada"; });
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+async function grantSpell(s) {
+  if (!sb || !me) return "";
+  var cur = store35.spellbook.find(function (x) { return x.member === me && x.spell_id === s.id; });
+  if (cur) {
+    var nl = Math.min(5, (cur.lv || 1) + 1);
+    if (nl === cur.lv) { return "이미 Lv.5 — 마력이 허공으로"; }
+    await sb.from("spellbook").update({ lv: nl }).eq("member", me).eq("spell_id", s.id);
+    kelLoad35();
+    return "중복! → Lv." + nl + " 자동 강화";
+  }
+  await sb.from("spellbook").upsert({ member: me, spell_id: s.id, lv: 1 }, { onConflict: "member,spell_id" });
+  kelLoad35();
+  return "";
+}
+function openSpellDraw(mode) {
+  if (!me) { toast("먼저 이름을 골라줘"); return openWho(); }
+  var boost = 0;
+  if (mode === "b10") { if (!useUb10()) return toast("💥 10배 쿠폰이 없어"); boost = 10; }
+  else if (typeof rushActive === "function" && rushActive()) { /* 러시엔 주문도 무료 */ }
+  else if (!useSTicket()) return toast("📜 주문 티켓이 없어 · 20분마다 1장");
+  var s = drawSpell(boost);
+  openPack({ em: s.em, ko: s.ko, last: s.en.split(" ")[0], first: s.en.split(" ").slice(1).join(" "), t: s.t, fx: "gold", holo: s.t >= 4 }, async function () {
+    var note = await grantSpell(s);
+    FX2.cast(s.id, { quick: true });
+    drawSpellResult(s, note, mode);
+  });
+}
+function drawSpellResult(s, note, mode) {
+  var box = document.getElementById("spbox");
+  if (!box) { box = document.createElement("div"); box.id = "spbox"; document.body.appendChild(box); }
+  var t = tierById[s.t];
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="quiz-card"><button class="ovx" data-ovx>✕</button>' +
+      '<div class="wres-em">' + s.em + "</div>" +
+      '<div class="wres-name">' + esc(s.ko) + '</div>' +
+      '<div class="wres-t" style="background:' + t.color + '">' + t.en + " · Lv." + (spLv(s.id) || 1) + "</div>" +
+      '<p class="muted" style="margin:10px 0;font-size:12.5px;line-height:1.6">' + esc(s.d) + "</p>" +
+      (note ? '<div class="title-coupon" style="margin:6px 0">' + esc(note) + "</div>" : "") +
+      '<div class="btn-row" style="margin-top:12px">' +
+        '<button class="btn ghost" id="sp-book" style="flex:1">📖 주문서</button>' +
+        '<button class="btn" id="sp-again" style="flex:1">' + (mode === "b10" ? "💥 10배로 또" : "📜 한 번 더 (" + sTickets() + ")") + "</button></div>" +
+    "</div>";
+  $("#sp-again").onclick = function () { box.hidden = true; openSpellDraw(mode); };
+  $("#sp-book").onclick = function () { box.hidden = true; openSpellbook(); };
+}
+function openSpellbook() {
+  var box = document.getElementById("bookbox");
+  if (!box) { box = document.createElement("div"); box.id = "bookbox"; document.body.appendChild(box); }
+  var mine = myBook();
+  var pts = spPoints();
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
+      '<div class="arm-top">주문서 <span>' + mine.length + " / " + SPELLS.length + "</span></div>" +
+      '<div class="wiz-line">Lv.' + lvOf(me) + " 마법사 · XP " + statsOf(me).xp +
+        (pts ? ' · <b style="color:var(--gold)">강화 포인트 ' + pts + "</b>" : "") +
+        ' · ☠️' + akLeft(me) + " · 🪄" + expelLeft(me) + "</div>" +
+      '<div class="arm-grid book-grid">' +
+      SPELLS.map(function (s) {
+        var have = mine.some(function (r) { return r.spell_id === s.id; });
+        var t = tierById[s.t];
+        return '<button class="arm-item sp-item' + (have ? "" : " lock") + '" data-sp="' + s.id + '" style="--rc:' + t.color + '">' +
+          '<span class="ai-em">' + (have ? s.em : "❔") + "</span>" +
+          '<span class="ai-ko">' + (have ? esc(s.ko) : "???") + "</span>" +
+          '<span class="ai-t" style="background:' + t.color + '">' + t.en + "</span>" +
+          (have && spLv(s.id) > 1 ? '<span class="ai-q">Lv' + spLv(s.id) + "</span>" : "") +
+          "</button>";
+      }).join("") + "</div>" +
+      '<div class="btn-row" style="margin-top:14px">' +
+        '<button class="btn" id="bk-draw" style="flex:1.3">📜 주문 뽑기 (' + sTickets() + ")</button>" +
+        '<button class="btn ghost" id="bk-1099">💵 $10.99 풀충전</button></div>' +
+      (ub10() > 0 ? '<button class="btn boost10" data-bm-sp="b10" style="width:100%;margin-top:8px">💥 10배 쿠폰 주문 뽑기 · ' + ub10() + "</button>" : "") +
+    "</div>";
+  $("#bk-draw").onclick = function () { box.hidden = true; openSpellDraw(); };
+  $("#bk-1099").onclick = function () {
+    if (!confirm("$10.99 — 주문 티켓 12장 풀충전 (진짜 결제 아님)")) return;
+    fillSTicket(); sendPush("💸 " + nameOf(me) + "의 과금", "주문 티켓 풀충전 $10.99", "fate");
+    toast("💸 결제 완료(가짜) — 📜 12장"); openSpellbook();
+  };
+  var b10 = box.querySelector("[data-bm-sp]");
+  if (b10) b10.onclick = function () { box.hidden = true; openSpellDraw("b10"); };
+  $$(".sp-item", box).forEach(function (b) {
+    b.onclick = function () {
+      var s = spellById[b.dataset.sp];
+      var have = learned(me, s.id);
+      if (!have) return toast("아직 못 배운 주문 — " + t5hint(s));
+      openSpellDetail(s);
+    };
+  });
+  function t5hint(s) { return s.t >= 5 ? "신화급이야, 행운을 빈다" : "뽑기로 배울 수 있어"; }
+}
+function openSpellDetail(s) {
+  var box = document.getElementById("spbox");
+  if (!box) { box = document.createElement("div"); box.id = "spbox"; document.body.appendChild(box); }
+  var lv = spLv(s.id), t = tierById[s.t], pts = spPoints();
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="quiz-card"><button class="ovx" data-ovx>✕</button>' +
+      '<div class="wres-em">' + s.em + "</div>" +
+      '<div class="wres-name">' + esc(s.ko) + '</div>' +
+      '<div class="wres-t" style="background:' + t.color + '">' + t.en + " · Lv." + lv + "</div>" +
+      '<p class="muted" style="margin:10px 0;font-size:12.5px;line-height:1.6">' + esc(s.d) +
+      (s.id === "avada" ? "<br><b>남은 발수 ☠️ " + akLeft(me) + " / 10</b>" : "") +
+      (s.id === "expelliarmus" ? "<br><b>이 지팡이 남은 카운터 🪄 " + expelLeft(me) + " / 10</b>" : "") + "</p>" +
+      '<div class="btn-row">' +
+        '<button class="btn ghost" id="spd-fx" style="flex:1">✨ 이펙트 보기</button>' +
+        (lv < 5 ? '<button class="btn' + (pts ? "" : " off") + '" id="spd-up" style="flex:1">⬆️ 강화 (포인트 ' + pts + ")</button>" : '<span class="btn off" style="flex:1">MAX</span>') +
+      "</div></div>";
+  $("#spd-fx").onclick = function () { FX2.cast(s.id); };
+  var up = $("#spd-up");
+  if (up) up.onclick = async function () {
+    if (!spPoints()) return toast("강화 포인트가 없어 — 배틀에서 레벨을 올려");
+    await sb.from("spellbook").update({ lv: lv + 1 }).eq("member", me).eq("spell_id", s.id);
+    await statPatch({ sp_spent: (statsOf(me).sp_spent || 0) + 1 });
+    toast("⬆️ " + s.ko + " Lv." + (lv + 1));
+    openSpellDetail(s);
+  };
+}
+
+/* ---------------- 마법사 배틀 — 실시간 턴제 ---------------- */
+var btG = null, btCh = null, btTimer = null, btAnim = 0;
+var EGGS = [
+  { id:"neville", n:"검을 든 소년", d:"네빌 + 그리핀도르의 검 vs 톰 리들 — 위력 ×5, 리들의 아바다 환급 봉인" },
+  { id:"mtdoom", n:"운명의 산", d:"절대 반지 장착 + 인센디오 vs 사우론 — 위력 ×6, 대신 사우론이 선공권" },
+  { id:"priori", n:"프리오리 인칸타템", d:"해리 + 해리의 지팡이: 익스펠로 아바다를 막으면 그대로 반사" },
+  { id:"molly", n:"NOT MY DAUGHTER", d:"몰리 vs 벨라트릭스 — 모든 위력 ×3" },
+  { id:"lockhart", n:"기억이여 안녕", d:"록하트 + 오블리비아테 — 등급 무관 주문 삭제, 대신 50% 자기 기절" },
+];
+function eggSeen(id) { return localStorage.getItem("kel_egg_" + id) === "1"; }
+function eggMark(id) { if (!eggSeen(id)) { localStorage.setItem("kel_egg_" + id, "1"); toast("🥚 이스터에그 발견 — 궁합표에 해금됨"); } }
+
+function maxHp(m) { var c = charOf(m); return 90 + (c ? c.t * 14 : 14) + lvOf(m) * 4; }
+function myBattle() {
+  return store35.battles.find(function (b) {
+    return (b.a === me || b.b === me) && b.phase !== "done" && b.phase !== "declined" && b.phase !== "expired" &&
+      Date.now() - new Date(b.created_at).getTime() < 30 * 60000;
+  });
+}
+function dodgeOf(m) { return Math.min(5, statsOf(m).dodge || 0); }
+function dodgeMul(m) { return 1 - 0.05 * dodgeOf(m); }           // HP·위력 -5%/스택 (최대 5)
+function maxHpReal(m) { return Math.round(maxHp(m) * dodgeMul(m)); }
+function dodgeBadge(m) { // 본인 눈에는 절대 안 보임
+  return (m !== me && dodgeOf(m) > 0) ? ' <span class="bt-dodge" title="결투 신청 10분 무시 누적">👻×' + dodgeOf(m) + "</span>" : "";
+}
+function duelInvite(mid) {
+  if (needSb()) return;
+  if (!charOf(me) || !charOf(mid)) return toast("둘 다 캐릭터가 있어야 배틀 가능");
+  if (myBattle()) return toast("이미 진행 중인 배틀이 있어");
+  if (!myBook().length) { toast("주문을 하나는 배워야 싸우지 — 주문서로 보낼게"); return openSpellbook(); }
+  var box = document.getElementById("duelbox");
+  if (!box) { box = document.createElement("div"); box.id = "duelbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  box.innerHTML = '<div class="quiz-card"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="wres-em">⚔️</div><div class="wres-name">' + esc(nameOf(mid)) + '에게 결투 신청</div>' +
+    '<p class="muted" style="font-size:12px;margin:8px 0">시간을 정해서 보내 — 상대가 <b>10분 안에</b> 수락/거절 안 하면 도주로 기록돼</p>' +
+    '<div class="btn-row" style="flex-wrap:wrap;gap:8px">' +
+    [["0","⚡ 지금 바로"],["30","🕐 30분 뒤"],["60","🕑 1시간 뒤"],["ev","🌙 오늘 20:00"]].map(function (x) {
+      return '<button class="btn ghost" data-dw="' + x[0] + '" style="flex:1;min-width:40%">' + x[1] + "</button>";
+    }).join("") + "</div>" +
+    '<input class="input" id="dw-custom" placeholder="직접 입력 예: 21:30" style="margin-top:8px">' +
+    '<button class="btn" id="dw-go" style="width:100%;margin-top:8px">직접 입력한 시간으로 신청</button></div>';
+  function fire(when) { box.hidden = true; duelSend(mid, when); }
+  $$("[data-dw]", box).forEach(function (b) {
+    b.onclick = function () {
+      var k = b.dataset.dw;
+      if (k === "ev") { var d = new Date(); d.setHours(20, 0, 0, 0); if (d < new Date()) d.setDate(d.getDate() + 1); return fire(d); }
+      return fire(new Date(Date.now() + Number(k) * 60000));
+    };
+  });
+  $("#dw-go").onclick = function () {
+    var v = ($("#dw-custom").value || "").trim();
+    var m2 = v.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m2) return toast("21:30 형식으로 써줘");
+    var d = new Date(); d.setHours(Number(m2[1]), Number(m2[2]), 0, 0);
+    if (d < new Date()) d.setDate(d.getDate() + 1);
+    fire(d);
+  };
+}
+async function duelSend(mid, when) {
+  var st = { hp: {}, dot: {}, shield: {}, stun: {}, weak: {}, buff: {}, forget: {}, log: [] };
+  st.hp[me] = maxHpReal(me); st.hp[mid] = maxHpReal(mid);   // 낙인 있으면 피통이 소리 없이 깎인 채 시작
+  var ins = await sb.from("battles").insert({ a: me, b: mid, phase: "invite", state: st, sched_at: when.toISOString() }).select();
+  if (ins.error) return toast("배틀 생성 실패 — SQL-v35 실행했어?");
+  var hm = when.getHours().toString().padStart(2, "0") + ":" + when.getMinutes().toString().padStart(2, "0");
+  var now = when - Date.now() < 90000;
+  sendPush("⚔️ " + nameOf(me), nameOf(mid) + ", " + (now ? "지금 바로" : hm + "에") + " 결투다! 10분 안에 응답해라", "duel");
+  toast("⚔️ 도전장 보냄 (" + (now ? "즉시" : hm) + ") — 10분 안에 무응답이면 도주 기록");
+  kelLoad35();
+}
+async function sweepInvites() {
+  // 10분 넘게 방치된 도전장 → 만료 + 받은 쪽에 도주 낙인 (경쟁 조건은 조건부 update로 1회만)
+  var stale = store35.battles.filter(function (b) {
+    return b.phase === "invite" && Date.now() - new Date(b.created_at).getTime() > 600000;
+  });
+  for (var i = 0; i < stale.length; i++) {
+    var b = stale[i];
+    var r = await sb.from("battles").update({ phase: "expired" }).eq("id", b.id).eq("phase", "invite").select();
+    if (r.data && r.data.length) {
+      var s = statsOf(b.b);
+      await sb.from("wiz_stats").upsert({ member: b.b }, { onConflict: "member" });
+      await sb.from("wiz_stats").update({ dodge: (s.dodge || 0) + 1 }).eq("member", b.b);
+      if (b.a === me) toast("👻 " + nameOf(b.b) + " 도주 — 낙인이 새겨졌다");
+    }
+  }
+  if (stale.length) kelLoad35();
+}
+function battleWatch() {
+  sweepInvites();
+  var g = myBattle();
+  if (!g) { btG = null; return renderBattleBanner(null); }
+  var changed = !btG || btG.id !== g.id || btG.turn !== g.turn || btG.phase !== g.phase ||
+    JSON.stringify(g.state && g.state.log) !== JSON.stringify(btG.state && btG.state.log);
+  btG = g;
+  if (g.phase === "invite") return renderBattleBanner(g);
+  if (g.phase === "sched") return renderBattleBanner(g);
+  if (g.phase === "play" || g.phase === "done") { renderBattleBanner(null); if (changed) openBattle(); }
+}
+var btBnTimer = null;
+function renderBattleBanner(g) {
+  var b = document.getElementById("duel-banner");
+  clearInterval(btBnTimer);
+  if (!g) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement("div"); b.id = "duel-banner"; document.body.appendChild(b); }
+  var sched = g.sched_at ? new Date(g.sched_at) : new Date();
+  var hm = sched.getHours().toString().padStart(2, "0") + ":" + sched.getMinutes().toString().padStart(2, "0");
+
+  if (g.phase === "invite" && g.b === me) {
+    var deadline = new Date(g.created_at).getTime() + 600000;
+    function drawInv() {
+      var left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      b.innerHTML = '⚔️ <b>' + esc(nameOf(g.a)) + "</b>: " + hm + " 결투 신청 · 응답까지 <b>" +
+        Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0") + "</b>" +
+        '<button class="btn small" id="duel-ok">수락</button><button class="btn small ghost" id="duel-no">거절</button>';
+      $("#duel-ok").onclick = async function () {
+        var immediate = sched - Date.now() < 90000;
+        await sb.from("battles").update({ phase: immediate ? "play" : "sched" }).eq("id", g.id).eq("phase", "invite");
+        sendPush("⚔️ " + nameOf(me), "수락! " + (immediate ? "지금 바로 붙는다" : hm + "에 보자"), "duel");
+        b.remove(); clearInterval(btBnTimer); kelLoad35();
+      };
+      $("#duel-no").onclick = async function () {
+        await sb.from("battles").update({ phase: "declined" }).eq("id", g.id).eq("phase", "invite");
+        b.remove(); clearInterval(btBnTimer); kelLoad35();   // 거절은 정당한 응답 — 낙인 없음
+      };
+    }
+    drawInv(); btBnTimer = setInterval(drawInv, 1000);
+    return;
+  }
+  if (g.phase === "invite") {   // 내가 보낸 쪽
+    b.innerHTML = '⚔️ ' + esc(nameOf(g.b)) + " 응답 대기 중 (" + hm + " 예정) — 10분 무응답이면 👻";
+    return;
+  }
+  if (g.phase === "sched") {
+    function drawSched() {
+      var left = sched - Date.now();
+      if (left <= 0) {
+        b.innerHTML = '⚔️ <b>결투 시간이다!</b> ' + esc(nameOf(g.a)) + " vs " + esc(nameOf(g.b)) +
+          '<button class="btn small" id="duel-enter">입장</button>';
+        var en = $("#duel-enter");
+        if (en) en.onclick = async function () {
+          await sb.from("battles").update({ phase: "play" }).eq("id", g.id).eq("phase", "sched");
+          FX2.flash("#C8503C", 200); FX2.shake(0.4);
+          b.remove(); clearInterval(btBnTimer); kelLoad35();
+        };
+      } else {
+        var mn = Math.floor(left / 60000), sc = Math.floor(left % 60000 / 1000);
+        b.innerHTML = '⚔️ ' + hm + " 결투 확정 — <b>" + (mn > 99 ? mn + "분" : mn + ":" + String(sc).padStart(2, "0")) + "</b> 남음";
+      }
+    }
+    drawSched(); btBnTimer = setInterval(drawSched, 1000);
+  }
+}
+function foe() { return btG.a === me ? btG.b : btG.a; }
+function myPickCol() { return btG.a === me ? "pick_a" : "pick_b"; }
+function hpBar(m, hp) {
+  var mx = m === me ? maxHp(m) : maxHpReal(m);   // 본인은 낙인 반영 안 된 정가로 표시 (피만 살짝 까져 보임)
+  var pct = Math.max(0, Math.min(100, Math.round(hp / mx * 100)));
+  return '<div class="bt-side"><div class="bt-name">' + av(m, "mini") + " " + esc(nameOf(m)) +
+    ' <span class="bt-lv">Lv.' + lvOf(m) + "</span>" + dodgeBadge(m) + "</div>" +
+    '<div class="bt-hp"><i style="width:' + pct + '%;background:' + (pct > 50 ? "#5E8C5A" : pct > 25 ? "#C79A3E" : "#C8503C") + '"></i></div>' +
+    '<div class="bt-hpn">' + Math.max(0, Math.round(hp)) + " / " + mx + "</div></div>";
+}
+function openBattle() {
+  var g = btG; if (!g) return;
+  var box = document.getElementById("btbox");
+  if (!box) { box = document.createElement("div"); box.id = "btbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  var st = g.state || {}, en = foe();
+  var myPicked = !!g[myPickCol()];
+  var head = '<div class="bt-arena">' + hpBar(g.a, (st.hp || {})[g.a] || 0) +
+    '<div class="bt-vs">' + (g.phase === "done" ? "🏁" : "T" + g.turn) + "</div>" +
+    hpBar(g.b, (st.hp || {})[g.b] || 0) + "</div>";
+  var logH = '<div class="bt-log" id="bt-log">' + (st.log || []).slice(-6).map(function (l) {
+    return '<div class="bt-line">' + l.txt + "</div>";
+  }).join("") + "</div>";
+
+  if (g.phase === "done") {
+    var win = g.winner;
+    box.innerHTML = '<div class="armory bt-wrap"><button class="ovx" data-ovx>✕</button>' + head + logH +
+      '<div class="liar-banner ' + (win === me ? "cit" : win ? "liar" : "") + '">' +
+      (win ? (win === me ? "🏆 승리!" : "💀 패배…") : "무승부") + "</div>" +
+      '<p class="liar-sub" id="bt-xp"></p>' +
+      '<div class="btn-row"><button class="btn ghost" id="bt-re" style="flex:1">⚔️ 재대결</button>' +
+      '<button class="btn" id="bt-x" style="flex:1">닫기</button></div></div>';
+    battleReward(g);
+    $("#bt-x").onclick = function () { box.hidden = true; localStorage.setItem("kel_bt_seen", String(g.id)); btG = null; };
+    $("#bt-re").onclick = function () { box.hidden = true; localStorage.setItem("kel_bt_seen", String(g.id)); btG = null; duelInvite(en); };
+    return;
+  }
+
+  // pick 화면
+  var forgot = (st.forget || {})[me] || [];
+  var mine = myBook().filter(function (r) { return forgot.indexOf(r.spell_id) < 0; });
+  box.innerHTML = '<div class="armory bt-wrap">' + head + logH +
+    '<div class="bt-pickmsg">' + (myPicked ? "⏳ <b>" + esc(nameOf(en)) + "</b>의 주문 대기 중…" :
+      "이번 턴 주문을 골라 — <b id='bt-cd'>25</b>초") + "</div>" +
+    (myPicked ? "" :
+      '<div class="arm-grid book-grid">' + mine.map(function (r) {
+        var s = spellById[r.spell_id]; if (!s) return "";
+        var dis = (s.id === "avada" && akLeft(me) <= 0) || (s.id === "expelliarmus" && expelLeft(me) <= 0);
+        var t = tierById[s.t];
+        return '<button class="arm-item sp-item' + (dis ? " lock" : "") + '" data-cast="' + s.id + '" style="--rc:' + t.color + '">' +
+          '<span class="ai-em">' + s.em + '</span><span class="ai-ko">' + esc(s.ko) + "</span>" +
+          '<span class="ai-t" style="background:' + t.color + '">' +
+          (s.id === "avada" ? "☠️" + akLeft(me) : s.id === "expelliarmus" ? "🪄" + expelLeft(me) : "Lv" + r.lv) + "</span></button>";
+      }).join("") + "</div>") +
+    '<button class="btn ghost" id="bt-run" style="width:100%;margin-top:10px">🏳️ 기권</button></div>';
+  $$("[data-cast]", box).forEach(function (b) {
+    b.onclick = function () {
+      if (b.classList.contains("lock")) return toast("차지가 없어");
+      submitPick(b.dataset.cast);
+    };
+  });
+  $("#bt-run").onclick = async function () {
+    if (!confirm("기권할까? 상대 승리로 끝나")) return;
+    await sb.from("battles").update({ phase: "done", winner: en }).eq("id", g.id).eq("phase", "play");
+    kelLoad35();
+  };
+  clearInterval(btTimer);
+  if (!myPicked) {
+    var left = 25;
+    btTimer = setInterval(function () {
+      left--;
+      var c = document.getElementById("bt-cd");
+      if (c) c.textContent = left;
+      if (left <= 0) { clearInterval(btTimer); submitPick("__pass"); }
+    }, 1000);
+  }
+}
+async function submitPick(spellId) {
+  var g = btG; if (!g || g.phase !== "play") return;
+  clearInterval(btTimer);
+  var patch = {}; patch[myPickCol()] = spellId;
+  var q = sb.from("battles").update(patch).eq("id", g.id).eq("phase", "play").eq("turn", g.turn);
+  q = myPickCol() === "pick_a" ? q.is("pick_a", null) : q.is("pick_b", null);
+  await q;
+  var fresh = await sb.from("battles").select("*").eq("id", g.id).single();
+  if (fresh.data) { btG = fresh.data; if (fresh.data.pick_a && fresh.data.pick_b) return resolveTurn(fresh.data); openBattle(); }
+}
+function effPow(s, caster, target, st) {
+  var c = charOf(caster), lv = spLv.call ? 1 : 1;
+  var slv = (store35.spellbook.find(function (x) { return x.member === caster && x.spell_id === s.id; }) || {}).lv || 1;
+  var p = s.pow * (1 + 0.08 * (slv - 1)) * (0.9 + 0.06 * (c ? c.t : 1)) * (0.85 + Math.random() * 0.3);
+  if (Math.random() < 0.08) p *= 1.5;
+  if ((st.buff || {})[caster]) p *= 1.3;
+  if ((st.weak || {})[caster]) p *= 0.5;
+  // 이스터에그 배수
+  if (c && c.id === "molly" && charOf(target) && charOf(target).id === "bellatrix") { p *= 3; eggMark("molly"); }
+  if (c && c.id === "neville" && equippedOf(caster) === "gryffindorsword" && charOf(target) && charOf(target).id === "riddle") { p *= 5; eggMark("neville"); }
+  if (equippedOf(caster) === "onering" && s.id === "incendio" && charOf(target) && charOf(target).id === "sauron") { p *= 6; eggMark("mtdoom"); }
+  if (isAwakened(caster)) p *= 1.35;
+  p *= dodgeMul(caster);
+  if (c && c.id === "snape" && s.id === "sectumsempra") p *= 1.5;
+  return Math.round(p);
+}
+async function resolveTurn(g) {
+  // a 쪽 폰만 판정 (조건부 update로 한 번만 성공)
+  if (g.a !== me) { btG = g; openBattle(); return; }
+  var st = JSON.parse(JSON.stringify(g.state || {}));
+  st.log = st.log || []; st.dot = st.dot || {}; st.shield = st.shield || {}; st.stun = st.stun || {};
+  st.weak = st.weak || {}; st.buff = st.buff || {}; st.forget = st.forget || {};
+  var pa = g.pick_a, pb = g.pick_b;
+  // 임페리오: 상대 픽 랜덤 강제
+  function imperio(victim, pick) {
+    var book = store35.spellbook.filter(function (r) { return r.member === victim; });
+    if (!book.length) return pick;
+    return book[Math.floor(Math.random() * book.length)].spell_id;
+  }
+  if (pa === "imperio") pb = imperio(g.b, pb);
+  if (pb === "imperio") pa = imperio(g.a, pa);
+
+  var order = [[g.a, pa, g.b], [g.b, pb, g.a]];
+  // 사우론 선공 이스터에그: 절대반지 낀 상대가 있으면 사우론이 먼저
+  order.forEach(function (o) {
+    var c = charOf(o[0]);
+    if (c && c.id === "sauron" && equippedOf(o[2]) === "onering") { order = [o, order[0][0] === o[0] ? order[1] : order[0]]; }
+  });
+
+  function line(txt, fx, who) { st.log.push({ txt: txt, fx: fx || null, who: who || null, t: g.turn }); }
+  // 도트 선처리
+  [g.a, g.b].forEach(function (m) {
+    var d = st.dot[m];
+    if (d && d.n > 0) { st.hp[m] -= d.p; d.n--; line(nameOf(m) + " " + d.em + " 도트 -" + d.p, null, m); if (d.n <= 0) delete st.dot[m]; }
+  });
+
+  for (var i = 0; i < order.length; i++) {
+    var caster = order[i][0], pick = order[i][1], target = order[i][2];
+    if (st.hp[caster] <= 0) continue;
+    if (st.stun[caster]) { delete st.stun[caster]; line("😵 " + nameOf(caster) + " 기절 — 턴 스킵"); continue; }
+    if (!pick || pick === "__pass") { line("💨 " + nameOf(caster) + " 허둥지둥 (패스)"); continue; }
+    var s = spellById[pick]; if (!s) continue;
+    var enemyPick = caster === g.a ? pb : pa;
+
+    if (s.id === "avada") {
+      var stt = statsOf(caster);
+      await sb.from("wiz_stats").update({ ak_used: (stt.ak_used || 0) + 1 }).eq("member", caster);
+      var blocked = enemyPick === "expelliarmus" && expelLeft(target) > 0;
+      if (blocked) {
+        var ts2 = statsOf(target), em2 = ts2.exp_map || {}; em2[equippedOf(target)] = (em2[equippedOf(target)] || 0) + 1;
+        await sb.from("wiz_stats").update({ exp_map: em2 }).eq("member", target);
+        // 프리오리 인칸타템: 해리+해리 지팡이 vs 볼드모트 → 반사
+        var tc = charOf(target), cc = charOf(caster);
+        if (tc && tc.id === "potter" && equippedOf(target) === "potterwand" && cc && (cc.id === "voldemort" || cc.id === "riddle")) {
+          st.hp[caster] = 0; line("✨ 프리오리 인칸타템! ☠️가 " + nameOf(caster) + "에게 반사됐다", "avada", target); eggMark("priori");
+        } else line("🪄 " + nameOf(target) + "의 익스펠리아르무스가 ☠️를 튕겨냈다!", "expelliarmus", target);
+      } else {
+        st.hp[target] = 0;
+        line("☠️ " + nameOf(caster) + "의 아바다 케다브라 — 즉사", "avada", caster);
+        var cc2 = charOf(caster);
+        var refundBlock = charOf(target) && charOf(target).id !== undefined &&
+          cc2 && cc2.id === "riddle" && eggActiveNeville(target);
+        if (!refundBlock) await sb.from("wiz_stats").update({ ak_bonus: (statsOf(caster).ak_bonus || 0) + 1 }).eq("member", caster);
+        else line("🗡️ 그리핀도르의 검 — 리들의 환급이 봉인됐다");
+      }
+      continue;
+    }
+    function eggActiveNeville(m) { var c = charOf(m); return c && c.id === "neville" && equippedOf(m) === "gryffindorsword"; }
+    if (s.id === "expelliarmus") {
+      if (enemyPick === "avada") { line("🪄 " + nameOf(caster) + " 카운터 준비!"); continue; } // 처리 위에서
+      st.hp[target] -= 8; line("🪄 " + nameOf(caster) + " 익스펠리아르무스 — 견제 8", "expelliarmus", caster); continue;
+    }
+    if (s.kind === "shield") { st.shield[caster] = { v: 0.7 }; line("🛡️ " + nameOf(caster) + " 프로테고 전개", "protego", caster); continue; }
+    if (s.id === "patronum") { st.shield[caster] = { v: 1, pat: 1 }; st.hp[caster] = Math.min(maxHp(caster), st.hp[caster] + 12); line("🦌 " + nameOf(caster) + " 패트로누스! 다음 공격 무효 +12", "patronum", caster); continue; }
+    if (s.kind === "buff") { st.buff[caster] = 1; line("💡 " + nameOf(caster) + " 루모스 — 다음 주문 +30%", "lumos", caster); continue; }
+    if (s.id === "obliviate") {
+      var tbook = store35.spellbook.filter(function (r) { return r.member === target && ((st.forget[target] || []).indexOf(r.spell_id) < 0); });
+      if (tbook.length) {
+        var vic = tbook[Math.floor(Math.random() * tbook.length)].spell_id;
+        st.forget[target] = (st.forget[target] || []).concat([vic]);
+        line("💫 " + nameOf(caster) + " 오블리비아테 — " + nameOf(target) + "의 " + (spellById[vic] || {}).ko + " 삭제!", "obliviate", caster);
+        var cc3 = charOf(caster);
+        if (cc3 && cc3.id === "lockhart") { eggMark("lockhart"); if (Math.random() < 0.5) { st.stun[caster] = 1; line("💥 지팡이 역효과 — 록하트 본인이 기절"); } }
+      } else line("💫 오블리비아테 — 지울 게 없다");
+      continue;
+    }
+    // 일반 공격/도트/기절/약화
+    var dmg = effPow(s, caster, target, st);
+    st.buff[caster] && delete st.buff[caster];
+    st.weak[caster] && delete st.weak[caster];
+    var sh = st.shield[target];
+    if (sh) { if (sh.pat) { dmg = 0; line("🦌 패트로누스가 " + s.ko + "를 삼켰다"); } else dmg = Math.round(dmg * (1 - sh.v)); delete st.shield[target]; }
+    if (dmg > 0) { st.hp[target] -= dmg; line(s.em + " " + nameOf(caster) + "의 " + s.ko + " — " + dmg, s.id, caster); }
+    if (s.kind === "dot") st.dot[target] = { p: Math.round(s.pow), n: 3, em: s.em };
+    if (s.kind === "dot2") st.dot[target] = { p: Math.round(s.pow), n: 3, em: s.em };
+    if (s.kind === "stun" && Math.random() < (s.id === "stupefy" ? 0.3 : 0.2)) { st.stun[target] = 1; line("😵 " + nameOf(target) + " 기절!"); }
+    if (s.kind === "weak") { st.weak[target] = 1; line("🙃 " + nameOf(target) + " 다음 주문 위력 절반"); }
+  }
+
+  var dead = [g.a, g.b].filter(function (m) { return st.hp[m] <= 0; });
+  var patch = { state: st, pick_a: null, pick_b: null, turn: g.turn + 1 };
+  if (dead.length) {
+    patch.phase = "done";
+    patch.winner = dead.length === 2 ? (st.hp[g.a] >= st.hp[g.b] ? g.a : g.b) : (dead[0] === g.a ? g.b : g.a);
+  }
+  await sb.from("battles").update(patch).eq("id", g.id).eq("turn", g.turn);
+  kelLoad35();
+}
+function playBattleFx(st) {
+  var last = (st.log || []).slice(-4);
+  last.forEach(function (l, i) {
+    if (l.fx) setTimeout(function () { FX2.cast(l.fx, { quick: true }); }, i * 650);
+  });
+}
+async function battleReward(g) {
+  var key = "kel_bt_paid_" + g.id;
+  var el = document.getElementById("bt-xp");
+  var s = statsOf(me);
+  if (localStorage.getItem(key)) { if (el) el.textContent = "보상 지급 완료"; return; }
+  localStorage.setItem(key, "1");
+  var win = g.winner === me;
+  var gain = win ? 20 + Math.min(10, g.turn) : 35 + Math.min(25, (s.streak || 0) * 5);
+  var patch = { xp: (s.xp || 0) + gain };
+  if (win) { patch.wins = (s.wins || 0) + 1; patch.streak = 0; }
+  else { patch.losses = (s.losses || 0) + 1; patch.streak = (s.streak || 0) + 1; }
+  if (s.dodge > 0) patch.dodge = s.dodge - 1;   // 배틀 완주 = 낙인 1개 소멸 (본인은 이것도 모름)
+  var beforeLv = lvOf(me);
+  await statPatch(patch);
+  var afterLv = 1 + Math.floor(Math.sqrt(patch.xp / 15));
+  if (el) el.innerHTML = (win ? "승리 XP +" + gain : "패배 XP <b>+" + gain + "</b> (질수록 많이 큰다)") +
+    (afterLv > beforeLv ? ' · <b style="color:var(--gold)">Lv.' + afterLv + " 달성! 강화 포인트 +1</b>" : "");
+  if (afterLv > beforeLv) FX2.burst(innerWidth / 2, innerHeight / 2, { c: "#F2C744", n: 70, sp: 10, up: 2 });
+  playBattleFx(g.state || {});
+}
+
+/* ---------------- 뽑기 허브 (홈 상단) ---------------- */
+function kelHubHtml() {
+  var wc = typeof wTickets === "function" ? wTickets() : 0;
+  return '<div class="hub">' +
+    '<div class="hub-top">🎴 뽑기</div>' +
+    '<div class="hub-grid">' +
+      '<button class="hub-b" data-hub="char"><span class="hub-em">🧙</span>캐릭터<span class="hub-s">' + (charOf(me) ? "재도전 $10.99" : "무료") + "</span></button>" +
+      '<button class="hub-b" data-hub="wand"><span class="hub-em">🪄</span>지팡이<span class="hub-s">🎟️ ' + wc + "</span></button>" +
+      '<button class="hub-b" data-hub="spell"><span class="hub-em">📜</span>주문<span class="hub-s">📜 ' + sTickets() + "</span></button>" +
+    "</div>" +
+    '<div class="hub-row2">' +
+      '<button class="hub-mini" data-hub="shop">💵 상점</button>' +
+      '<button class="hub-mini" data-hub="book">📖 주문서</button>' +
+      '<button class="hub-mini" data-hub="syn">💞 궁합</button>' +
+      '<button class="hub-mini" data-hub="rank">🏆 전적</button>' +
+    "</div></div>";
+}
+function openRank() {
+  var box = document.getElementById("rankbox");
+  if (!box) { box = document.createElement("div"); box.id = "rankbox"; document.body.appendChild(box); }
+  var rows = MEMBERS.map(function (m) { var s = statsOf(m.id); return { m: m, s: s, lv: lvOf(m.id) }; })
+    .sort(function (a, b) { return (b.s.xp || 0) - (a.s.xp || 0); });
+  box.hidden = false;
+  box.innerHTML = '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="arm-top">마법사 전적</div>' +
+    rows.map(function (r, i) {
+      return '<div class="rowline"><span class="rk-no">' + (i + 1) + "</span>" + av(r.m.id) +
+        '<div><div style="font-weight:700;font-size:14px">' + esc(r.m.name) + ' <span class="bt-lv">Lv.' + r.lv + "</span></div>" +
+        '<div class="muted" style="font-size:12px">' + (r.s.wins || 0) + "승 " + (r.s.losses || 0) + "패 · XP " + (r.s.xp || 0) + "</div></div>" +
+        '<span style="margin-left:auto">☠️' + akLeft(r.m.id) + dodgeBadge(r.m.id) + "</span></div>";
+    }).join("") + "</div>";
+}
+
+/* ---------------- 상점 v2 — 프리미엄 6/일 · 울트라 주 3장 ---------------- */
+function isoWeek() {
+  var d = new Date(); var day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day + 3);
+  var first = new Date(d.getFullYear(), 0, 4);
+  return d.getFullYear() + "-" + Math.round(((d - first) / 86400000 + ((first.getDay() + 6) % 7)) / 7);
+}
+function ultraUsedSet() {
+  var rec = (localStorage.getItem("kel_ultra_wk") || "").split("|");
+  return rec[0] === isoWeek() ? (rec[1] || "").split(",").filter(Boolean) : [];
+}
+function ultraLeftType(t) { return ultraUsedSet().indexOf(t) < 0; }
+function ultraMark(t) {
+  var u = ultraUsedSet(); if (u.indexOf(t) < 0) u.push(t);
+  localStorage.setItem("kel_ultra_wk", isoWeek() + "|" + u.join(","));
+}
+function bumpPrem() { localStorage.setItem("kel_p100", today() + "|" + (used100Today() + 1)); }
+function openShop() {
+  var box = document.getElementById("shopbox");
+  if (!box) { box = document.createElement("div"); box.id = "shopbox"; document.body.appendChild(box); }
+  var u = ultraUsedSet();
+  box.hidden = false;
+  box.innerHTML = '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="arm-top">상점 <span class="muted" style="font-size:11px">전부 가짜 결제</span></div>' +
+    '<div class="shop">' +
+      '<button class="shop-item" data-buy="f-char"><span class="shop-price">$10.99</span><span class="shop-t">🧙 운명 거스르기</span><span class="shop-d">캐릭터 재굴리기 20번 리필 · 무제한</span></button>' +
+      '<button class="shop-item" data-buy="f-wand"><span class="shop-price">$10.99</span><span class="shop-t">🪄 지팡이 티켓 풀충전</span><span class="shop-d">무기 티켓 12장 · 무제한</span></button>' +
+      '<button class="shop-item" data-buy="f-spell"><span class="shop-price">$10.99</span><span class="shop-t">📜 주문 티켓 풀충전</span><span class="shop-d">주문 티켓 12장 · 무제한</span></button>' +
+      '<button class="shop-item' + (canBuy100() ? "" : " off") + '" data-buy="p100"><span class="shop-price">$100</span><span class="shop-t">프리미엄 팩</span><span class="shop-d">종류 선택 · 5장 중 1택 · 확률 3배</span><span class="shop-s">오늘 ' + used100Today() + "/" + P100_PER_DAY + "</span></button>" +
+      '<button class="shop-item ultra" data-buy="p1000"><span class="shop-price">$1,000</span><span class="shop-t">울트라 팩</span><span class="shop-d">확률 10배 · 주마다 캐릭터·지팡이·주문 각 1장</span><span class="shop-s">이번 주 남음: ' +
+        ["char", "wand", "spell"].filter(function (t) { return u.indexOf(t) < 0; }).map(function (t) { return { char: "🧙", wand: "🪄", spell: "📜" }[t]; }).join(" ") + "</span></button>" +
+    "</div></div>";
+  $$("[data-buy]", box).forEach(function (b) {
+    b.onclick = function () {
+      var k = b.dataset.buy;
+      if (k === "f-char") { box.hidden = true; return $("#fate-btn") ? $("#fate-btn").click() : fakeFate(); }
+      if (k === "f-wand") { if (!confirm("$10.99 — 무기 티켓 12장 (가짜)")) return; localStorage.setItem("kel_wt", String(WTICKET_MAX)); localStorage.setItem("kel_wt_t", String(Date.now())); sendPush("💸 " + nameOf(me) + "의 과금", "지팡이 티켓 풀충전 $10.99", "fate"); toast("💸 🎟️ 12장"); return openShop(); }
+      if (k === "f-spell") { if (!confirm("$10.99 — 주문 티켓 12장 (가짜)")) return; fillSTicket(); sendPush("💸 " + nameOf(me) + "의 과금", "주문 티켓 풀충전 $10.99", "fate"); toast("💸 📜 12장"); return openShop(); }
+      if (k === "p100") { if (!canBuy100()) return toast("오늘 " + P100_PER_DAY + "번 다 썼어"); box.hidden = true; return openPackChoose(100); }
+      if (k === "p1000") { box.hidden = true; return openPackChoose(1000); }
+    };
+  });
+}
+function fakeFate() {
+  localStorage.setItem("kel_rolls", "0");
+  localStorage.setItem("kel_fate", String(fateCount() + 1));
+  toast("💸 결제 완료(가짜). 20번 새로 받았어");
+  rollResult = drawCharacter(); openRoll();
+}
+function openPackChoose(kind) {
+  var box = document.getElementById("pkbox");
+  if (!box) { box = document.createElement("div"); box.id = "pkbox"; document.body.appendChild(box); }
+  var u = ultraUsedSet();
+  box.hidden = false;
+  box.innerHTML = '<div class="quiz-card"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="wres-name">' + (kind === 1000 ? "$1,000 울트라" : "$100 프리미엄") + ' — 뭘 뽑을까</div>' +
+    '<div class="btn-row" style="margin-top:12px">' +
+      ["char|🧙 캐릭터", "wand|🪄 지팡이", "spell|📜 주문"].map(function (x) {
+        var p = x.split("|"), off = kind === 1000 && u.indexOf(p[0]) >= 0;
+        return '<button class="btn' + (off ? " off" : "") + '" data-pt="' + p[0] + '" style="flex:1">' + p[1] + (off ? " ✅" : "") + "</button>";
+      }).join("") + "</div></div>";
+  $$("[data-pt]", box).forEach(function (b) {
+    b.onclick = function () {
+      var t = b.dataset.pt;
+      if (kind === 1000 && !ultraLeftType(t)) return toast("이번 주 이 종류는 이미 열었어 — 월요일 리셋");
+      box.hidden = true;
+      if (t === "char") {
+        if (kind === 1000) { ultraMark("char"); openMulti(1000); }
+        else openMulti(100); // 카운트는 openMulti 내부에서
+      } else {
+        if (kind === 1000) ultraMark(t === "wand" ? "wand" : "spell"); else bumpPrem();
+        openMultiWS(kind, t);
+      }
+    };
+  });
+}
+function openMultiWS(kind, type) {
+  var n = kind === 1000 ? 3 : 5, boost = kind === 1000 ? 10 : 3;
+  var cards = [];
+  for (var i = 0; i < n; i++) cards.push(type === "wand" ? drawWeapon(boost) : drawSpell(boost));
+  var box = document.getElementById("multibox");
+  if (!box) { box = document.createElement("div"); box.id = "multibox"; document.body.appendChild(box); }
+  box.className = kind === 1000 ? "ultra" : "";
+  box.hidden = false;
+  box.innerHTML = '<div class="multi-wrap">' +
+    '<div class="multi-top">' + (kind === 1000 ? "$1,000 ULTRA · 확률 10배" : "$100 PREMIUM · 확률 3배") + "</div>" +
+    '<div class="multi-sub">' + (type === "wand" ? "🪄 지팡이" : "📜 주문") + " " + n + "장 — 전부 획득!</div>" +
+    '<div class="multi-grid' + (n === 3 ? " three" : "") + '">' +
+    cards.map(function (c, i) {
+      var t = tierById[c.t];
+      return '<div class="mcard on" style="--rc:' + t.color + ';animation-delay:' + (i * 0.3) + 's">' +
+        '<div class="mc-em">' + c.em + '</div><div class="mc-ko">' + esc(c.ko) + '</div>' +
+        '<div class="mc-t" style="background:' + t.color + '">' + t.en + "</div></div>";
+    }).join("") + "</div>" +
+    '<button class="btn" id="mw-take" style="width:100%;margin-top:14px">전부 받기</button></div>';
+  sendPush("💸 " + nameOf(me) + "의 과금", (kind === 1000 ? "$1,000 울트라" : "$100 프리미엄") + " 팩 개봉", "fate");
+  FX2.burst(innerWidth / 2, innerHeight * 0.3, { c: kind === 1000 ? "#C8503C" : "#C79A3E", n: 70, sp: 9, up: 1 });
+  $("#mw-take").onclick = async function () {
+    box.hidden = true;
+    for (var i = 0; i < cards.length; i++) {
+      if (type === "wand") await grantWeapon(cards[i]);
+      else await grantSpell(cards[i]);
+    }
+    toast("🎉 " + cards.length + "장 전부 획득");
+    if (type === "spell") openSpellbook();
+  };
+}
+
+/* ---------------- 궁합표 v2 — 지팡이×마법사 + 이스터에그 ---------------- */
+openSynergy = function () {
+  var box = document.getElementById("synbox");
+  if (!box) { box = document.createElement("div"); box.id = "synbox"; document.body.appendChild(box); }
+  var myC = charOf(me);
+  var myList = myC ? WEAPONS.filter(function (w) { return (w.want || []).indexOf(myC.id) >= 0; }) : [];
+  box.hidden = false;
+  box.innerHTML = '<div class="armory syn-wrap"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="arm-top">궁합표 <span class="muted" style="font-size:11px">맞는 지팡이 = 전투력 ×3</span></div>' +
+    (myC ? '<div class="syn-mine"><b>' + myC.em + " " + esc(myC.ko) + "</b>가 원하는 것" +
+      '<div class="arm-wrow">' + (myList.length ? myList.map(function (w) {
+        return '<span class="arm-wchip' + (wQty(w.id) ? " has" : "") + '">' + w.em + " " + esc(w.ko) + (wQty(w.id) ? " ✅" : "") + "</span>";
+      }).join("") : '<span class="muted">전용 무기가 없는 캐릭터야 — 잡템 ×1.3은 유효</span>') + "</div></div>" : "") +
+    [6, 5, 4].map(function (tt) {
+      var t = tierById[tt];
+      var ws = WEAPONS.filter(function (w) { return w.t === tt; });
+      return '<div class="syn-tier" style="--rc:' + t.color + '"><div class="syn-th">' + t.en + "</div>" +
+        ws.map(function (w) {
+          var owners = (w.want || []).map(function (id) { var c = charById[id]; return c ? c.em + " " + c.ko : id; }).join(" · ");
+          return '<div class="syn-row"><span class="syn-w">' + w.em + " " + esc(w.ko) + '</span><span class="syn-c">' + (owners || "—") + "</span></div>";
+        }).join("") + "</div>";
+    }).join("") +
+    '<div class="syn-tier" style="--rc:#8000A8"><div class="syn-th">🥚 이스터에그 — 하극상의 길</div>' +
+    EGGS.map(function (e) {
+      var seen = eggSeen(e.id);
+      return '<div class="syn-row egg' + (seen ? " open" : "") + '"><span class="syn-w">' + (seen ? "🥚 " + e.n : "❓ ???") + "</span>" +
+        '<span class="syn-c">' + (seen ? esc(e.d) : "배틀에서 조건을 맞추면 해금") + "</span></div>";
+    }).join("") + "</div>" +
+  "</div>";
+};
+
+/* ---------------- 도적의 지도 ---------------- */
+function marauderCardHtml() {
+  var autoUntil = Number(localStorage.getItem("kel_autoshare") || 0);
+  var on = autoUntil > Date.now();
+  return '<div class="mmap-card"><div class="mmap-head">🗺️ 도적의 지도' +
+    '<span class="mmap-oath">"나는 못된 짓을 꾸미고 있음을 엄숙히 맹세합니다"</span></div>' +
+    '<div id="map" class="mmap"></div>' +
+    '<div class="btn-row" style="margin-top:10px">' +
+      '<button class="btn" id="mm-all" style="flex:1.4">📢 전원 위치 소집</button>' +
+      '<button class="btn ghost" id="mm-me" style="flex:1">📍 내 위치</button>' +
+      '<button class="btn ghost' + (on ? " on" : "") + '" id="mm-auto" style="flex:1">' + (on ? "🕐 자동공유 중" : "1시간 자동") + "</button>" +
+    "</div></div>";
+}
+function bindMarauder() {
+  var a = $("#mm-all");
+  if (a) a.onclick = async function () {
+    if (!me) return openWho();
+    var r = await qInsert("checkins", { member: me, place: "🗺️ 전원 위치 소집!", note: null, target: "all", lat: null, lng: null });
+    if (r === true) { toast("🗺️ 소집 발동 — 응답 오는 대로 지도에 찍힘"); sendPush(nameOf(me), "🗺️ 전원 위치를 소집한다! (지도 탭에서 응답)", "req"); loadAll(); }
+  };
+  var mm = $("#mm-me"); if (mm) mm.onclick = function () { quickPing(true); };
+  var au = $("#mm-auto");
+  if (au) au.onclick = function () {
+    var cur = Number(localStorage.getItem("kel_autoshare") || 0);
+    if (cur > Date.now()) { localStorage.setItem("kel_autoshare", "0"); toast("자동 공유 끔"); }
+    else { localStorage.setItem("kel_autoshare", String(Date.now() + 3600000)); toast("🕐 1시간 동안 위치 요청에 자동 응답"); }
+    renderTab(currentTab);
+  };
+}
+/* 자동 응답: 요청 배너 뜨는 조건에서 자동공유 켜져 있으면 바로 쏨 */
+var _checkReq35 = typeof checkRequests === "function" ? checkRequests : null;
+checkRequests = function () {
+  if (Number(localStorage.getItem("kel_autoshare") || 0) > Date.now() && me) {
+    var tenMin = Date.now() - 600000;
+    var myLastLoc = store.checkins.find(function (c) { return c.member === me && c.lat; });
+    var req = store.checkins.find(function (c) {
+      return c.target && (c.target === me || c.target === "all") && c.member !== me &&
+        new Date(c.created_at).getTime() > tenMin &&
+        (!myLastLoc || new Date(c.created_at) > new Date(myLastLoc.created_at));
+    });
+    if (req && localStorage.getItem("kel_req_done") !== String(req.id)) {
+      localStorage.setItem("kel_req_done", String(req.id));
+      quickPing(true);
+      toast("🕐 자동 공유 — 위치 송신");
+      return;
+    }
+  }
+  if (_checkReq35) _checkReq35();
+};
+var _drawMap35 = drawMap;
+drawMap = function (id, opts) {
+  _drawMap35(id, opts);
+  var holder = document.getElementById(id);
+  if (holder) holder.classList.add("marauder");
+  // 발자국: 마커 등장 연출
+  setTimeout(function () {
+    document.querySelectorAll("#" + id + " .av-pin").forEach(function (p, i) {
+      p.classList.add("footstep");
+      p.style.animationDelay = (i * 0.15) + "s";
+    });
+  }, 150);
+};
+
+/* ---------------- 무전 이펙트 첨부 + 3D ---------------- */
+window.KSEL = null;
+function spellChipRow() {
+  var mine = myBook();
+  if (!mine.length) return "";
+  return '<div class="chip-row spellrow"><span class="muted" style="font-size:11px;align-self:center">🪄 이펙트:</span>' +
+    '<button class="chip spx' + (!window.KSEL ? " on" : "") + '" data-spx="">없음</button>' +
+    mine.map(function (r) {
+      var s = spellById[r.spell_id]; if (!s) return "";
+      return '<button class="chip spx' + (window.KSEL === s.id ? " on" : "") + '" data-spx="' + s.id + '">' + s.em + "</button>";
+    }).join("") + "</div>";
+}
+document.addEventListener("click", function (e) {
+  var sx = e.target.closest && e.target.closest("[data-spx]");
+  if (sx) {
+    window.KSEL = sx.dataset.spx || null;
+    document.querySelectorAll(".spx").forEach(function (x) { x.classList.toggle("on", x.dataset.spx === (window.KSEL || "")); });
+    if (window.KSEL) FX2.cast(window.KSEL, { quick: true });
+  }
+  var hb = e.target.closest && e.target.closest("[data-hub]");
+  if (hb) {
+    var k = hb.dataset.hub;
+    if (k === "char") { if (!me) return openWho(); if (!charOf(me)) { rollResult = drawCharacter(); openRoll(); } else openShop(); }
+    else if (k === "wand") openArmory();
+    else if (k === "spell") openSpellbook();
+    else if (k === "shop") openShop();
+    else if (k === "book") openSpellbook();
+    else if (k === "syn") openSynergy();
+    else if (k === "rank") openRank();
+  }
+  var ox = e.target.closest && e.target.closest("[data-ovx]");
+  if (ox) { var ov = ox.closest("#armorybox,#synbox,#boxbox,#quizbox,#wbox,#spbox,#bookbox,#btbox,#rankbox,#shopbox,#pkbox,#multibox,#liarbox,#oddsov,#duelbox"); if (ov) { ov.hidden = true; } }
+  var dl = e.target.closest && e.target.closest("[data-duel]");
+  if (dl) { e.stopPropagation(); duelInvite(dl.dataset.duel); }
+});
+
+/* ---------------- 여행 아카이브 (정보 탭) ---------------- */
+function archMissionsHtml() {
+  var h = '<div class="card">';
+  for (var i = 0; i < MISSIONS.length; i++) {
+    var mi = MISSIONS[i], label = mi.e + " " + mi.t;
+    var doneBy = MEMBERS.filter(function (m2) { return store.checkins.some(function (c) { return c.member === m2.id && c.place === label; }); });
+    h += '<div class="mission-row done-view"><span class="mi-badge">' + mi.e + '</span><span class="mi-title">' + esc(mi.t) + "</span>" +
+      '<span class="mi-who">' + doneBy.map(function (m2) { return av(m2.id, "mini"); }).join("") + "</span></div>";
+  }
+  return h + "</div>";
+}
+
+/* ---------------- 튜토리얼 v35 ---------------- */
+tutSteps = function () {
+  var installed = isStandalone();
+  var pushOn = pushState() === "granted" && !!localStorage.getItem("kel_push");
+  return [
+    { ic: "🧙", t: "여행수첩 → 마법사 대전", d: "여행은 끝났지만 게임은 계속돼. 이제 이 앱은 <b>뽑기 + 무전 + 마법사 배틀</b>이야. 홈 맨 위 <b>뽑기 허브</b>에서 전부 시작해." },
+    { ic: (me && charOf(me) ? avatarOf(me) : "🎲"), t: "① 캐릭터", d: me && charOf(me) ? ("현재 <b>" + esc(fullName(me)) + "</b>. 다시 뽑고 싶으면 상점 $10.99 (가짜 결제, 무제한).") : "먼저 마법사를 뽑아. 20번까지 다시 굴릴 수 있어.",
+      btn: charOf(me) ? null : "지금 뽑기", run: function () { tutPause(); rollResult = drawCharacter(); openRoll(); }, done: function () { return !!charOf(me); } },
+    { ic: "🪄", t: "② 지팡이", d: "티켓은 20분마다 1장(최대 12). <b>궁합 맞는 지팡이 장착 = 전투력 ×3</b>이고 배틀에서 익스펠리아르무스 카운터도 지팡이당 10회야." },
+    { ic: "📜", t: "③ 주문", d: "주문도 티켓으로 뽑아 모아(중복 = 자동 강화). <b>아바다 케다브라는 0.1%, 평생 10발.</b> 주문은 배틀에서도 쓰고, 무전 보낼 때 이펙트로도 붙일 수 있어.",
+      btn: "주문 하나 뽑아보기", run: function () { tutPause(); openSpellDraw(); }, done: function () { return myBook().length > 0; } },
+    { ic: "⚔️", t: "④ 배틀", d: "교신 탭 친구 카드의 <b>⚔️</b>를 누르면 실시간 턴제 결투. 매턴 서로 몰래 주문을 고르고 동시에 공개돼.<br><b>지면 경험치를 더 많이 받아</b> — 약해도 계속 크는 구조." },
+    { ic: "🥚", t: "⑤ 하극상", d: "일반 캐릭터도 초월을 잡는 <b>이스터에그 조합</b>이 숨어 있어. 발동하면 궁합표에 해금돼. 궁합 아이템은 절대 무시하지 마." },
+    { ic: "🗺️", t: "⑥ 도적의 지도", d: "교신 탭 맨 위 지도에서 <b>📢 전원 위치 소집</b> 한 번이면 응답 오는 대로 전원이 지도에 찍혀. 1시간 자동 공유도 켤 수 있어." },
+    { ic: "📲", t: "설치 · 알림", d: "홈 화면 설치 + 알림을 켜야 결투 신청·무전이 밖에서도 와.", btn: installed ? (pushOn ? null : "알림 켜기") : "설치 위치 보여줘",
+      run: function () { if (!installed) { tutPause(); pointToShare(); } else enablePush().then(drawTut); }, done: function () { return installed && pushOn; }, skipIf: function () { return installed && pushOn; } },
+  ];
+};
+
+/* ---------------- v35 부팅 ---------------- */
+function kelV35Init() {
+  FX2.mount();
+  kelLoad35();
+  ensureStats();
+  if (sb) {
+    try {
+      btCh = sb.channel("kel-b35");
+      ["battles", "spellbook", "wiz_stats"].forEach(function (t) {
+        btCh.on("postgres_changes", { event: "*", schema: "public", table: t }, function () { kelLoad35(); });
+      });
+      btCh.subscribe();
+    } catch (e) {}
+  } else setTimeout(kelV35Init, 1500);
+  // 라디오 3D 래핑
+  var ptw = document.querySelector(".ptt-wrap");
+  if (ptw) ptw.classList.add("ptt3d");
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { setTimeout(kelV35Init, 600); });
+else setTimeout(kelV35Init, 600);
