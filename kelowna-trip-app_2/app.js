@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v50";
-const BUILD_NO = 50;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v51";
+const BUILD_NO = 51;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -5337,6 +5337,16 @@ var FX2 = (function () {
     parts.push(p);
     kick();
   }
+  function battleFlair(id, x, y, LM, c) {
+    try {
+      if (id === "avada") { glyphBurst("☠️", x, y - 30, { c: "#57E86B", scale: 230, life: 1.4 }); flash("#0C2E12", 420); }
+      else if (id === "patronum") glyphBurst("🦌", x, y - 40, { c: "#CFE8FF", scale: 260, life: 1.8 });
+      else if (id === "bombarda") { ring(x, y, { c: "#FFB25E", sp: 22, n: 90, sz: 9 }); FX2.shake(1.2); }
+      else if (id === "crucio") for (var j = 0; j < 16; j++) spawn({ x: x + (Math.random() - .5) * 90, y: y + (Math.random() - .5) * 70, vx: (Math.random() - .5) * 9, vy: (Math.random() - .5) * 9, g: 0, life: 0.4, sz: 5, c: "#FF4A4A", drag: 0.9, stretch: 2.2 });
+      else if (id === "stupefy") glyphBurst("🔻", x, y - 20, { c: "#FF6A5E", scale: 200, life: 1.1 });
+      else if (id === "fiendfyre") { glyphBurst("🐉", x, y - 40, { c: "#FF7A2E", scale: 260, life: 1.6 }); FX2.shake(1); }
+    } catch (e) {}
+  }
   function kick() {
     if (cv) { cv.style.display = ""; cv.style.mixBlendMode = "screen"; }
     if (running) return;
@@ -5577,7 +5587,16 @@ var FX2 = (function () {
             life: 1.4, sz: 7, c: c, drag: 0.99, turb: 0.8, tw: 2 });
         if (o.done) setTimeout(o.done, 500);
       }, 260);
-    }, o.quick ? 60 : 340);
+    }, o.quick ? 60 : 620);
+    if (!o.quick) {
+      for (var ci = 0; ci < Math.round(12 * LM); ci++) (function () {
+        var an = Math.random() * 6.283, rd = 70 + Math.random() * 60;
+        var sx2 = fx + Math.cos(an) * rd, sy2 = fy + Math.sin(an) * rd;
+        spawn({ x: sx2, y: sy2, vx: (fx - sx2) / 26, vy: (fy - sy2) / 26, g: 0, life: 0.5 + Math.random() * 0.2, sz: 4, c: c, drag: 1, stretch: 1.6 });
+      })();
+      setTimeout(function () { ring(fx, fy, { c: c, sp: 4, n: 24, sz: 4 }); }, 420);
+      setTimeout(function () { battleFlair(spellId, cx, cy, LM, c); }, 760);
+    }
   }
   function liftUI(ms) {
     document.body.classList.add("forcelift");
@@ -5635,6 +5654,15 @@ if (spellById.aguamenti) { spellById.aguamenti.fam = "water"; spellById.aguament
 var SP_GROUP = { atk:"a", fire:"a", water:"a", dot:"a", dot2:"a", kill:"a", shield:"d", guard:"d", counter:"d", wake:"d", stun:"s", sleep:"s", weak:"s", ctrl:"s", forget:"s", buff:"u" };
 var KIND_EM = { atk:"🗡", dot:"🩸", dot2:"🩸", kill:"☠️", shield:"🛡", guard:"🛡", counter:"🪄", wake:"⚡", stun:"💫", sleep:"💤", weak:"🙃", ctrl:"🌀", forget:"💭", buff:"✨" };
 function kindEm(s) { return s.fam === "fire" ? "🔥" : s.fam === "water" ? "💧" : (KIND_EM[s.kind] || "🗡"); }
+var SECRET35 = [
+  { c: "joker", w: "stick", a: 3.2, tk: 1.8, nm: "🃏 와일드카드", hint: "조커가 「그냥 나뭇가지」를 쥐면 미쳐 날뛴다는 소문이 있다…" },
+  { c: "donotchoose", w: "rock", a: 4, tk: 2.2, nm: "🚫 금기", hint: "고르지 말라던 걸 고른 자가 「돌멩이」까지 들면 무슨 일이…" },
+];
+function comboOf(mem) {
+  var c = charOf(mem); if (!c) return null;
+  var wq = equippedOf(mem);
+  return SECRET35.find(function (x) { return x.c === c.id && x.w === wq; }) || null;
+}
 function dmgPreview(s) {
   if (!s.pow || s.pow >= 999) return s.id === "avada" ? "즉사" : "";
   var c = charOf(me), lv = spLv(s.id) || 1;
@@ -5659,6 +5687,7 @@ function expelLeft(m) {
 }
 function svMap() { return (statsOf(me).exp_map || {}); }
 async function svPatch(kv) {
+  if (!store35.wstats.length) { try { await kelLoad35Now(); } catch (e) {} }
   await ensureStats();
   var em = Object.assign({}, svMap(), kv);
   await sb.from("wiz_stats").update({ exp_map: em }).eq("member", me);
@@ -6218,7 +6247,7 @@ function playTheatre(g, ns, replay) {
   }
   var fresh = logs.slice(seen.n);
   seen.n = logs.length;
-  __pkBusy[ns] = Date.now() + fresh.length * 1050 + 900;
+  __pkBusy[ns] = Date.now() + fresh.length * 1500 + 1000;
   if (ns === "bt") window.__pkBusyUntil = __pkBusy[ns];
   var mp = __pkMaps[ns] || {};
   var stg = document.getElementById(ns + "-stage");
@@ -6234,12 +6263,12 @@ function playTheatre(g, ns, replay) {
       var from = sprCenter(atkId), to = sprCenter(defId);
       if (stg) { stg.classList.add("casting"); setTimeout(function () { stg.classList.remove("casting"); }, 950); }
       void 0;
-      if (l.fx) FX2.cast(l.fx, { quick: true, from: from, x: to[0], y: to[1], lv: spellLvOf(l.who, l.fx) });
+      if (l.fx) FX2.cast(l.fx, { from: from, x: to[0], y: to[1], lv: spellLvOf(l.who, l.fx) });
       var defEl = document.getElementById(defId);
       if (defEl && l.fx) setTimeout(function () {
         var rg = document.createElement("span"); rg.className = "pk-shockring";
         defEl.appendChild(rg); setTimeout(function () { rg.remove(); }, 800);
-      }, 500);
+      }, 960);
       var dm = (l.txt || "").match(/— (\d+)/);
       setTimeout(function () {
         if (def) { def.classList.remove("hit"); void def.offsetWidth; def.classList.add("hit"); }
@@ -6247,8 +6276,8 @@ function playTheatre(g, ns, replay) {
           var p = document.createElement("span"); p.className = "dmgpop"; p.textContent = "-" + dm[1];
           def.appendChild(p); setTimeout(function () { p.remove(); }, 1200);
         }
-      }, 520);
-    }, i * 1050);
+      }, 980);
+    }, i * 1500);
   });
   // 막이 끝나고 기절 처리
   setTimeout(function () {
@@ -6258,7 +6287,7 @@ function playTheatre(g, ns, replay) {
         if (el) el.classList.add("faint");
       }
     });
-  }, fresh.length * 1050 + 400);
+  }, fresh.length * 1500 + 500);
 }
 function playBattleFx(st) { /* 호환용 — 종료 화면 잔향 */
   var last = (st.log || []).slice(-2);
@@ -6267,6 +6296,41 @@ function playBattleFx(st) { /* 호환용 — 종료 화면 잔향 */
   });
 }
 var __btUi = { sig: "" };
+function movesHtml(mine) {
+  return '<div class="arm-grid book-grid pk-moves">' + mine.slice().sort(function (x, y) {
+    var sx = spellById[x.spell_id], sy = spellById[y.spell_id];
+    return (sy ? sy.t : 0) - (sx ? sx.t : 0) || (y.lv || 1) - (x.lv || 1);
+  }).map(function (r) {
+    var s = spellById[r.spell_id]; if (!s) return "";
+    var dis = (s.id === "avada" && akLeft(me) <= 0) || (s.id === "expelliarmus" && expelLeft(me) <= 0);
+    var t = tierById[s.t];
+    var dp = dmgPreview(s);
+    return '<button class="arm-item sp-item' + (dis ? " lock" : "") + '" data-cast="' + s.id + '" style="--rc:' + t.color + '">' +
+      '<span class="ai-em">' + s.em + '</span><span class="ai-ko">' + esc(s.ko) + "</span>" +
+      '<span class="mv-meta">' + kindEm(s) + (dp ? " " + dp : "") + "</span>" +
+      '<span class="ai-t" style="background:' + t.color + '">' +
+      (s.id === "avada" ? "☠️" + akLeft(me) : s.id === "expelliarmus" ? "🪄" + expelLeft(me) : "Lv" + r.lv) + "</span></button>";
+  }).join("") + "</div>";
+}
+function bindMoves(box) {
+  $$("[data-cast]", box).forEach(function (b) {
+    b.onclick = function () {
+      if (b.classList.contains("lock")) return toast("차지가 없어");
+      submitPick(b.dataset.cast);
+    };
+  });
+}
+function startPickTimer(myPicked) {
+  clearInterval(btTimer);
+  if (myPicked) return;
+  var left = 25;
+  btTimer = setInterval(function () {
+    left--;
+    var c = document.getElementById("bt-cd");
+    if (c) c.textContent = left;
+    if (left <= 0) { clearInterval(btTimer); submitPick("__pass"); }
+  }, 1000);
+}
 function openBattle() {
   var g = btG; if (!g) return;
   var box = document.getElementById("btbox");
@@ -6312,51 +6376,41 @@ function openBattle() {
 
   var forgot = (st.forget || {})[me] || [];
   var mine = myBook().filter(function (r) { return forgot.indexOf(r.spell_id) < 0; });
+  if (window.__btDomId === g.id && document.getElementById("bt-stage")) {
+    var stg2 = document.getElementById("bt-stage");
+    var hf = stg2.querySelector(".pk-hpbox.foe"), hm2 = stg2.querySelector(".pk-hpbox.mine");
+    if (hf) hf.outerHTML = pkHpBox(en, (st.hp || {})[en] || 0, "foe");
+    if (hm2) hm2.outerHTML = pkHpBox(me, (st.hp || {})[me] || 0, "mine");
+    var tn = stg2.querySelector(".pk-turn"); if (tn) tn.textContent = "T" + g.turn;
+    var pm2 = box.querySelector(".bt-pickmsg");
+    if (pm2) pm2.innerHTML = myPicked ? "⏳ <b>" + esc(nameOf(en)) + "</b>의 주문 대기 중… <span class=\"muted2\">(45초 무응답 시 자동 패스)</span>"
+      : "이번 턴 주문을 골라 — <b id=\"bt-cd\">25</b>초";
+    var grid = box.querySelector(".pk-moves");
+    if (myPicked && grid) grid.remove();
+    if (!myPicked && !grid && pm2) { pm2.insertAdjacentHTML("afterend", movesHtml(mine)); bindMoves(box); }
+    startPickTimer(myPicked);
+    playTheatre(g, "bt");
+    return;
+  }
+  window.__btDomId = g.id;
   box.innerHTML = '<div class="armory bt-wrap pk-wrap">' + pkStageHtml(g, "bt") +
     '<div class="pk-box" id="bt-box">' + lastLog + '</div>' +
     '<div class="bt-pickmsg">' + (myPicked ? "⏳ <b>" + esc(nameOf(en)) + "</b>의 주문 대기 중… <span class=\'muted2\'>(45초 무응답 시 자동 패스 · 3연속이면 몰수패)</span>" :
       "이번 턴 주문을 골라 — <b id=\'bt-cd\'>25</b>초") + "</div>" +
     (myPicked ? "" :
-      '<div class="arm-grid book-grid pk-moves">' + mine.slice().sort(function (x, y) {
-        var sx = spellById[x.spell_id], sy = spellById[y.spell_id];
-        return (sy ? sy.t : 0) - (sx ? sx.t : 0) || (y.lv || 1) - (x.lv || 1);
-      }).map(function (r) {
-        var s = spellById[r.spell_id]; if (!s) return "";
-        var dis = (s.id === "avada" && akLeft(me) <= 0) || (s.id === "expelliarmus" && expelLeft(me) <= 0);
-        var t = tierById[s.t];
-        var dp = dmgPreview(s);
-        return '<button class="arm-item sp-item' + (dis ? " lock" : "") + '" data-cast="' + s.id + '" style="--rc:' + t.color + '">' +
-          '<span class="ai-em">' + s.em + '</span><span class="ai-ko">' + esc(s.ko) + "</span>" +
-          '<span class="mv-meta">' + kindEm(s) + (dp ? " " + dp : "") + "</span>" +
-          '<span class="ai-t" style="background:' + t.color + '">' +
-          (s.id === "avada" ? "☠️" + akLeft(me) : s.id === "expelliarmus" ? "🪄" + expelLeft(me) : "Lv" + r.lv) + "</span></button>";
-      }).join("") + "</div>") +
+      movesHtml(mine)) +
     '<div class="btn-row" style="margin-top:10px"><button class="btn ghost" id="bt-help" style="flex:1">❓ 이기는 법</button>' +
     '<button class="btn ghost" id="bt-run" style="flex:1">🏳️ 기권</button></div></div>';
   box.scrollTop = keepScroll;
   playTheatre(g, "bt");
-  $$("[data-cast]", box).forEach(function (b) {
-    b.onclick = function () {
-      if (b.classList.contains("lock")) return toast("차지가 없어");
-      submitPick(b.dataset.cast);
-    };
-  });
+  bindMoves(box);
   var hb2 = $("#bt-help"); if (hb2) hb2.onclick = openBattleGuide;
   $("#bt-run").onclick = async function () {
     if (!confirm("기권할까? 상대 승리로 끝나")) return;
     await sb.from("battles").update({ phase: "done", winner: en }).eq("id", g.id).eq("phase", "play");
     kelLoad35();
   };
-  clearInterval(btTimer);
-  if (!myPicked) {
-    var left = 25;
-    btTimer = setInterval(function () {
-      left--;
-      var c = document.getElementById("bt-cd");
-      if (c) c.textContent = left;
-      if (left <= 0) { clearInterval(btTimer); submitPick("__pass"); }
-    }, 1000);
-  }
+  startPickTimer(myPicked);
 }
 async function submitPick(spellId) {
   var g = btG; if (!g || g.phase !== "play") return;
@@ -6384,6 +6438,8 @@ function effPow(s, caster, target, st) {
   if (c && c.id === "neville" && equippedOf(caster) === "gryffindorsword" && charOf(target) && charOf(target).id === "riddle") { p *= 5; eggMark("neville"); }
   if (equippedOf(caster) === "onering" && s.id === "incendio" && charOf(target) && charOf(target).id === "sauron") { p *= 6; eggMark("mtdoom"); }
   if (isAwakened(caster)) p *= 1.35;
+  var cb35 = comboOf(caster);
+  if (cb35) { p *= cb35.a; eggMark("cb_" + cb35.c); }
   p *= dodgeMul(caster);
   if (c && c.id === "snape" && s.id === "sectumsempra") p *= 1.5;
   return Math.round(p);
@@ -6483,7 +6539,13 @@ async function resolveTurn(g, force) {
     }
     if (s.kind === "shield") { st.shield[caster] = { v: 0.7 }; line("🛡️ " + nameOf(caster) + " 프로테고 전개", "protego", caster); continue; }
     if (s.id === "patronum") { st.shield[caster] = { v: 1, pat: 1 }; st.hp[caster] = Math.min(maxHp(caster), st.hp[caster] + 12); line("🦌 " + nameOf(caster) + " 패트로누스! 다음 공격 무효 +12", "patronum", caster); continue; }
-    if (s.kind === "buff") { st.buff[caster] = 1; line("💡 " + nameOf(caster) + " 루모스 — 다음 주문 +30%", "lumos", caster); continue; }
+    if (s.kind === "buff") {
+      var tc35 = charOf(target);
+      if (tc35 && (tc35.id === "voldemort" || tc35.id === "riddle")) {
+        line("🕯 어둠이 빛을 삼켰다 — " + nameOf(caster) + "의 루모스가 꺼진다"); eggMark("nox"); continue;
+      }
+      st.buff[caster] = 1; line("💡 " + nameOf(caster) + " 루모스 — 다음 주문 +30%", "lumos", caster); continue;
+    }
     if (s.kind === "wake") { st.wimm[caster] = 1; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 리네베이트 — +8 · 수면 면역", "rennervate", caster); continue; }
     if (s.kind === "ctrl") {
       st.hp[target] -= 6; st.ctrl[target] = 1;
@@ -6514,6 +6576,8 @@ async function resolveTurn(g, force) {
     var sh = st.shield[target];
     if (sh) { if (sh.pat) { dmg = 0; line("🦌 패트로누스가 " + s.ko + "를 삼켰다"); } else dmg = Math.round(dmg * (1 - sh.v)); delete st.shield[target]; }
     if (dmg > 0) {
+      var tcb = comboOf(target);
+      if (tcb) dmg = Math.round(dmg * tcb.tk);
       st.hp[target] -= dmg;
       line(s.em + " " + nameOf(caster) + "의 " + s.ko + " — " + dmg, s.id, caster);
       if (st.sleep[target]) wake(target, s.fam === "fire" ? "뜨거워서" : "얻어맞고");
@@ -6741,7 +6805,7 @@ function openShop() {
       '<button class="shop-item" data-buy="f-wand"><span class="shop-price">$10.99</span><span class="shop-t">🪄 지팡이 티켓 풀충전</span><span class="shop-d">무기 티켓 12장 · 무제한</span></button>' +
       '<button class="shop-item" data-buy="f-spell"><span class="shop-price">$10.99</span><span class="shop-t">📜 주문 티켓 풀충전</span><span class="shop-d">주문 티켓 12장 · 무제한</span></button>' +
       '<button class="shop-item' + (canBuy100() ? "" : " off") + '" data-buy="p100"><span class="shop-price">$100</span><span class="shop-t">프리미엄 팩</span><span class="shop-d">종류 선택 · 5장 중 1택 · 확률 3배</span><span class="shop-s">오늘 ' + used100Today() + "/" + P100_PER_DAY + (extraPrem() > 0 ? " · 🎟️" + extraPrem() : "") + "</span></button>" +
-      '<button class="shop-item ultra" data-buy="p1000"><span class="shop-price">$1,000</span><span class="shop-t">울트라 팩</span><span class="shop-d">확률 10배 · 주마다 캐릭터·지팡이·주문 각 1장</span><span class="shop-s">이번 주 남음: ' +
+      '<button class="shop-item ultra" data-buy="p1000"><span class="shop-price">$1,000</span><span class="shop-t">울트라 팩</span><span class="shop-d">확률 10배 · 주마다 캐릭터·지팡이·주문 각 1장</span><span class="shop-s">' + (extraUltra() > 0 ? '🎟️' + extraUltra() + ' · ' : '') + '이번 주 남음: ' +
         ["char", "wand", "spell"].filter(function (t) { return u.indexOf(t) < 0; }).map(function (t) { return { char: "🧙", wand: "🪄", spell: "📜" }[t]; }).join(" ") + (extraUltra() > 0 ? " · 🎟️" + extraUltra() : "") + "</span></button>" +
     "</div></div>";
   $$("[data-buy]", box).forEach(function (b) {
@@ -6838,6 +6902,15 @@ openSynergy = function () {
   box.hidden = false;
   box.innerHTML = '<div class="armory syn-wrap"><button class="ovx" data-ovx>✕</button>' +
     '<div class="arm-top">궁합표 <span class="muted" style="font-size:11px">맞는 지팡이 = 전투력 ×3</span></div>' +
+    '<div class="syn-secret"><b>💀 금단의 조합</b><br>' +
+    SECRET35.map(function (x) {
+      return eggSeen("cb_" + x.c)
+        ? "· <b>" + x.nm + "</b> — " + (charById[x.c] || {}).ko + " + " + (weaponById[x.w] || {}).ko + " = 공격 ×" + x.a + " · 받는 피해 ×" + x.tk
+        : "· <span class=" + String.fromCharCode(34) + "muted" + String.fromCharCode(34) + ">" + x.hint + "</span>";
+    }).join("<br>") + "<br>" +
+    (eggSeen("nox") ? "· <b>🕯 녹스</b> — 어둠의 제왕(볼드모트·리들) 앞에서 루모스는 꺼진다"
+      : "· <span class=" + String.fromCharCode(34) + "muted" + String.fromCharCode(34) + ">🕯 어둠의 제왕 앞에서 빛은 오래가지 못한다는 전설이…</span>") +
+    '</div>' +
     (myC ? '<div class="syn-mine"><b>' + myC.em + " " + esc(myC.ko) + "</b>가 원하는 것" +
       '<div class="arm-wrow">' + (myList.length ? myList.map(function (w) {
         return '<span class="arm-wchip' + (wQty(w.id) ? " has" : "") + '">' + w.em + " " + esc(w.ko) + (wQty(w.id) ? " ✅" : "") + "</span>";

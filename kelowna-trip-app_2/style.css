@@ -1824,3 +1824,6 @@ details.arch > .card, details.arch > h2 { margin-left: 4px; margin-right: 4px; }
 #btbox .pk-wrap { display: flex; flex-direction: column; max-height: 92dvh; overflow: hidden; }
 #btbox .pk-stage, #btbox .pk-box, #btbox .bt-pickmsg, #btbox .btn-row, #btbox .liar-banner, #btbox .liar-sub { flex: 0 0 auto; }
 #btbox .pk-moves { flex: 1 1 auto; min-height: 84px; max-height: none; }
+
+.syn-secret { margin: 4px 0 12px; padding: 9px 11px; border: 1px dashed #7A5A86; border-radius: 10px;
+  background: rgba(109,74,124,.08); font-size: 11.5px; line-height: 1.8; }
