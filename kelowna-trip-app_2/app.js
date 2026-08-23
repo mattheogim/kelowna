@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v38";
-const BUILD_NO = 38;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v39";
+const BUILD_NO = 39;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2831,7 +2831,6 @@ function drawExpChips() {
 
 /* ---------------- 정보 ---------------- */
 function renderInfo() {
-  if (typeof autoRollout === "function") { localStorage.removeItem("kel_rollout_dism"); autoRollout(); }
   const el = $("#tab-info");
   const s = store.settings;
   const myName = me ? nameOf(me) : "미선택";
@@ -6724,21 +6723,15 @@ tutSteps = function () {
    새 빌드를 처음 켠 폰이 서버 min_version보다 높으면 → 컨펌 한 번으로
    settings.min_version을 올려서 전원 자동 갱신. SQL Editor 불필요. */
 async function autoRollout() {
+  // 무조건 자동: 새 빌드가 처음 켜지는 순간 서버 기준을 끌어올려 전원 강제 갱신
   try {
     if (!sb || !store || !store.settings || !Object.keys(store.settings).length) return;
     var cur = Number(setting("min_version") || 0);
     if (BUILD_NO <= cur) return;
-    if (localStorage.getItem("kel_rollout_dism") === String(BUILD_NO)) return;
-    if (!confirm("📦 이 폰은 v" + BUILD_NO + ", 서버 기준은 v" + cur + ".\n\n전원 강제 업데이트를 걸까?\n(확인 → 모든 폰이 자동으로 새 버전을 받음)")) {
-      localStorage.setItem("kel_rollout_dism", String(BUILD_NO));
-      toast("보류함 — 정보 탭 열면 다시 물어볼게");
-      return;
-    }
     var r = await sb.from("settings").upsert({ key: "min_version", value: String(BUILD_NO) }, { onConflict: "key" });
-    if (r.error) return toast("배포 실패: " + r.error.message);
-    localStorage.removeItem("kel_rollout_dism");
-    sendPush("📦 v" + BUILD_NO + " 배포", "전원 자동 갱신 시작 — 화면이 한 번 새로고침될 거야", "fate", false);
-    toast("📦 v" + BUILD_NO + " 전원 배포 — 다들 자동 갱신됨");
+    if (r.error) return;
+    sendPush("📦 v" + BUILD_NO + " 배포", "전원 자동 갱신 — 화면이 한 번 새로고침될 거야", "fate", false);
+    toast("📦 v" + BUILD_NO + " 전원 배포 발동");
   } catch (e) {}
 }
 function kelV35Init() {
@@ -6761,7 +6754,7 @@ function kelV35Init() {
   var tries = 0;
   (function waitMig() {
     var loaded = store && store.settings && Object.keys(store.settings).length > 0;
-    if (loaded && localStorage.getItem("kel_rollout_dism") !== String(BUILD_NO)) autoRollout();
+    if (loaded) autoRollout();
     if (me && loaded) return runMig35();
     if (tries++ < 40) setTimeout(waitMig, 900);
   })();
