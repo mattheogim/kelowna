@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v43";
-const BUILD_NO = 43;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v44";
+const BUILD_NO = 44;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -3990,8 +3990,11 @@ function applyGrants() {
   localStorage.setItem("kel_grant_token", tok);
   const mine = g[me];
   if (!mine) return;
-  if (mine.ultra) localStorage.setItem("kel_x_ultra", String(extraUltra() + mine.ultra));
-  if (mine.premium) localStorage.setItem("kel_x_prem", String(extraPrem() + mine.premium));
+  if (typeof svCoupon === "function") svCoupon(mine.ultra || 0, mine.premium || 0);
+  else {
+    if (mine.ultra) localStorage.setItem("kel_x_ultra", String(extraUltra() + mine.ultra));
+    if (mine.premium) localStorage.setItem("kel_x_prem", String(extraPrem() + mine.premium));
+  }
   const parts = [];
   if (mine.ultra) parts.push("🏆 $1,000 울트라 팩 " + mine.ultra + "장");
   if (mine.premium) parts.push("💵 $100 프리미엄 팩 " + mine.premium + "장");
@@ -4042,7 +4045,7 @@ function openMulti(kind) {
   if (!cards.length) return toast("남은 캐릭터가 없어");
   if (kind === 100) {
     if (used100Today() >= P100_PER_DAY && extraPrem() > 0)
-      localStorage.setItem("kel_x_prem", String(extraPrem() - 1));
+      (typeof svCoupon === "function" ? svCoupon(0, -1) : localStorage.setItem("kel_x_prem", String(extraPrem() - 1)));
     else localStorage.setItem("kel_p100", today() + "|" + (used100Today() + 1));
   } else { /* 울트라 캐릭터 슬롯은 openPackChoose에서 ultraMark 처리 */ }
 
@@ -5335,7 +5338,7 @@ var FX2 = (function () {
     kick();
   }
   function kick() {
-    if (cv) cv.style.display = "";
+    if (cv) { cv.style.display = ""; cv.style.mixBlendMode = "screen"; }
     if (running) return;
     running = true; lastT = performance.now();
     requestAnimationFrame(loop);
@@ -5363,7 +5366,7 @@ var FX2 = (function () {
     }
     draw();
     if (parts.length || trauma > 0.003) requestAnimationFrame(loop);
-    else { running = false; clear(); document.body.style.transform = ""; if (cv) cv.style.display = "none"; }
+    else { running = false; clear(); document.body.style.transform = ""; if (cv) { cv.style.display = "none"; cv.style.mixBlendMode = ""; } }
   }
   function clear() {
     if (mode === "gl" && gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
@@ -5374,7 +5377,7 @@ var FX2 = (function () {
     if (mode === "gl" && gl && glProg) {
       // 잔상 트레일: 프레임을 지우지 않고 어두운 사각형으로 살짝 덮는다
       gl.blendFunc(gl.ZERO, gl.SRC_ALPHA); // dst *= alpha
-      fadeQuad(0.86);
+      fadeQuad(0.90);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       var n = 0;
       for (var i = 0; i < parts.length; i++) {
@@ -5395,7 +5398,7 @@ var FX2 = (function () {
       gl.drawArrays(gl.POINTS, 0, n);
     } else if (ctx2) {
       ctx2.globalCompositeOperation = "destination-in";
-      ctx2.fillStyle = "rgba(0,0,0,0.86)";
+      ctx2.fillStyle = "rgba(0,0,0,0.90)";
       ctx2.fillRect(0, 0, W2, H2);
       ctx2.globalCompositeOperation = "lighter";
       for (var j = 0; j < parts.length; j++) {
@@ -5534,7 +5537,7 @@ var FX2 = (function () {
     var cx = o.x != null ? o.x : innerWidth / 2, cy = o.y != null ? o.y : innerHeight * 0.42;
     var from = o.from || [innerWidth / 2, innerHeight - 90];
     var lv = Math.max(1, o.lv || (typeof spLv === "function" ? spLv(spellId) : 1) || 1);
-    var LM = 1 + 0.18 * (lv - 1);          // Lv당 +18% — Lv5면 파티클·반동 1.72배
+    var LM = (1 + 0.18 * (lv - 1)) * 2.4;   // v44: 전역 물량 2.4배          // Lv당 +18% — Lv5면 파티클·반동 1.72배
     var big = sp.t >= 4 || spellId === "avada" || lv >= 4;
     // ① 예열
     ring(from[0], from[1], { c: c, sp: -3, n: 20, sz: 6, life: 0.4 });
@@ -5548,6 +5551,11 @@ var FX2 = (function () {
         if (big) { hitstop(spellId === "avada" ? 240 : Math.round(140 + lv * 12)); flash("#FFFFFF", 90); }
         burst(cx, cy, { c: c, n: Math.round((big ? 90 : 45) * LM), sp: (big ? 11 : 7) * (1 + 0.08 * (lv - 1)), sz: big ? 11 : 8, up: 1 });
         ring(cx, cy, { c: c, sp: (big ? 13 : 8) * LM, n: 54 });
+        setTimeout(function () { ring(cx, cy, { c: "#FFFFFF", sp: 6, n: 36, sz: 5 }); }, 120);
+        setTimeout(function () { ring(cx, cy, { c: c, sp: 16, n: 60, sz: 7 }); }, 240);
+        for (var sk2 = 0; sk2 < 14; sk2++)
+          spawn({ x: cx + (Math.random() - 0.5) * 60, y: cy, vx: (Math.random() - 0.5) * 2, vy: -4 - Math.random() * 5,
+            g: 0.15, life: 0.9, sz: 6, c: c, drag: 0.97, stretch: 1 });
         if (lv >= 3) setTimeout(function () { ring(cx, cy, { c: "#FFFFFF", sp: 15 * LM, n: 40, sz: 5 }); }, 140);
         if (lv >= 5) { flash(c, 160); setTimeout(function () { glyphBurst(sp.em, cx, cy - 30, { c: c, scale: 200, life: 1.4 }); }, 220); }
         shake((big ? 0.55 : 0.28) * (1 + 0.12 * (lv - 1)));
@@ -5559,6 +5567,10 @@ var FX2 = (function () {
         else if (spellId === "imperio") glyphBurst("🌀", cx, cy, { c: c, scale: 200 });
         else if (spellId === "wingardium") liftUI(1800);
         else if (spellId === "expelliarmus") stamp("EXPELLIARMUS", "#FF6A5E");
+        else if (spellId === "somnium") { glyphBurst("💤", cx, cy - 40, { c: "#B9A6E8", scale: 200, life: 2.2 }); flash("#2A2140", 500); }
+        else if (spellId === "rennervate") { flash("#F2D06B", 220); ring(cx, cy, { c: "#F2D06B", sp: 18, n: 70, sz: 8 }); glyphBurst("⚡", cx, cy - 20, { c: "#FFE9A8", scale: 180, life: 1.2 }); }
+        else if (spellId === "aguamenti") glyphBurst("💧", cx, cy - 10, { c: "#7FC4E8", scale: 190, life: 1.4 });
+        else if (spellId === "incendio" || spellId === "confringo") glyphBurst("🔥", cx, cy - 10, { c: "#FF8A3C", scale: 190, life: 1.3 });
         for (var i = 0; i < Math.round((big ? 26 : 12) * LM); i++)
           spawn({ x: cx + (Math.random() - 0.5) * 90, y: cy + (Math.random() - 0.5) * 40,
             vx: (Math.random() - 0.5), vy: -0.6 - Math.random(), g: -0.02,
@@ -5599,6 +5611,7 @@ var SPELLS = [
   SP("imperio","임페리오","Imperio","🌀",4,"ctrl",6,"#9A6BC4","상대의 다음 주문을 랜덤으로 강제"),
   SP("expelliarmus","익스펠리아르무스","Expelliarmus","🪄",4,"counter",8,"#FF6A5E","아바다 케다브라 전용 카운터 · 지팡이당 10회 · 그 외엔 견제 8"),
   SP("obliviate","오블리비아테","Obliviate","💫",4,"forget",6,"#C4B0E8","상대가 배운 주문 하나를 이 판 동안 지운다 (록하트는 50% 자기 기절)"),
+  SP("somnium","솜니움","Somnium","💤",3,"sleep",6,"#8F7CC4","6 피해 + 상대 수면 2턴 · 잠들면 행동 70% 실패 · 공격받으면 기상 (불이면 1.5배로 아프게 기상)"),
   SP("stupefy","스투페파이","Stupefy","🔻",3,"stun",14,"#E85D4A","14 피해 + 30% 확률로 상대 1턴 기절"),
   SP("bombarda","봄바다","Bombarda","💥",3,"atk",20,"#E8A23C","폭파 — 큰 한 방"),
   SP("reducto","리덕토","Reducto","🧱",3,"atk",16,"#C4763C","분쇄 저주"),
@@ -5609,6 +5622,7 @@ var SPELLS = [
   SP("wingardium","윙가르디움 레비오사","Wingardium Leviosa","🪶",2,"weak",6,"#C8E0A0","상대를 띄운다 — 다음 주문 위력 절반 (무전에선 화면이 떠오름)"),
   SP("petrificus","페트리피쿠스 토탈루스","Petrificus Totalus","🗿",2,"stun",6,"#A8A8A8","6 피해 + 20% 기절"),
   SP("riddikulus","리디큘러스","Riddikulus","😂",2,"atk",8,"#E8C43C","웃음 공격"),
+  SP("rennervate","리네베이트","Rennervate","⚡",2,"wake",0,"#F2D06B","수면·기절 즉시 해제 + HP 8 회복 + 다음 수면 면역 (자면서도 시전 가능한 유일한 주문)"),
   SP("lumos","루모스","Lumos","💡",1,"buff",0,"#F5E8A0","다음 내 주문 위력 +30%"),
   SP("rictusempra","릭투셈프라","Rictusempra","🤣",1,"atk",6,"#E8D07C","간지럼 저주"),
   SP("aguamenti","아구아멘티","Aguamenti","💧",1,"atk",5,"#7FB8E8","물줄기"),
@@ -5616,6 +5630,16 @@ var SPELLS = [
   SP("tarantallegra","타란탈레그라","Tarantallegra","🕺",1,"atk",5,"#E87CA0","막춤 저주"),
 ];
 var spellById = {}; SPELLS.forEach(function (s) { spellById[s.id] = s; });
+["incendio","confringo","fiendfyre"].forEach(function (id) { if (spellById[id]) spellById[id].fam = "fire"; });
+if (spellById.aguamenti) { spellById.aguamenti.fam = "water"; spellById.aguamenti.d = "5 피해 + 내 화상 제거·HP 6 회복 · 상대가 불 주문을 쓴 턴이면 그 피해 60% 상쇄"; }
+var SP_GROUP = { atk:"a", fire:"a", water:"a", dot:"a", dot2:"a", kill:"a", shield:"d", guard:"d", counter:"d", wake:"d", stun:"s", sleep:"s", weak:"s", ctrl:"s", forget:"s", buff:"u" };
+var KIND_EM = { atk:"🗡", dot:"🩸", dot2:"🩸", kill:"☠️", shield:"🛡", guard:"🛡", counter:"🪄", wake:"⚡", stun:"💫", sleep:"💤", weak:"🙃", ctrl:"🌀", forget:"💭", buff:"✨" };
+function kindEm(s) { return s.fam === "fire" ? "🔥" : s.fam === "water" ? "💧" : (KIND_EM[s.kind] || "🗡"); }
+function dmgPreview(s) {
+  if (!s.pow || s.pow >= 999) return s.id === "avada" ? "즉사" : "";
+  var c = charOf(me), lv = spLv(s.id) || 1;
+  return "~" + Math.round(s.pow * (1 + 0.08 * (lv - 1)) * (0.9 + 0.06 * (c ? c.t : 1)) * dodgeMul(me));
+}
 
 /* ---- 서버 상태 (spellbook · wiz_stats · battles) ---- */
 var store35 = { spellbook: [], wstats: [], battles: [] };
@@ -5632,6 +5656,27 @@ function expelLeft(m) {
   if (!eq) return 0;
   var s = statsOf(m); var used = (s.exp_map || {})[eq] || 0;
   return Math.max(0, 10 - used);
+}
+function svMap() { return (statsOf(me).exp_map || {}); }
+async function svPatch(kv) {
+  await ensureStats();
+  var em = Object.assign({}, svMap(), kv);
+  await sb.from("wiz_stats").update({ exp_map: em }).eq("member", me);
+  var row = store35.wstats.find(function (x) { return x.member === me; });
+  if (row) row.exp_map = em;
+  kelLoad35();
+}
+/* 쿠폰: 서버 보관 (exp_map.__xu/__xp) — 재설치·기기변경 생존 */
+extraUltra = function () { return Number(svMap().__xu || 0); };
+extraPrem  = function () { return Number(svMap().__xp || 0); };
+async function svCoupon(du, dp) {
+  await svPatch({ __xu: Math.max(0, extraUltra() + (du || 0)), __xp: Math.max(0, extraPrem() + (dp || 0)) });
+}
+async function couponMigrate() {
+  if (!me || svMap().__cm) return;
+  var lu = Number(localStorage.getItem("kel_x_ultra") || 0), lp = Number(localStorage.getItem("kel_x_prem") || 0);
+  await svPatch({ __xu: extraUltra() + lu, __xp: extraPrem() + lp, __cm: 1 });
+  localStorage.removeItem("kel_x_ultra"); localStorage.removeItem("kel_x_prem");
 }
 async function ensureStats() {
   if (!sb || !me) return;
@@ -5744,6 +5789,21 @@ function drawSpellResult(s, note, mode) {
   $("#sp-again").onclick = function () { box.hidden = true; openSpellDraw(mode); };
   $("#sp-book").onclick = function () { box.hidden = true; openSpellbook(); };
 }
+function openBattleGuide() {
+  var box = document.getElementById("guidebox");
+  if (!box) { box = document.createElement("div"); box.id = "guidebox"; document.body.appendChild(box); }
+  box.hidden = false;
+  box.innerHTML = '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="arm-top">⚔️ 이기는 법</div><div class="guide">' +
+    '<p><b>기본</b> — 매턴 둘이 몰래 주문을 고르고 동시에 공개. 상대 HP를 0으로 만들면 승리. 위력은 캐릭터 등급·주문 Lv·8% 크리·각성(궁합 지팡이 ⚡)에 비례.</p>' +
+    '<p><b>공격 🗡🔥💧🩸</b> — 봄바다가 한 방, 크루시오/세크텀은 3턴 도트. 🔥불은 25% 화상 + 잠든 상대에게 1.5배. 💧물은 6 회복 + 내 화상 소화 + 상대가 불 쓴 턴 60% 상쇄.</p>' +
+    '<p><b>방어 🛡</b> — 프로테고: 다음 피해 70% 경감. 패트로누스: 1회 완전 무효 + 12힐. 단 둘 다 ☠️아바다는 못 막음 — 아바다는 오직 🪄익스펠리아르무스(지팡이당 10회)만 튕겨냄.</p>' +
+    '<p><b>상태 💤💫🌀</b> — 솜니움: 2턴 수면(행동 70% 실패). 잠들면 ⚡리네베이트만이 확정 기상 + 면역. 스투페파이 30% 기절, 임페리오는 상대 픽을 랜덤 강제, 오블리비아테는 주문 삭제.</p>' +
+    '<p><b>심리전</b> — 상대가 아바다를 아낄 때 익스펠은 낭비(견제 8뿐). 도트 깔고 방어로 버티기, 수면 → 큰 한 방 콤보, 물 들고 불 유도 같은 수 싸움이 핵심.</p>' +
+    '<p><b>성장</b> — 져도 XP를 더 받음(연패 보너스). 레벨업 = 강화 포인트 = 주문 Lv(위력·이펙트 +). 도망(👻)치면 몰래 약해짐.</p>' +
+    '</div></div>';
+}
+var __bkFilter = "all";
 function openSpellbook() {
   var box = document.getElementById("bookbox");
   if (!box) { box = document.createElement("div"); box.id = "bookbox"; document.body.appendChild(box); }
@@ -5756,13 +5816,19 @@ function openSpellbook() {
       '<div class="wiz-line">Lv.' + lvOf(me) + " 마법사 · XP " + statsOf(me).xp +
         (pts ? ' · <b style="color:var(--gold)">강화 포인트 ' + pts + "</b>" : "") +
         ' · ☠️' + akLeft(me) + " · 🪄" + expelLeft(me) + "</div>" +
+      '<div class="chip-row" style="margin:2px 0 10px">' +
+      [["all","전체"],["a","🗡 공격"],["d","🛡 방어"],["s","💫 상태"],["u","✨ 보조"]].map(function (f) {
+        return '<button class="chip' + (__bkFilter === f[0] ? " on" : "") + '" data-bkf="' + f[0] + '">' + f[1] + "</button>";
+      }).join("") + "</div>" +
       '<div class="arm-grid book-grid">' +
-      SPELLS.map(function (s) {
+      SPELLS.filter(function (s) { return __bkFilter === "all" || SP_GROUP[s.kind] === __bkFilter; })
+      .map(function (s) {
         var have = mine.some(function (r) { return r.spell_id === s.id; });
         var t = tierById[s.t];
         return '<button class="arm-item sp-item' + (have ? "" : " lock") + '" data-sp="' + s.id + '" style="--rc:' + t.color + '">' +
           '<span class="ai-em">' + (have ? s.em : "❔") + "</span>" +
           '<span class="ai-ko">' + (have ? esc(s.ko) : "???") + "</span>" +
+          '<span class="mv-meta">' + kindEm(s) + (have ? " " + dmgPreview(s) : "") + "</span>" +
           '<span class="ai-t" style="background:' + t.color + '">' + t.en + "</span>" +
           (have && spLv(s.id) > 1 ? '<span class="ai-q">Lv' + spLv(s.id) + "</span>" : "") +
           "</button>";
@@ -5780,6 +5846,7 @@ function openSpellbook() {
   };
   var b10 = box.querySelector("[data-bm-sp]");
   if (b10) b10.onclick = function () { box.hidden = true; openSpellDraw("b10"); };
+  $$("[data-bkf]", box).forEach(function (b) { b.onclick = function () { __bkFilter = b.dataset.bkf; openSpellbook(); }; });
   $$(".sp-item", box).forEach(function (b) {
     b.onclick = function () {
       var s = spellById[b.dataset.sp];
@@ -5802,7 +5869,9 @@ function openSpellDetail(s) {
       '<div class="wres-t" style="background:' + t.color + '">' + t.en + " · Lv." + lv + "</div>" +
       '<p class="muted" style="margin:10px 0;font-size:12.5px;line-height:1.6">' + esc(s.d) +
       (s.id === "avada" ? "<br><b>남은 발수 ☠️ " + akLeft(me) + " / 10</b>" : "") +
-      (s.id === "expelliarmus" ? "<br><b>이 지팡이 남은 카운터 🪄 " + expelLeft(me) + " / 10</b>" : "") + "</p>" +
+      (s.id === "expelliarmus" ? "<br><b>이 지팡이 남은 카운터 🪄 " + expelLeft(me) + " / 10</b>" : "") +
+      (s.pow && s.pow < 999 ? "<br>내 기준 예상 위력 <b>" + dmgPreview(s) + "</b> (크리 시 ×1.5 · Lv당 +8%)" : "") +
+      "<br>계열: " + kindEm(s) + " " + ({a:"공격",d:"방어",s:"상태",u:"보조"}[SP_GROUP[s.kind]] || "") + "</p>" +
       '<div class="btn-row">' +
         '<button class="btn ghost" id="spd-fx" style="flex:1">✨ 이펙트 보기</button>' +
         (lv < 5 ? '<button class="btn' + (pts ? "" : " off") + '" id="spd-up" style="flex:1">⬆️ 강화 (포인트 ' + pts + ")</button>" : '<span class="btn off" style="flex:1">MAX</span>') +
@@ -6106,6 +6175,8 @@ function playTheatre(g) {
   if (__btSeen.id !== g.id) { __btSeen = { id: g.id, n: logs.length }; return; }
   var fresh = logs.slice(__btSeen.n);
   __btSeen.n = logs.length;
+  window.__pkBusyUntil = Date.now() + fresh.length * 1050 + 900;
+  var stg = document.getElementById("pk-stage");
   fresh.forEach(function (l, i) {
     setTimeout(function () {
       var box = document.getElementById("pk-box");
@@ -6116,7 +6187,13 @@ function playTheatre(g) {
       var atk = document.getElementById(atkId), def = document.getElementById(defId);
       if (atk) { atk.classList.remove("lunge-m", "lunge-f"); void atk.offsetWidth; atk.classList.add(l.who === me ? "lunge-m" : "lunge-f"); }
       var from = sprCenter(atkId), to = sprCenter(defId);
+      if (stg) { stg.classList.add("casting"); setTimeout(function () { stg.classList.remove("casting"); }, 950); }
       if (l.fx) FX2.cast(l.fx, { quick: true, from: from, x: to[0], y: to[1], lv: spellLvOf(l.who, l.fx) });
+      var defEl = document.getElementById(defId);
+      if (defEl && l.fx) setTimeout(function () {
+        var rg = document.createElement("span"); rg.className = "pk-shockring";
+        defEl.appendChild(rg); setTimeout(function () { rg.remove(); }, 800);
+      }, 500);
       var dm = (l.txt || "").match(/— (\d+)/);
       setTimeout(function () {
         if (def) { def.classList.remove("hit"); void def.offsetWidth; def.classList.add("hit"); }
@@ -6143,6 +6220,7 @@ function playBattleFx(st) { /* 호환용 — 종료 화면 잔향 */
     if (l.fx) setTimeout(function () { FX2.cast(l.fx, { quick: true, lv: l.who ? spellLvOf(l.who, l.fx) : 1 }); }, i * 650);
   });
 }
+var __btUi = { sig: "" };
 function openBattle() {
   var g = btG; if (!g) return;
   var box = document.getElementById("btbox");
@@ -6150,6 +6228,16 @@ function openBattle() {
   box.hidden = false;
   var st = g.state || {}, en = foe();
   var myPicked = !!g[myPickCol()];
+  // 연극 재생 중엔 리빌드 유예 (연출 끊김·번쩍임 방지)
+  if (window.__pkBusyUntil && Date.now() < window.__pkBusyUntil) {
+    clearTimeout(window.__pkDefer);
+    window.__pkDefer = setTimeout(openBattle, window.__pkBusyUntil - Date.now() + 120);
+    return;
+  }
+  var sig = g.id + "|" + g.phase + "|" + g.turn + "|" + ((st.log || []).length) + "|" + (myPicked ? 1 : 0) + "|" + (g.pick_a ? 1 : 0) + (g.pick_b ? 1 : 0);
+  if (sig === __btUi.sig) return;         // 같은 상태면 절대 다시 안 그림 → 화면 고정
+  __btUi.sig = sig;
+  var keepScroll = box.scrollTop || 0;
   var lastLog = (st.log || []).slice(-1).map(function (l) { return '<div class="bt-line">' + l.txt + "</div>"; }).join("") || '<div class="bt-line muted2">주문을 골라 선공을 잡아라</div>';
 
   if (g.phase === "done") {
@@ -6167,6 +6255,7 @@ function openBattle() {
       if (wEl) wEl.classList.add("winner");
       if (lEl) lEl.classList.add("faint");
     }, 300);
+    box.scrollTop = keepScroll;
     battleReward(g);
     $("#bt-x").onclick = function () { box.hidden = true; localStorage.setItem("kel_bt_seen", String(g.id)); btG = null; kelLoad35(); };
     $("#bt-re").onclick = function () { box.hidden = true; localStorage.setItem("kel_bt_seen", String(g.id)); btG = null; duelInvite(en); };
@@ -6180,16 +6269,23 @@ function openBattle() {
     '<div class="bt-pickmsg">' + (myPicked ? "⏳ <b>" + esc(nameOf(en)) + "</b>의 주문 대기 중…" :
       "이번 턴 주문을 골라 — <b id=\'bt-cd\'>25</b>초") + "</div>" +
     (myPicked ? "" :
-      '<div class="arm-grid book-grid pk-moves">' + mine.map(function (r) {
+      '<div class="arm-grid book-grid pk-moves">' + mine.slice().sort(function (x, y) {
+        var sx = spellById[x.spell_id], sy = spellById[y.spell_id];
+        return (sy ? sy.t : 0) - (sx ? sx.t : 0) || (y.lv || 1) - (x.lv || 1);
+      }).map(function (r) {
         var s = spellById[r.spell_id]; if (!s) return "";
         var dis = (s.id === "avada" && akLeft(me) <= 0) || (s.id === "expelliarmus" && expelLeft(me) <= 0);
         var t = tierById[s.t];
+        var dp = dmgPreview(s);
         return '<button class="arm-item sp-item' + (dis ? " lock" : "") + '" data-cast="' + s.id + '" style="--rc:' + t.color + '">' +
           '<span class="ai-em">' + s.em + '</span><span class="ai-ko">' + esc(s.ko) + "</span>" +
+          '<span class="mv-meta">' + kindEm(s) + (dp ? " " + dp : "") + "</span>" +
           '<span class="ai-t" style="background:' + t.color + '">' +
           (s.id === "avada" ? "☠️" + akLeft(me) : s.id === "expelliarmus" ? "🪄" + expelLeft(me) : "Lv" + r.lv) + "</span></button>";
       }).join("") + "</div>") +
-    '<button class="btn ghost" id="bt-run" style="width:100%;margin-top:10px">🏳️ 기권</button></div>';
+    '<div class="btn-row" style="margin-top:10px"><button class="btn ghost" id="bt-help" style="flex:1">❓ 이기는 법</button>' +
+    '<button class="btn ghost" id="bt-run" style="flex:1">🏳️ 기권</button></div></div>';
+  box.scrollTop = keepScroll;
   playTheatre(g);
   $$("[data-cast]", box).forEach(function (b) {
     b.onclick = function () {
@@ -6197,6 +6293,7 @@ function openBattle() {
       submitPick(b.dataset.cast);
     };
   });
+  var hb2 = $("#bt-help"); if (hb2) hb2.onclick = openBattleGuide;
   $("#bt-run").onclick = async function () {
     if (!confirm("기권할까? 상대 승리로 끝나")) return;
     await sb.from("battles").update({ phase: "done", winner: en }).eq("id", g.id).eq("phase", "play");
@@ -6262,7 +6359,13 @@ async function resolveTurn(g) {
     if (c && c.id === "sauron" && equippedOf(o[2]) === "onering") { order = [o, order[0][0] === o[0] ? order[1] : order[0]]; }
   });
 
+  st.sleep = st.sleep || {}; st.wimm = st.wimm || {};
   function line(txt, fx, who) { st.log.push({ txt: txt, fx: fx || null, who: who || null, t: g.turn }); }
+  function wake(mm, why) { if (st.sleep[mm]) { delete st.sleep[mm]; line("⏰ " + nameOf(mm) + " 기상!" + (why ? " (" + why + ")" : "")); } }
+  // 수면 카운트다운
+  [g.a, g.b].forEach(function (mm) {
+    if (st.sleep[mm]) { st.sleep[mm]--; if (st.sleep[mm] <= 0) wake(mm, "저절로"); }
+  });
   // 도트 선처리
   [g.a, g.b].forEach(function (m) {
     var d = st.dot[m];
@@ -6272,7 +6375,15 @@ async function resolveTurn(g) {
   for (var i = 0; i < order.length; i++) {
     var caster = order[i][0], pick = order[i][1], target = order[i][2];
     if (st.hp[caster] <= 0) continue;
-    if (st.stun[caster]) { delete st.stun[caster]; line("😵 " + nameOf(caster) + " 기절 — 턴 스킵"); continue; }
+    if (st.stun[caster]) {
+      if (pick === "rennervate") { delete st.stun[caster]; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 리네베이트 — 기절 해제 +8", "rennervate", caster); continue; }
+      delete st.stun[caster]; line("😵 " + nameOf(caster) + " 기절 — 턴 스킵"); continue;
+    }
+    if (st.sleep[caster]) {
+      if (pick === "rennervate") { delete st.sleep[caster]; st.wimm[caster] = 1; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 리네베이트 — 벌떡 기상 +8 · 수면 면역", "rennervate", caster); continue; }
+      if (Math.random() < 0.7) { line("😴 " + nameOf(caster) + " 잠꼬대 중… 행동 실패"); continue; }
+      line("😪 " + nameOf(caster) + " 비몽사몽 시전!");
+    }
     if (!pick || pick === "__pass") { line("💨 " + nameOf(caster) + " 허둥지둥 (패스)"); continue; }
     var s = spellById[pick]; if (!s) continue;
     var enemyPick = caster === g.a ? pb : pa;
@@ -6308,6 +6419,7 @@ async function resolveTurn(g) {
     if (s.kind === "shield") { st.shield[caster] = { v: 0.7 }; line("🛡️ " + nameOf(caster) + " 프로테고 전개", "protego", caster); continue; }
     if (s.id === "patronum") { st.shield[caster] = { v: 1, pat: 1 }; st.hp[caster] = Math.min(maxHp(caster), st.hp[caster] + 12); line("🦌 " + nameOf(caster) + " 패트로누스! 다음 공격 무효 +12", "patronum", caster); continue; }
     if (s.kind === "buff") { st.buff[caster] = 1; line("💡 " + nameOf(caster) + " 루모스 — 다음 주문 +30%", "lumos", caster); continue; }
+    if (s.kind === "wake") { st.wimm[caster] = 1; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 리네베이트 — +8 · 수면 면역", "rennervate", caster); continue; }
     if (s.id === "obliviate") {
       var tbook = store35.spellbook.filter(function (r) { return r.member === target && ((st.forget[target] || []).indexOf(r.spell_id) < 0); });
       if (tbook.length) {
@@ -6319,17 +6431,32 @@ async function resolveTurn(g) {
       } else line("💫 오블리비아테 — 지울 게 없다");
       continue;
     }
-    // 일반 공격/도트/기절/약화
+    // 일반 공격/도트/기절/약화/수면/화염/물
     var dmg = effPow(s, caster, target, st);
+    if (s.fam === "fire" && st.sleep[target]) { dmg = Math.round(dmg * 1.5); }
+    if (s.fam === "fire" && enemyPick === "aguamenti") { dmg = Math.round(dmg * 0.4); line("💦 " + nameOf(target) + "의 물줄기가 불길을 상쇄!"); }
+    if (s.id === "aguamenti") {
+      if (st.dot[caster] && st.dot[caster].em === "🔥") { delete st.dot[caster]; line("💧 " + nameOf(caster) + " 화상 소화"); }
+      st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 6);
+    }
     st.buff[caster] && delete st.buff[caster];
     st.weak[caster] && delete st.weak[caster];
     var sh = st.shield[target];
     if (sh) { if (sh.pat) { dmg = 0; line("🦌 패트로누스가 " + s.ko + "를 삼켰다"); } else dmg = Math.round(dmg * (1 - sh.v)); delete st.shield[target]; }
-    if (dmg > 0) { st.hp[target] -= dmg; line(s.em + " " + nameOf(caster) + "의 " + s.ko + " — " + dmg, s.id, caster); }
+    if (dmg > 0) {
+      st.hp[target] -= dmg;
+      line(s.em + " " + nameOf(caster) + "의 " + s.ko + " — " + dmg, s.id, caster);
+      if (st.sleep[target]) wake(target, s.fam === "fire" ? "뜨거워서" : "얻어맞고");
+      if (s.fam === "fire" && !st.dot[target] && Math.random() < 0.25) { st.dot[target] = { p: 5, n: 2, em: "🔥" }; line("🔥 " + nameOf(target) + " 화상!"); }
+    }
     if (s.kind === "dot") st.dot[target] = { p: Math.round(s.pow), n: 3, em: s.em };
     if (s.kind === "dot2") st.dot[target] = { p: Math.round(s.pow), n: 3, em: s.em };
     if (s.kind === "stun" && Math.random() < (s.id === "stupefy" ? 0.3 : 0.2)) { st.stun[target] = 1; line("😵 " + nameOf(target) + " 기절!"); }
     if (s.kind === "weak") { st.weak[target] = 1; line("🙃 " + nameOf(target) + " 다음 주문 위력 절반"); }
+    if (s.kind === "sleep") {
+      if (st.wimm[target]) { delete st.wimm[target]; line("🛡 " + nameOf(target) + " 수면 면역으로 버팀"); }
+      else if (!st.sleep[target]) { st.sleep[target] = 2; line("💤 " + nameOf(target) + " 잠들었다 — 리네베이트가 없으면 위험", "somnium", caster); }
+    }
   }
 
   var dead = [g.a, g.b].filter(function (m) { return st.hp[m] <= 0; });
@@ -6555,12 +6682,12 @@ function openPackChoose(kind) {
       var t = b.dataset.pt;
       function payUltra(slot) {
         if (ultraLeftType(slot)) { ultraMark(slot); return true; }
-        if (extraUltra() > 0) { localStorage.setItem("kel_x_ultra", String(extraUltra() - 1)); toast("🎟️ 울트라 쿠폰 사용 (남음 " + extraUltra() + ")"); return true; }
+        if (extraUltra() > 0) { svCoupon(-1, 0); toast("🎟️ 울트라 쿠폰 사용 (남음 " + (extraUltra() - 1) + ")"); return true; }
         toast("이번 주 이 종류는 이미 열었어 — 월요일 리셋"); return false;
       }
       function payPrem() {
         if (used100Today() < P100_PER_DAY) { bumpPrem(); return true; }
-        if (extraPrem() > 0) { localStorage.setItem("kel_x_prem", String(extraPrem() - 1)); toast("🎟️ 프리미엄 쿠폰 사용 (남음 " + extraPrem() + ")"); return true; }
+        if (extraPrem() > 0) { svCoupon(0, -1); toast("🎟️ 프리미엄 쿠폰 사용 (남음 " + (extraPrem() - 1) + ")"); return true; }
         toast("오늘 " + P100_PER_DAY + "번 다 썼어"); return false;
       }
       if (t === "char") {
@@ -6843,7 +6970,7 @@ async function autoRollout() {
 function kelV35Init() {
   FX2.mount();
   kelLoad35();
-  ensureStats();
+  ensureStats().then(couponMigrate);
   if (sb) {
     try {
       btCh = sb.channel("kel-b35");
@@ -6880,17 +7007,19 @@ var REMOVED_CHARS = ["jobs","yoda","son","musk","freddie","bruce","smaug","legol
 var REMOVED_WEAPONS = ["firstphone","teslacar","falcon","micstand","nunchaku","yodasaber","sonboots","captainband","soccerball","varmonitor","scarf_son","holocron","jedirobe"];
 var REMOVED_KO = { jobs:"스티브 잡스", yoda:"요다", son:"손흥민", musk:"일론 머스크", freddie:"프레디 머큐리", bruce:"브루스 리", smaug:"스마우그", legolas:"레골라스" };
 
-function runMig35() {
-  // 데이터 로드 전엔 절대 플래그를 태우지 않는다 (쿠폰 미지급 레이스 방지)
+async function runMig35() {
   if (!me || !store || !store.settings || !Object.keys(store.settings).length) return;
-  // ② 보상 먼저
-  if (!localStorage.getItem("kel_mig35_comp")) {
+  if (!store35.wstats.length) return;   // 서버 스탯 로드 전 판정 금지
+  var f = svMap();
+  // 예전(로컬만) 완료자 → 서버로 승격, 재설치해도 다시 안 뜸
+  if (!f.__m35c && localStorage.getItem("kel_mig35_comp")) { await svPatch({ __m35c: 1 }); f = svMap(); }
+  if (!f.__m35w && localStorage.getItem("kel_mig35_wipe")) { await svPatch({ __m35w: 1 }); f = svMap(); }
+  if (!f.__m35c) {
     var rec = (store.characters || []).find(function (c) { return c.member === me; });
     if (rec && REMOVED_CHARS.indexOf(rec.char_id) >= 0) return migCompModal(rec.char_id);
-    localStorage.setItem("kel_mig35_comp", "1");
+    await svPatch({ __m35c: 1 }); f = svMap();
   }
-  // ① 무기 대격변
-  if (!localStorage.getItem("kel_mig35_wipe")) return migWipe();
+  if (!f.__m35w) return migWipe();
 }
 function migCompModal(deadId) {
   var box = document.getElementById("migbox");
@@ -6903,9 +7032,9 @@ function migCompModal(deadId) {
     '<div class="title-coupon" style="margin:10px 0">🎁 위로금<br><b style="font-size:16px">$1,000 울트라 쿠폰 ×150<br>$100 프리미엄 쿠폰 ×150</b></div>' +
     '<p class="muted" style="font-size:11.5px">쿠폰은 주간·일일 한도를 무시하고 상점에서 자동 소모돼</p>' +
     '<button class="btn" id="mig-take" style="width:100%;margin-top:10px">받고 새 마법사 뽑기</button></div>';
-  $("#mig-take").onclick = function () {
-    localStorage.setItem("kel_x_ultra", String(extraUltra() + 150));
-    localStorage.setItem("kel_x_prem", String(extraPrem() + 150));
+  $("#mig-take").onclick = async function () {
+    await svCoupon(150, 150);
+    await svPatch({ __m35c: 1 });
     localStorage.setItem("kel_mig35_comp", "1");
     box.hidden = true;
     FX2.burst(innerWidth / 2, innerHeight / 2, { c: "#C79A3E", n: 90, sp: 11, up: 2 });
@@ -6917,10 +7046,10 @@ function migCompModal(deadId) {
 async function migWipe() {
   var mineW = (store.inventory || []).filter(function (r) { return r.member === me; });
   var valid = mineW.filter(function (r) { return REMOVED_WEAPONS.indexOf(r.weapon_id) < 0 && weaponById[r.weapon_id]; });
-  if (mineW.length <= 1 && valid.length === mineW.length) { localStorage.setItem("kel_mig35_wipe", "1"); return; }
+  if (mineW.length <= 1 && valid.length === mineW.length) { localStorage.setItem("kel_mig35_wipe", "1"); svPatch({ __m35w: 1 }); return; }
   if (!valid.length) { // 전부 제거 대상 → 통째로 소각
     await sb.from("inventory").delete().eq("member", me);
-    localStorage.setItem("kel_mig35_wipe", "1");
+    localStorage.setItem("kel_mig35_wipe", "1"); svPatch({ __m35w: 1 });
     toast("🔥 구시대의 무기가 전부 재가 되었다"); loadAll(); return;
   }
   var box = document.getElementById("migbox");
@@ -6929,6 +7058,7 @@ async function migWipe() {
   box.innerHTML = '<div class="armory mig-card">' +
     '<div class="arm-top">🔥 대격변</div>' +
     '<p class="muted" style="font-size:12.5px;margin:0 0 12px;line-height:1.7">새 시대가 열리며 창고가 불탄다.<br><b>단 하나만</b> 품에 안고 나올 수 있다 — 나머지는 전부 재가 된다.<br>(수량도 1개로 줄어듦 · 되돌릴 수 없음)</p>' +
+    '<button class="btn ghost" data-mig-skip style="width:100%;margin-bottom:10px">🙅 예전에 이미 골랐었어 — 인벤 그대로 두고 넘어가기</button>' +
     '<div class="arm-grid">' +
     valid.map(function (r) {
       var w = weaponById[r.weapon_id], t = tierById[w.t];
@@ -6937,6 +7067,12 @@ async function migWipe() {
         '<span class="ai-t" style="background:' + t.color + '">' + t.en + "</span>" +
         (r.qty > 1 ? '<span class="ai-q">×' + r.qty + "</span>" : "") + "</button>";
     }).join("") + "</div></div>";
+  var sk = box.querySelector("[data-mig-skip]");
+  if (sk) sk.onclick = async function () {
+    await svPatch({ __m35w: 1 });
+    localStorage.setItem("kel_mig35_wipe", "1");
+    box.hidden = true; toast("넘어감 — 인벤 유지");
+  };
   $$("[data-keep]", box).forEach(function (b) {
     b.onclick = async function () {
       var keep = b.dataset.keep, w = weaponById[keep];
@@ -6945,6 +7081,7 @@ async function migWipe() {
       await sb.from("inventory").delete().eq("member", me).neq("weapon_id", keep);
       await sb.from("inventory").update({ qty: 1 }).eq("member", me).eq("weapon_id", keep);
       await equipWeapon(keep);
+      await svPatch({ __m35w: 1 });
       localStorage.setItem("kel_mig35_wipe", "1");
       FX2.flash("#E0562C", 260); FX2.shake(0.6);
       FX2.burst(innerWidth / 2, innerHeight / 2, { c: "#3A3226", n: 110, sp: 8, up: 2, g: -0.05 });
