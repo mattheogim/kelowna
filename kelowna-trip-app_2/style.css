@@ -1819,3 +1819,8 @@ details.arch > .card, details.arch > h2 { margin-left: 4px; margin-right: 4px; }
 
 /* ---- v45 핵심 수리: hidden은 무조건 이긴다 (오버레이 유령 스택 박멸) ---- */
 [hidden] { display: none !important; }
+
+/* ---- v50: 배틀 창 한 화면 고정 (스크롤 출렁임 원천 차단) ---- */
+#btbox .pk-wrap { display: flex; flex-direction: column; max-height: 92dvh; overflow: hidden; }
+#btbox .pk-stage, #btbox .pk-box, #btbox .bt-pickmsg, #btbox .btn-row, #btbox .liar-banner, #btbox .liar-sub { flex: 0 0 auto; }
+#btbox .pk-moves { flex: 1 1 auto; min-height: 84px; max-height: none; }

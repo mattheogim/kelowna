@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v49";
-const BUILD_NO = 49;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v50";
+const BUILD_NO = 50;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -6365,6 +6365,10 @@ async function submitPick(spellId) {
   var q = sb.from("battles").update(patch).eq("id", g.id).eq("phase", "play").eq("turn", g.turn);
   q = myPickCol() === "pick_a" ? q.is("pick_a", null) : q.is("pick_b", null);
   await q;
+  // 화면은 그대로 두고 주문판만 접는다 — 통재생성 금지
+  var mv = document.querySelector("#btbox .pk-moves"); if (mv) mv.remove();
+  var pm = document.querySelector("#btbox .bt-pickmsg");
+  if (pm) pm.innerHTML = "⏳ <b>" + esc(nameOf(foe())) + "</b>의 주문 대기 중… <span class='muted2'>(45초 무응답 시 자동 패스)</span>";
   var fresh = await sb.from("battles").select("*").eq("id", g.id).single();
   if (fresh.data) { btG = fresh.data; if (fresh.data.pick_a && fresh.data.pick_b) return resolveTurn(fresh.data); openBattle(); }
 }
@@ -6432,7 +6436,17 @@ async function resolveTurn(g, force) {
       if (Math.random() < 0.7) { line("😴 " + nameOf(caster) + " 잠꼬대 중… 행동 실패"); continue; }
       line("😪 " + nameOf(caster) + " 비몽사몽 시전!");
     }
-    st.afk = st.afk || {};
+    st.afk = st.afk || {}; st.ctrl = st.ctrl || {};
+    // 임페리오 조종: 이번 턴 내 픽이 강제로 바뀜
+    if (st.ctrl[caster] && pick && pick !== "__pass" && pick !== "__afk") {
+      delete st.ctrl[caster];
+      var mybook2 = store35.spellbook.filter(function (r) { return r.member === caster; });
+      if (mybook2.length) {
+        var forced = mybook2[Math.floor(Math.random() * mybook2.length)].spell_id;
+        if (forced !== pick) line("🌀 " + nameOf(caster) + " 임페리오에 조종당해 " + ((spellById[forced] || {}).ko || "?") + " 시전!");
+        pick = forced; s = spellById[pick] || s;
+      }
+    }
     if (pick === "__afk") { st.afk[caster] = (st.afk[caster] || 0) + 1; line("⌛ " + nameOf(caster) + " 응답 없음 — 자동 패스 (" + st.afk[caster] + "/3)"); continue; }
     st.afk[caster] = 0;
     if (!pick || pick === "__pass") { line("💨 " + nameOf(caster) + " 허둥지둥 (패스)"); continue; }
@@ -6471,6 +6485,11 @@ async function resolveTurn(g, force) {
     if (s.id === "patronum") { st.shield[caster] = { v: 1, pat: 1 }; st.hp[caster] = Math.min(maxHp(caster), st.hp[caster] + 12); line("🦌 " + nameOf(caster) + " 패트로누스! 다음 공격 무효 +12", "patronum", caster); continue; }
     if (s.kind === "buff") { st.buff[caster] = 1; line("💡 " + nameOf(caster) + " 루모스 — 다음 주문 +30%", "lumos", caster); continue; }
     if (s.kind === "wake") { st.wimm[caster] = 1; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 리네베이트 — +8 · 수면 면역", "rennervate", caster); continue; }
+    if (s.kind === "ctrl") {
+      st.hp[target] -= 6; st.ctrl[target] = 1;
+      line("🌀 " + nameOf(caster) + " 임페리오 — 6 피해 · " + nameOf(target) + "의 다음 주문이 조종된다", s.id, caster);
+      continue;
+    }
     if (s.id === "obliviate") {
       var tbook = store35.spellbook.filter(function (r) { return r.member === target && ((st.forget[target] || []).indexOf(r.spell_id) < 0); });
       if (tbook.length) {
