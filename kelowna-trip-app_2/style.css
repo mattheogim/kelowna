@@ -1700,3 +1700,8 @@ details.arch > .card, details.arch > h2 { margin-left: 4px; margin-right: 4px; }
 
 /* ---- 초월 등급 광택 ---- */
 .t6glow { text-shadow: 0 0 30px #B44AE0; }
+
+/* ---- 대격변 ---- */
+#migbox { position: fixed; inset: 0; z-index: 620; background: rgba(8,7,5,.88);
+  display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+.mig-card { animation: btline .4s ease-out; }

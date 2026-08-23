@@ -6247,9 +6247,9 @@ function openShop() {
       '<button class="shop-item" data-buy="f-char"><span class="shop-price">$10.99</span><span class="shop-t">🧙 운명 거스르기</span><span class="shop-d">캐릭터 재굴리기 20번 리필 · 무제한</span></button>' +
       '<button class="shop-item" data-buy="f-wand"><span class="shop-price">$10.99</span><span class="shop-t">🪄 지팡이 티켓 풀충전</span><span class="shop-d">무기 티켓 12장 · 무제한</span></button>' +
       '<button class="shop-item" data-buy="f-spell"><span class="shop-price">$10.99</span><span class="shop-t">📜 주문 티켓 풀충전</span><span class="shop-d">주문 티켓 12장 · 무제한</span></button>' +
-      '<button class="shop-item' + (canBuy100() ? "" : " off") + '" data-buy="p100"><span class="shop-price">$100</span><span class="shop-t">프리미엄 팩</span><span class="shop-d">종류 선택 · 5장 중 1택 · 확률 3배</span><span class="shop-s">오늘 ' + used100Today() + "/" + P100_PER_DAY + "</span></button>" +
+      '<button class="shop-item' + (canBuy100() ? "" : " off") + '" data-buy="p100"><span class="shop-price">$100</span><span class="shop-t">프리미엄 팩</span><span class="shop-d">종류 선택 · 5장 중 1택 · 확률 3배</span><span class="shop-s">오늘 ' + used100Today() + "/" + P100_PER_DAY + (extraPrem() > 0 ? " · 🎟️" + extraPrem() : "") + "</span></button>" +
       '<button class="shop-item ultra" data-buy="p1000"><span class="shop-price">$1,000</span><span class="shop-t">울트라 팩</span><span class="shop-d">확률 10배 · 주마다 캐릭터·지팡이·주문 각 1장</span><span class="shop-s">이번 주 남음: ' +
-        ["char", "wand", "spell"].filter(function (t) { return u.indexOf(t) < 0; }).map(function (t) { return { char: "🧙", wand: "🪄", spell: "📜" }[t]; }).join(" ") + "</span></button>" +
+        ["char", "wand", "spell"].filter(function (t) { return u.indexOf(t) < 0; }).map(function (t) { return { char: "🧙", wand: "🪄", spell: "📜" }[t]; }).join(" ") + (extraUltra() > 0 ? " · 🎟️" + extraUltra() : "") + "</span></button>" +
     "</div></div>";
   $$("[data-buy]", box).forEach(function (b) {
     b.onclick = function () {
@@ -6283,13 +6283,22 @@ function openPackChoose(kind) {
   $$("[data-pt]", box).forEach(function (b) {
     b.onclick = function () {
       var t = b.dataset.pt;
-      if (kind === 1000 && !ultraLeftType(t)) return toast("이번 주 이 종류는 이미 열었어 — 월요일 리셋");
-      box.hidden = true;
+      function payUltra(slot) {
+        if (ultraLeftType(slot)) { ultraMark(slot); return true; }
+        if (extraUltra() > 0) { localStorage.setItem("kel_x_ultra", String(extraUltra() - 1)); toast("🎟️ 울트라 쿠폰 사용 (남음 " + extraUltra() + ")"); return true; }
+        toast("이번 주 이 종류는 이미 열었어 — 월요일 리셋"); return false;
+      }
+      function payPrem() {
+        if (used100Today() < P100_PER_DAY) { bumpPrem(); return true; }
+        if (extraPrem() > 0) { localStorage.setItem("kel_x_prem", String(extraPrem() - 1)); toast("🎟️ 프리미엄 쿠폰 사용 (남음 " + extraPrem() + ")"); return true; }
+        toast("오늘 " + P100_PER_DAY + "번 다 썼어"); return false;
+      }
       if (t === "char") {
-        if (kind === 1000) { ultraMark("char"); openMulti(1000); }
-        else openMulti(100); // 카운트는 openMulti 내부에서
+        if (kind === 1000) { if (!payUltra("char")) return; box.hidden = true; openMulti(1000); }
+        else { box.hidden = true; openMulti(100); }
       } else {
-        if (kind === 1000) ultraMark(t === "wand" ? "wand" : "spell"); else bumpPrem();
+        if (kind === 1000) { if (!payUltra(t)) return; } else { if (!payPrem()) return; }
+        box.hidden = true;
         openMultiWS(kind, t);
       }
     };
@@ -6505,6 +6514,94 @@ function kelV35Init() {
   // 라디오 3D 래핑
   var ptw = document.querySelector(".ptt-wrap");
   if (ptw) ptw.classList.add("ptt3d");
+  // 대격변 마이그레이션 — store 로드 후 1회
+  var tries = 0;
+  (function waitMig() {
+    if (me && store.characters && store.characters.length !== undefined) return runMig35();
+    if (tries++ < 12) setTimeout(waitMig, 900);
+  })();
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { setTimeout(kelV35Init, 600); });
 else setTimeout(kelV35Init, 600);
+
+/* ---------------- v35 대격변 마이그레이션 ----------------
+   ① 무기: 전원 1개만 선택해서 남기고 나머지 소각 (제거된 13종은 강제 소각)
+   ② 캐릭터: 유지. 단, 로스터에서 삭제된 캐릭터(잡스·요다·손흥민 등)를
+      들고 있던 사람 → 울트라 쿠폰 150 + 프리미엄 쿠폰 150 보상 후 재뽑기 유도 */
+var REMOVED_CHARS = ["jobs","yoda","son","musk","freddie","bruce","smaug","legolas"];
+var REMOVED_WEAPONS = ["firstphone","teslacar","falcon","micstand","nunchaku","yodasaber","sonboots","captainband","soccerball","varmonitor","scarf_son","holocron","jedirobe"];
+var REMOVED_KO = { jobs:"스티브 잡스", yoda:"요다", son:"손흥민", musk:"일론 머스크", freddie:"프레디 머큐리", bruce:"브루스 리", smaug:"스마우그", legolas:"레골라스" };
+
+function runMig35() {
+  if (!me || !store.characters) return;
+  // ② 보상 먼저
+  if (!localStorage.getItem("kel_mig35_comp")) {
+    var rec = (store.characters || []).find(function (c) { return c.member === me; });
+    if (rec && REMOVED_CHARS.indexOf(rec.char_id) >= 0) return migCompModal(rec.char_id);
+    localStorage.setItem("kel_mig35_comp", "1");
+  }
+  // ① 무기 대격변
+  if (!localStorage.getItem("kel_mig35_wipe")) return migWipe();
+}
+function migCompModal(deadId) {
+  var box = document.getElementById("migbox");
+  if (!box) { box = document.createElement("div"); box.id = "migbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  box.innerHTML = '<div class="quiz-card mig-card">' +
+    '<div class="wres-em" style="filter:grayscale(1)">🪦</div>' +
+    '<div class="wres-name">' + esc(REMOVED_KO[deadId] || deadId) + '</div>' +
+    '<p class="muted" style="margin:10px 0;font-size:13px;line-height:1.7">세계관이 마법사로 통일되면서<br>네 캐릭터는 이 세계를 떠났다.</p>' +
+    '<div class="title-coupon" style="margin:10px 0">🎁 위로금<br><b style="font-size:16px">$1,000 울트라 쿠폰 ×150<br>$100 프리미엄 쿠폰 ×150</b></div>' +
+    '<p class="muted" style="font-size:11.5px">쿠폰은 주간·일일 한도를 무시하고 상점에서 자동 소모돼</p>' +
+    '<button class="btn" id="mig-take" style="width:100%;margin-top:10px">받고 새 마법사 뽑기</button></div>';
+  $("#mig-take").onclick = function () {
+    localStorage.setItem("kel_x_ultra", String(extraUltra() + 150));
+    localStorage.setItem("kel_x_prem", String(extraPrem() + 150));
+    localStorage.setItem("kel_mig35_comp", "1");
+    box.hidden = true;
+    FX2.burst(innerWidth / 2, innerHeight / 2, { c: "#C79A3E", n: 90, sp: 11, up: 2 });
+    toast("🎁 울트라 150 · 프리미엄 150 지급");
+    rollResult = drawCharacter(); openRoll();
+    setTimeout(runMig35, 2500);
+  };
+}
+async function migWipe() {
+  var mineW = (store.inventory || []).filter(function (r) { return r.member === me; });
+  var valid = mineW.filter(function (r) { return REMOVED_WEAPONS.indexOf(r.weapon_id) < 0 && weaponById[r.weapon_id]; });
+  if (mineW.length <= 1 && valid.length === mineW.length) { localStorage.setItem("kel_mig35_wipe", "1"); return; }
+  if (!valid.length) { // 전부 제거 대상 → 통째로 소각
+    await sb.from("inventory").delete().eq("member", me);
+    localStorage.setItem("kel_mig35_wipe", "1");
+    toast("🔥 구시대의 무기가 전부 재가 되었다"); loadAll(); return;
+  }
+  var box = document.getElementById("migbox");
+  if (!box) { box = document.createElement("div"); box.id = "migbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  box.innerHTML = '<div class="armory mig-card">' +
+    '<div class="arm-top">🔥 대격변</div>' +
+    '<p class="muted" style="font-size:12.5px;margin:0 0 12px;line-height:1.7">새 시대가 열리며 창고가 불탄다.<br><b>단 하나만</b> 품에 안고 나올 수 있다 — 나머지는 전부 재가 된다.<br>(수량도 1개로 줄어듦 · 되돌릴 수 없음)</p>' +
+    '<div class="arm-grid">' +
+    valid.map(function (r) {
+      var w = weaponById[r.weapon_id], t = tierById[w.t];
+      return '<button class="arm-item" data-keep="' + w.id + '" style="--rc:' + t.color + '">' +
+        '<span class="ai-em">' + w.em + '</span><span class="ai-ko">' + esc(w.ko) + "</span>" +
+        '<span class="ai-t" style="background:' + t.color + '">' + t.en + "</span>" +
+        (r.qty > 1 ? '<span class="ai-q">×' + r.qty + "</span>" : "") + "</button>";
+    }).join("") + "</div></div>";
+  $$("[data-keep]", box).forEach(function (b) {
+    b.onclick = async function () {
+      var keep = b.dataset.keep, w = weaponById[keep];
+      if (!confirm('"' + w.ko + '" 하나만 남기고 전부 태울까?\n\n(진짜로 되돌릴 수 없음)')) return;
+      box.hidden = true;
+      await sb.from("inventory").delete().eq("member", me).neq("weapon_id", keep);
+      await sb.from("inventory").update({ qty: 1 }).eq("member", me).eq("weapon_id", keep);
+      await equipWeapon(keep);
+      localStorage.setItem("kel_mig35_wipe", "1");
+      FX2.flash("#E0562C", 260); FX2.shake(0.6);
+      FX2.burst(innerWidth / 2, innerHeight / 2, { c: "#3A3226", n: 110, sp: 8, up: 2, g: -0.05 });
+      FX2.glyphBurst("🔥", innerWidth / 2, innerHeight * 0.4, { c: "#FF8A3C", scale: 260 });
+      toast("🔥 " + w.ko + "만 살아남았다");
+      loadAll();
+    };
+  });
+}
