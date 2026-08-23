@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v51";
-const BUILD_NO = 51;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v53";
+const BUILD_NO = 53;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2666,7 +2666,8 @@ function drawMap(id, opts) {
   }
   (m._mk || []).forEach((x) => x.remove()); m._mk = [];
   const pts = [];
-  if (opts.route) {
+  const tripOn = phase() !== "after";
+  if (opts.route && tripOn) {
     const wp = WAYPOINTS.concat([{ lat: cabinLat(), lng: cabinLng() }]);
     const line = L.polyline(wp.map((w) => [w.lat, w.lng]), { color: "#7C2E3E", weight: 3, dashArray: "2 8", lineCap: "round" }).addTo(m);
     m._mk.push(line);
@@ -2675,17 +2676,22 @@ function drawMap(id, opts) {
     m._mk.push(start);
   }
   const cabin = L.circleMarker([cabinLat(), cabinLng()], { radius: 8, color: "#26241E", fillColor: "#F3EDE0", fillOpacity: 1 })
-    .addTo(m).bindPopup("🏠 숙소");
-  m._mk.push(cabin); pts.push([cabinLat(), cabinLng()]);
+    .addTo(m).bindPopup("🏠 숙소 (추억)");
+  m._mk.push(cabin);
+  if (tripOn) pts.push([cabinLat(), cabinLng()]);
   const latest = latestByMember();
   for (const mem of MEMBERS) {
     const c = latest[mem.id];
     if (c && c.lat && c.lng) {
-      const mk = L.marker([c.lat, c.lng], { icon: L.divIcon({ className: "av-pin", html: '<span class="av big" style="border-color:' + mem.color + '">' + mem.avatar + "</span>", iconSize: [34, 34], iconAnchor: [17, 17] }) })
-        .addTo(m).bindPopup("<b>" + mem.avatar + " " + esc(mem.name) + "</b><br>" + esc(c.place) + "<br>" + relTime(c.created_at));
+      const pinHtml = (typeof charPinHtml === "function") ? charPinHtml(mem) :
+        '<span class="av big" style="border-color:' + mem.color + '">' + mem.avatar + "</span>";
+      const pinName = (typeof charPinName === "function") ? charPinName(mem) : (mem.avatar + " " + esc(mem.name));
+      const mk = L.marker([c.lat, c.lng], { icon: L.divIcon({ className: "av-pin", html: pinHtml, iconSize: [34, 34], iconAnchor: [17, 17] }) })
+        .addTo(m).bindPopup("<b>" + pinName + "</b><br>" + esc(c.place) + "<br>" + relTime(c.created_at));
       m._mk.push(mk); pts.push([c.lat, c.lng]);
     }
   }
+  if (!pts.length) pts.push([cabinLat(), cabinLng()]);
   if (pts.length > 1) m.fitBounds(pts, { padding: [28, 28] });
   else m.setView(pts[0], 11);
   setTimeout(() => { const mm = maps[id]; if (mm) mm.invalidateSize(); }, 120);
@@ -5274,7 +5280,7 @@ var FX2 = (function () {
     if (cv) return;
     cv = document.createElement("canvas");
     cv.id = "fx2";
-    cv.style.cssText = "position:fixed;inset:0;z-index:640;pointer-events:none;display:none";
+    cv.style.cssText = "position:fixed;inset:0;z-index:940;pointer-events:none;display:none";
     document.body.appendChild(cv);
     resize();
     window.addEventListener("resize", resize);
@@ -5361,9 +5367,11 @@ var FX2 = (function () {
     if (trauma > 0.003) {
       trauma *= Math.pow(0.86, dt * 60);
       var sh2 = trauma * trauma;
-      document.body.style.transform = "translate(" + ((Math.random() * 2 - 1) * 14 * sh2) + "px," +
+      var shT = "translate(" + ((Math.random() * 2 - 1) * 14 * sh2) + "px," +
         ((Math.random() * 2 - 1) * 10 * sh2) + "px) rotate(" + ((Math.random() * 2 - 1) * 1.4 * sh2) + "deg)";
-    } else if (trauma !== 0) { trauma = 0; document.body.style.transform = ""; }
+      if (cv) cv.style.transform = shT;
+      var cn = document.getElementById("spellcine"); if (cn) cn.style.transform = shT;
+    } else if (trauma !== 0) { trauma = 0; if (cv) cv.style.transform = ""; var cn2 = document.getElementById("spellcine"); if (cn2) cn2.style.transform = ""; }
 
     for (var i = parts.length - 1; i >= 0; i--) {
       var p = parts[i];
@@ -5376,7 +5384,7 @@ var FX2 = (function () {
     }
     draw();
     if (parts.length || trauma > 0.003) requestAnimationFrame(loop);
-    else { running = false; clear(); document.body.style.transform = ""; if (cv) { cv.style.display = "none"; cv.style.mixBlendMode = ""; } }
+    else { running = false; clear(); if (cv) { cv.style.transform = ""; cv.style.display = "none"; cv.style.mixBlendMode = ""; } }
   }
   function clear() {
     if (mode === "gl" && gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
@@ -6213,6 +6221,30 @@ function pkHpBox(mem, hp, side) {
     '<div class="bt-hp"><i style="width:' + pct + '%;background:' + (pct > 50 ? "#5E8C5A" : pct > 25 ? "#C79A3E" : "#C8503C") + '"></i></div>' +
     '<div class="bt-hpn">' + Math.max(0, Math.round(hp)) + ' / ' + mx + '</div></div>';
 }
+/* ---------------- 주문 시네마틱 오버레이 (박스는 절대 안 움직임) ---------------- */
+function cine(spellId, who, lv) {
+  var s = spellById[spellId]; if (!s) return;
+  var root = document.getElementById("spellcine");
+  if (!root) { root = document.createElement("div"); root.id = "spellcine"; document.body.appendChild(root); }
+  var fam = s.fam || s.kind;
+  var cls = fam === "fire" ? "cn-fire" : fam === "water" ? "cn-water" :
+    spellId === "avada" ? "cn-avada" : spellId === "patronum" ? "cn-pat" :
+    spellId === "crucio" ? "cn-crucio" : spellId === "somnium" ? "cn-sleep" :
+    spellId === "bombarda" ? "cn-boom" : "cn-base";
+  var scene = "";
+  if (cls === "cn-water") scene = '<div class="cn-wave w1"></div><div class="cn-wave w2"></div><div class="cn-wave w3"></div>';
+  if (cls === "cn-fire") scene = '<div class="cn-lava"></div><div class="cn-ember"></div>' + (spellId === "fiendfyre" ? '<div class="cn-big">🐉</div>' : '<div class="cn-big">🌋</div>');
+  if (cls === "cn-avada") scene = '<div class="cn-bolt b1"></div><div class="cn-bolt b2"></div><div class="cn-big">☠️</div>';
+  if (cls === "cn-pat") scene = '<div class="cn-big cn-glide">🦌</div>';
+  if (cls === "cn-sleep") scene = '<div class="cn-big">💤</div>';
+  if (cls === "cn-boom") scene = '<div class="cn-ring"></div>';
+  root.innerHTML = '<div class="cn ' + cls + '" style="--cnc:' + (s.c || "#F2C744") + '">' +
+    '<div class="cn-dim"></div>' + scene +
+    '<div class="cn-title"><span class="cn-who">' + esc(who || "") + '의 주문' + (lv > 1 ? " · Lv" + lv : "") + '</span>' +
+    '<span class="cn-name">' + esc(s.ko) + '</span></div></div>';
+  clearTimeout(root.__t);
+  root.__t = setTimeout(function () { root.innerHTML = ""; }, 1350);
+}
 var __thSeen = {};      // ns별 연출 재생 위치
 var __pkMaps = {};      // ns별 좌우 배역
 var __pkBusy = {};      // ns별 연출 중 시각
@@ -6263,7 +6295,10 @@ function playTheatre(g, ns, replay) {
       var from = sprCenter(atkId), to = sprCenter(defId);
       if (stg) { stg.classList.add("casting"); setTimeout(function () { stg.classList.remove("casting"); }, 950); }
       void 0;
-      if (l.fx) FX2.cast(l.fx, { from: from, x: to[0], y: to[1], lv: spellLvOf(l.who, l.fx) });
+      if (l.fx) {
+        cine(l.fx, nameOf(l.who), spellLvOf(l.who, l.fx));
+        FX2.cast(l.fx, { from: from, x: to[0], y: to[1], lv: spellLvOf(l.who, l.fx) });
+      }
       var defEl = document.getElementById(defId);
       if (defEl && l.fx) setTimeout(function () {
         var rg = document.createElement("span"); rg.className = "pk-shockring";
@@ -6652,6 +6687,16 @@ function kelHubHtml() {
       '<button class="hub-mini" data-hub="syn">💞 궁합</button>' +
       '<button class="hub-mini" data-hub="rank">🏆 전적</button>' +
     "</div></div>";
+}
+/* 지도 핀: 멤버가 뽑은 캐릭터로 (이미지 → 이모지 → 기본 아바타 순) */
+function charPinHtml(mem) {
+  var c = charOf(mem.id);
+  if (!c) return '<span class="av big" style="border-color:' + mem.color + '">' + mem.avatar + "</span>";
+  return '<span class="av big pin-char" style="border-color:' + mem.color + '">' + spriteHtml(c, "pin") + "</span>";
+}
+function charPinName(mem) {
+  var c = charOf(mem.id);
+  return mem.avatar + " " + esc(mem.name) + (c ? ' · <span style="opacity:.8">' + c.em + " " + esc(c.ko) + "</span>" : "");
 }
 /* 스프라이트: repo에 chars/<캐릭터id>.png 를 넣으면 자동으로 이미지 사용, 없으면 이모지 */
 function spriteHtml(c, cls) {
