@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v35";
-const BUILD_NO = 35;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v38";
+const BUILD_NO = 38;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -2831,6 +2831,7 @@ function drawExpChips() {
 
 /* ---------------- 정보 ---------------- */
 function renderInfo() {
+  if (typeof autoRollout === "function") { localStorage.removeItem("kel_rollout_dism"); autoRollout(); }
   const el = $("#tab-info");
   const s = store.settings;
   const myName = me ? nameOf(me) : "미선택";
@@ -5652,6 +5653,8 @@ async function kelLoad35() {
     if (r[1].data) store35.wstats = r[1].data;
     if (r[2].data) store35.battles = r[2].data;
     battleWatch();
+    spectateWatch();
+    liveWatch();
   } catch (e) {}
 }
 
@@ -5956,23 +5959,27 @@ function renderBattleBanners(list) {
           '<button class="btn small ghost" data-act="ok">예약 수락</button>' +
           '<button class="btn small ghost" data-act="no">거절</button></span></div>';
       } else if (g.phase === "invite") {
-        rows += '<div class="duel-row muted2">⚔️ ' + esc(nameOf(g.b)) + " 응답 대기 (" + hm + ") — 10분 무응답이면 👻</div>";
+        rows += '<div class="duel-row muted2" data-bid="' + g.id + '">⚔️ ' + esc(nameOf(g.b)) + " 응답 대기 (" + hm + ") — 무응답 👻" +
+          '<span class="duel-acts"><button class="btn small ghost" data-act="retract">✖ 회수</button></span></div>';
       } else if (g.phase === "sched") {
         var lf = new Date(g.sched_at).getTime() - Date.now();
         var early = (g.state || {}).early;
         if (lf <= 0) {
           rows += '<div class="duel-row" data-bid="' + g.id + '">⚔️ <b>결투 시간!</b> vs ' + esc(nameOf(en)) +
-            '<span class="duel-acts"><button class="btn small" data-act="enter">입장</button></span></div>';
+            '<span class="duel-acts"><button class="btn small" data-act="enter">입장</button>' +
+            '<button class="btn small ghost" data-act="cancel">✖</button></span></div>';
         } else if (early && early !== me) {
           rows += '<div class="duel-row" data-bid="' + g.id + '">⚡ <b>' + esc(nameOf(en)) + "</b>: 지금 바로 하재!" +
             '<span class="duel-acts"><button class="btn small" data-act="enter">ㄱㄱ</button>' +
-            '<button class="btn small ghost" data-act="keep">예약대로</button></span></div>';
+            '<button class="btn small ghost" data-act="keep">예약대로</button>' +
+            '<button class="btn small ghost" data-act="cancel">✖</button></span></div>';
         } else {
           var mn = Math.floor(lf / 60000), sc = Math.floor(lf % 60000 / 1000);
           rows += '<div class="duel-row" data-bid="' + g.id + '">⚔️ ' + hm + " vs " + esc(nameOf(en)) + " — <b>" +
             (mn > 99 ? mn + "분" : mn + ":" + String(sc).padStart(2, "0")) + "</b>" +
             '<span class="duel-acts">' + (early === me ? '<span class="muted2">⚡ 제안됨</span>' :
-              '<button class="btn small ghost" data-act="early">⚡ 지금 하자</button>') + "</span></div>";
+              '<button class="btn small ghost" data-act="early">⚡ 지금 하자</button>') +
+              '<button class="btn small ghost" data-act="cancel">✖</button></span></div>';
         }
       }
     });
@@ -5993,6 +6000,17 @@ function renderBattleBanners(list) {
         else if (act === "now") { if (myPlay()) return toast("지금 싸우는 판부터 끝내"); await sb.from("battles").update({ phase: "play" }).eq("id", g.id).eq("phase", "invite"); sendPush("⚡ " + nameOf(me), "바로 붙자!", "duel"); kelLoad35(); }
         else if (act === "enter") { earlyGo(g); }
         else if (act === "early") { earlyPropose(g); }
+        else if (act === "retract") {
+          if (!confirm(nameOf(en) + "에게 보낸 도전장을 회수할까?")) return;
+          await sb.from("battles").update({ phase: "canceled" }).eq("id", g.id).eq("phase", "invite");
+          toast("✖ 도전장 회수"); kelLoad35();
+        }
+        else if (act === "cancel") {
+          if (!confirm(nameOf(en) + "와의 예약 결투를 파토낼까?\n(낙인은 없지만 전원에게 통보됨)")) return;
+          await sb.from("battles").update({ phase: "canceled" }).eq("id", g.id).in("phase", ["sched"]);
+          sendPush("🚫 " + nameOf(me), nameOf(en) + "와의 예약 결투를 파토냈다", "duel");
+          toast("✖ 파토 — 전원에게 알렸어"); kelLoad35();
+        }
         else if (act === "keep") { var st = g.state || {}; delete st.early; await sb.from("battles").update({ state: st }).eq("id", g.id); toast("예약 시간대로 간다"); kelLoad35(); }
       };
     });
@@ -6011,14 +6029,18 @@ function pkHpBox(mem, hp, side) {
     '<div class="bt-hpn">' + Math.max(0, Math.round(hp)) + ' / ' + mx + '</div></div>';
 }
 var __btSeen = { id: 0, n: 0 };
+var __pkMap = {};
 function pkStageHtml(g) {
-  var st = g.state || {}, en = foe();
-  var cm = charOf(me) || { id: "x", em: "🎩" }, cf = charOf(en) || { id: "x", em: "🎩" };
+  var st = g.state || {};
+  var L = (g.a === me || g.b === me) ? me : g.a;      // 좌하단(큰 쪽): 나, 관전이면 a
+  var R = L === g.a ? g.b : g.a;
+  __pkMap = {}; __pkMap[L] = "pk-mine"; __pkMap[R] = "pk-foe";
+  var cL = charOf(L) || { id: "x", em: "🎩" }, cR = charOf(R) || { id: "x", em: "🎩" };
   return '<div class="pk-stage" id="pk-stage">' +
-    pkHpBox(en, (st.hp || {})[en] || 0, "foe") +
-    '<div class="pk-side foe" id="pk-foe"><span class="pk-plat"></span>' + spriteHtml(cf, "battle") + '</div>' +
-    '<div class="pk-side mine" id="pk-mine"><span class="pk-plat"></span>' + spriteHtml(cm, "battle big") + '</div>' +
-    pkHpBox(me, (st.hp || {})[me] || 0, "mine") +
+    pkHpBox(R, (st.hp || {})[R] || 0, "foe") +
+    '<div class="pk-side foe" id="pk-foe"><span class="pk-plat"></span>' + spriteHtml(cR, "battle") + '</div>' +
+    '<div class="pk-side mine" id="pk-mine"><span class="pk-plat"></span>' + spriteHtml(cL, "battle big") + '</div>' +
+    pkHpBox(L, (st.hp || {})[L] || 0, "mine") +
     '<span class="pk-turn">' + (g.phase === "done" ? "🏁" : "T" + g.turn) + '</span></div>';
 }
 function sprCenter(id) {
@@ -6037,8 +6059,8 @@ function playTheatre(g) {
       var box = document.getElementById("pk-box");
       if (box) box.innerHTML = '<div class="bt-line">' + l.txt + "</div>";
       if (!l.who) { if (l.fx) FX2.cast(l.fx, { quick: true }); return; }
-      var atkId = l.who === me ? "pk-mine" : "pk-foe";
-      var defId = l.who === me ? "pk-foe" : "pk-mine";
+      var atkId = __pkMap[l.who] || "pk-foe";
+      var defId = atkId === "pk-mine" ? "pk-foe" : "pk-mine";
       var atk = document.getElementById(atkId), def = document.getElementById(defId);
       if (atk) { atk.classList.remove("lunge-m", "lunge-f"); void atk.offsetWidth; atk.classList.add(l.who === me ? "lunge-m" : "lunge-f"); }
       var from = sprCenter(atkId), to = sprCenter(defId);
@@ -6055,9 +6077,9 @@ function playTheatre(g) {
   });
   // 막이 끝나고 기절 처리
   setTimeout(function () {
-    [me, foe()].forEach(function (mm) {
+    Object.keys(__pkMap).forEach(function (mm) {
       if ((st.hp || {})[mm] <= 0) {
-        var el = document.getElementById(mm === me ? "pk-mine" : "pk-foe");
+        var el = document.getElementById(__pkMap[mm]);
         if (el) el.classList.add("faint");
       }
     });
@@ -6088,8 +6110,8 @@ function openBattle() {
       '<div class="btn-row"><button class="btn ghost" id="bt-re" style="flex:1">⚔️ 재대결</button>' +
       '<button class="btn" id="bt-x" style="flex:1">닫기</button></div></div>';
     setTimeout(function () {
-      var wEl = win ? document.getElementById(win === me ? "pk-mine" : "pk-foe") : null;
-      var lEl = win ? document.getElementById(win === me ? "pk-foe" : "pk-mine") : null;
+      var wEl = win ? document.getElementById(__pkMap[win] || "pk-foe") : null;
+      var lEl = wEl ? document.getElementById(wEl.id === "pk-mine" ? "pk-foe" : "pk-mine") : null;
       if (wEl) wEl.classList.add("winner");
       if (lEl) lEl.classList.add("faint");
     }, 300);
@@ -6300,6 +6322,7 @@ function kelHubHtml() {
       '<button class="hub-b" data-hub="spell"><span class="hub-em">📜</span>주문<span class="hub-s">📜 ' + sTickets() + "</span></button>" +
     "</div>" +
     kelMyCardHtml() +
+    kelLiveHtml() +
     '<div class="hub-row2">' +
       '<button class="hub-mini" data-hub="shop">💵 상점</button>' +
       '<button class="hub-mini" data-hub="book">📖 주문서</button>' +
@@ -6333,6 +6356,69 @@ function kelMyCardHtml() {
         (mine.length > 10 ? '<span class="muted" style="font-size:10px">+' + (mine.length - 10) + '</span>' : "")
         : '<span class="muted" style="font-size:11px">배운 주문 없음 — 탭해서 뽑기</span>') + '</button>' +
     '</div></div>';
+}
+var specId = null, __specDigest = "";
+function openSpectate(g) {
+  if (g.a === me || g.b === me) { btG = g; return openBattle(); }
+  specId = g.id;
+  var box = document.getElementById("specbox");
+  if (!box) { box = document.createElement("div"); box.id = "specbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  var st = g.state || {};
+  var lastLog = (st.log || []).slice(-1).map(function (l) { return '<div class="bt-line">' + l.txt + "</div>"; }).join("") ||
+    '<div class="bt-line muted2">첫 주문 대기 중…</div>';
+  var picks = (g.pick_a ? "●" : "○") + " " + esc(nameOf(g.a)) + " vs " + esc(nameOf(g.b)) + " " + (g.pick_b ? "●" : "○");
+  box.innerHTML = '<div class="armory bt-wrap pk-wrap"><button class="ovx" data-ovx>✕</button>' +
+    pkStageHtml(g) +
+    '<div class="pk-box" id="pk-box">' + lastLog + '</div>' +
+    (g.phase === "done"
+      ? '<div class="liar-banner">🏁 ' + (g.winner ? esc(nameOf(g.winner)) + " 승리!" : "무승부") + "</div>"
+      : '<div class="bt-pickmsg">🍿 관전 중 — 몰래 픽: ' + picks + "</div>") +
+    '</div>';
+  playTheatre(g);
+  var x = box.querySelector("[data-ovx]");
+  if (x) x.onclick = function () { box.hidden = true; specId = null; };
+}
+function spectateWatch() {
+  if (!specId) return;
+  var g = store35.battles.find(function (b) { return b.id === specId; });
+  if (!g) { specId = null; return; }
+  var d = g.phase + "|" + g.turn + "|" + ((g.state || {}).log || []).length + "|" + (g.pick_a ? 1 : 0) + (g.pick_b ? 1 : 0);
+  if (d !== __specDigest) { __specDigest = d; openSpectate(g); }
+}
+/* 홈 — 라이브 배틀 보드 (전원 공개) */
+var __liveDigest = "";
+function kelLiveHtml() {
+  var now = Date.now();
+  var live = store35.battles.filter(function (b) { return b.phase === "play"; });
+  var recent = store35.battles.filter(function (b) { return b.phase === "done" && now - new Date(b.created_at).getTime() < 3600000; }).slice(0, 2);
+  var upcoming = store35.battles.filter(function (b) {
+    return b.phase === "sched" && b.sched_at && new Date(b.sched_at).getTime() > now - 120000;
+  }).sort(function (x, y) { return new Date(x.sched_at) - new Date(y.sched_at); }).slice(0, 3);
+  if (!live.length && !recent.length && !upcoming.length) return "";
+  function vs(b) { return esc(nameOf(b.a)) + ' <span class="lv-vs">vs</span> ' + esc(nameOf(b.b)); }
+  var h = '<div class="livebd"><div class="livebd-top">⚔️ 결투장</div>';
+  live.forEach(function (b) {
+    h += '<button class="livebd-row live" data-spec="' + b.id + '"><span class="live-dot"></span>' + vs(b) +
+      ' <span class="muted2">T' + b.turn + '</span><span class="livebd-go">🍿 관전</span></button>';
+  });
+  upcoming.forEach(function (b) {
+    var d = new Date(b.sched_at);
+    h += '<div class="livebd-row"><span>🕐 ' + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") +
+      '</span> ' + vs(b) + '</div>';
+  });
+  recent.forEach(function (b) {
+    h += '<button class="livebd-row done" data-spec="' + b.id + '">🏁 ' + vs(b) +
+      ' <b>' + (b.winner ? esc(nameOf(b.winner)) + " 승" : "무") + '</b><span class="livebd-go">리플레이</span></button>';
+  });
+  return h + "</div>";
+}
+function liveWatch() {
+  var d = store35.battles.map(function (b) { return b.id + b.phase + b.turn; }).join(",");
+  if (d !== __liveDigest) {
+    __liveDigest = d;
+    if (typeof currentTab !== "undefined" && currentTab === "home") try { renderHome(); } catch (e) {}
+  }
 }
 function openRank() {
   var box = document.getElementById("rankbox");
@@ -6594,6 +6680,11 @@ document.addEventListener("click", function (e) {
   }
   var ox = e.target.closest && e.target.closest("[data-ovx]");
   if (ox) { var ov = ox.closest("#armorybox,#synbox,#boxbox,#quizbox,#wbox,#spbox,#bookbox,#btbox,#rankbox,#shopbox,#pkbox,#multibox,#liarbox,#oddsov,#duelbox"); if (ov) { ov.hidden = true; } }
+  var spb = e.target.closest && e.target.closest("[data-spec]");
+  if (spb) {
+    var gg = store35.battles.find(function (b) { return String(b.id) === spb.dataset.spec; });
+    if (gg) openSpectate(gg);
+  }
   var dl = e.target.closest && e.target.closest("[data-duel]");
   if (dl) { e.stopPropagation(); duelInvite(dl.dataset.duel); }
 });
@@ -6629,7 +6720,27 @@ tutSteps = function () {
   ];
 };
 
-/* ---------------- v35 부팅 ---------------- */
+/* ---------------- 원탭 전원 배포 ----------------
+   새 빌드를 처음 켠 폰이 서버 min_version보다 높으면 → 컨펌 한 번으로
+   settings.min_version을 올려서 전원 자동 갱신. SQL Editor 불필요. */
+async function autoRollout() {
+  try {
+    if (!sb || !store || !store.settings || !Object.keys(store.settings).length) return;
+    var cur = Number(setting("min_version") || 0);
+    if (BUILD_NO <= cur) return;
+    if (localStorage.getItem("kel_rollout_dism") === String(BUILD_NO)) return;
+    if (!confirm("📦 이 폰은 v" + BUILD_NO + ", 서버 기준은 v" + cur + ".\n\n전원 강제 업데이트를 걸까?\n(확인 → 모든 폰이 자동으로 새 버전을 받음)")) {
+      localStorage.setItem("kel_rollout_dism", String(BUILD_NO));
+      toast("보류함 — 정보 탭 열면 다시 물어볼게");
+      return;
+    }
+    var r = await sb.from("settings").upsert({ key: "min_version", value: String(BUILD_NO) }, { onConflict: "key" });
+    if (r.error) return toast("배포 실패: " + r.error.message);
+    localStorage.removeItem("kel_rollout_dism");
+    sendPush("📦 v" + BUILD_NO + " 배포", "전원 자동 갱신 시작 — 화면이 한 번 새로고침될 거야", "fate", false);
+    toast("📦 v" + BUILD_NO + " 전원 배포 — 다들 자동 갱신됨");
+  } catch (e) {}
+}
 function kelV35Init() {
   FX2.mount();
   kelLoad35();
@@ -6650,6 +6761,7 @@ function kelV35Init() {
   var tries = 0;
   (function waitMig() {
     var loaded = store && store.settings && Object.keys(store.settings).length > 0;
+    if (loaded && localStorage.getItem("kel_rollout_dism") !== String(BUILD_NO)) autoRollout();
     if (me && loaded) return runMig35();
     if (tries++ < 40) setTimeout(waitMig, 900);
   })();
