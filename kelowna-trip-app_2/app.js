@@ -4061,7 +4061,7 @@ function openMulti(kind) {
   box.hidden = false;
   box.innerHTML =
     '<div class="multi-wrap">' +
-      '<div class="multi-top">' + (kind === 1000 ? "$1,000 ULTRA PACK · 확률 10배" : "$100 PREMIUM PACK · 확률 3배") + "</div>" +
+      '<div class="multi-top">' + (kind === 1000 ? "$1,000 ULTRA PACK · 확률 100배" : "$100 PREMIUM PACK · 확률 3배") + "</div>" +
       '<div class="multi-sub">카드 ' + cards.length + "장 · 마음에 드는 하나를 골라</div>" +
       '<div class="multi-grid' + (cards.length === 3 ? " three" : "") + '">' +
         cards.map((c, i) => {
@@ -7301,7 +7301,7 @@ function openMultiWS(kind, type) {
   box.className = kind === 1000 ? "ultra" : "";
   box.hidden = false;
   box.innerHTML = '<div class="multi-wrap">' +
-    '<div class="multi-top">' + (kind === 1000 ? "$1,000 ULTRA · 확률 10배" : "$100 PREMIUM · 확률 3배") + "</div>" +
+    '<div class="multi-top">' + (kind === 1000 ? "$1,000 ULTRA · 확률 100배" : "$100 PREMIUM · 확률 3배") + "</div>" +
     '<div class="multi-sub">' + (type === "wand" ? "🪄 지팡이" : "📜 주문") + " " + n + "장 — 전부 획득!</div>" +
     '<div class="multi-grid' + (n === 3 ? " three" : "") + '">' +
     cards.map(function (c, i) {
