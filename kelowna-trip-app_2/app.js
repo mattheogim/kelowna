@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v57";
-const BUILD_NO = 57;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v58";
+const BUILD_NO = 58;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -4006,6 +4006,7 @@ function applyGrants() {
   const parts = [];
   if (mine.ultra) parts.push("🏆 $1,000 울트라 팩 " + mine.ultra + "장");
   if (mine.premium) parts.push("💵 $100 프리미엄 팩 " + mine.premium + "장");
+  if (typeof glog === "function") glog("gift", parts.join(" · ") + " (" + tok + ")");
   showGiftCard(parts, mine.why || "");
 }
 function showGiftCard(parts, why) {
@@ -4095,6 +4096,7 @@ async function grantWeapon(w) {
   if (needSb()) return;
   const cur = wQty(w.id);
   await sb.from("inventory").upsert({ member: me, weapon_id: w.id, qty: cur + 1 }, { onConflict: "member,weapon_id" });
+  if (typeof glog === "function") glog("weapon", w.em + " " + w.ko + " 획득" + (w.t >= 5 ? " ★" : ""));
   await loadAll();
 }
 function openWeapon(mode) {
@@ -4414,6 +4416,7 @@ async function confirmRoll() {
     }
   }
   const { error } = await sb.from("characters").upsert({ member: me, char_id: c.id, tier: c.t, rolls: myRolls() }, { onConflict: "member" });
+  if (!error && typeof glog === "function") glog("char", c.em + " " + c.ko + " (" + (tierById[c.t] || {}).en + ")");
   if (error) {
     toast("누가 방금 그 캐릭터를 가져갔어 — 다시 뽑을게");
     await loadAll(); rollResult = drawCharacter(); drawRoll(); return;
@@ -5738,6 +5741,7 @@ extraUltra = function () { return Number(svMap().__xu || 0); };
 extraPrem  = function () { return Number(svMap().__xp || 0); };
 async function svCoupon(du, dp) {
   await svPatch({ __xu: Math.max(0, extraUltra() + (du || 0)), __xp: Math.max(0, extraPrem() + (dp || 0)) });
+  if (du || dp) glog("coupon", (du ? "울트라 " + (du > 0 ? "+" : "") + du + " " : "") + (dp ? "프리미엄 " + (dp > 0 ? "+" : "") + dp : ""));
 }
 async function couponMigrate() {
   if (!me || svMap().__cm) return;
@@ -5810,6 +5814,36 @@ function drawSpell(boost) {
   if (!pool.length) pool = SPELLS.filter(function (s) { return s.id !== "avada"; });
   return pool[Math.floor(Math.random() * pool.length)];
 }
+/* 영구 기록: 서버 game_log — 패치·재설치와 무관하게 남는다 */
+function glog(kind, detail) {
+  try { if (sb && me) sb.from("game_log").insert({ member: me, kind: kind, detail: detail }).then(function () {}); } catch (e) {}
+}
+function glogAs(mem, kind, detail) {
+  try { if (sb) sb.from("game_log").insert({ member: mem, kind: kind, detail: detail }).then(function () {}); } catch (e) {}
+}
+async function openLog(filter) {
+  var box = document.getElementById("logbox");
+  if (!box) { box = document.createElement("div"); box.id = "logbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  box.innerHTML = '<div class="armory"><button class="ovx" data-ovx>✕</button><div class="arm-top">📜 기록 보관소</div><p class="muted" style="font-size:11px">불러오는 중…</p></div>';
+  var q = sb.from("game_log").select("*").order("id", { ascending: false }).limit(120);
+  if (filter && filter !== "all") q = q.eq("kind", filter);
+  var r = await q;
+  var rows = r.data || [];
+  var KN = { char: "🧙", weapon: "🪄", spell: "📜", battle: "⚔️", brawl: "🔥", coupon: "🎟️", gift: "🎁", shop: "💵", mig: "💀" };
+  var chips = [["all","전체"],["char","🧙"],["weapon","🪄"],["spell","📜"],["battle","⚔️"],["brawl","🔥"],["coupon","🎟️"],["shop","💵"]];
+  box.innerHTML = '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="arm-top">📜 기록 보관소 <span class="muted" style="font-size:10.5px">서버 영구 보존</span></div>' +
+    '<div class="chip-row" style="margin-bottom:8px">' + chips.map(function (f) {
+      return '<button class="chip' + ((filter || "all") === f[0] ? " on" : "") + '" data-lgf="' + f[0] + '">' + f[1] + "</button>";
+    }).join("") + "</div>" +
+    (rows.length ? '<div class="log-list">' + rows.map(function (r2) {
+      return '<div class="log-row"><span class="log-em">' + (KN[r2.kind] || "•") + "</span>" +
+        '<span class="log-tx"><b>' + esc(nameOf(r2.member) || r2.member || "?") + "</b> " + esc(r2.detail || "") + "</span>" +
+        '<span class="log-t">' + relTime(r2.created_at) + "</span></div>";
+    }).join("") + "</div>" : '<p class="muted">아직 기록이 없어</p>') + "</div>";
+  $$("[data-lgf]", box).forEach(function (b) { b.onclick = function () { openLog(b.dataset.lgf); }; });
+}
 async function grantSpell(s) {
   if (!sb || !me) return "";
   var cur = store35.spellbook.find(function (x) { return x.member === me && x.spell_id === s.id; });
@@ -5817,10 +5851,12 @@ async function grantSpell(s) {
     var nl = Math.min(5, (cur.lv || 1) + 1);
     if (nl === cur.lv) { return "이미 Lv.5 — 마력이 허공으로"; }
     await sb.from("spellbook").update({ lv: nl }).eq("member", me).eq("spell_id", s.id);
+    glog("spell", s.ko + " Lv" + nl + " 강화");
     kelLoad35();
     return "중복! → Lv." + nl + " 자동 강화";
   }
   await sb.from("spellbook").upsert({ member: me, spell_id: s.id, lv: 1 }, { onConflict: "member,spell_id" });
+  glog("spell", s.em + " " + s.ko + " 습득" + (s.t >= 5 ? " ★" : ""));
   kelLoad35();
   return "";
 }
@@ -6738,6 +6774,7 @@ async function resolveBrawl(g, force) {
     patch.phase = "done"; patch.winner = left[0] || null;
     if (left[0]) st.rank.unshift(left[0]);
     line("🏆 " + (left[0] ? nameOf(left[0]) + " 최후의 1인!" : "전멸…"));
+    glogAs(left[0] || g.a, "brawl", brawlPlayers(g).map(nameOf).join("·") + " 난투 — " + (left[0] ? nameOf(left[0]) + " 우승" : "전멸"));
     sendPush("🏆 난투 종료", (left[0] ? nameOf(left[0]) + " 우승!" : "전멸"), "duel");
   }
   await sb.from("battles").update(patch).eq("id", g.id).eq("turn", g.turn);
@@ -6908,6 +6945,7 @@ async function resolveTurn(g, force) {
       sendPush("🏳️ 몰수패", nameOf(afkOut) + " 응답 없음 — " + nameOf(other) + " 승리", "duel");
     }
   }
+  if (patch.phase === "done") glogAs(patch.winner || g.a, "battle", nameOf(g.a) + " vs " + nameOf(g.b) + " — " + (patch.winner ? nameOf(patch.winner) + " 승" : "무승부"));
   await sb.from("battles").update(patch).eq("id", g.id).eq("turn", g.turn);
   kelLoad35();
 }
@@ -7200,7 +7238,7 @@ function openRank() {
     .sort(function (a, b) { return (b.s.xp || 0) - (a.s.xp || 0); });
   box.hidden = false;
   box.innerHTML = '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
-    '<div class="arm-top">마법사 전적</div>' +
+    '<div class="arm-top">마법사 전적 <button class="chip" data-openlog style="margin-left:auto;font-size:11px">📜 기록</button></div>' +
     rows.map(function (r, i) {
       return '<div class="rowline"><span class="rk-no">' + (i + 1) + "</span>" + av(r.m.id) +
         '<div><div style="font-weight:700;font-size:14px">' + esc(r.m.name) + ' <span class="bt-lv">Lv.' + r.lv + "</span></div>" +
@@ -7222,10 +7260,11 @@ function ultraUsedSet() {
 }
 function ultraLeftType(t) { return ultraUsedSet().indexOf(t) < 0; }
 function ultraMark(t) {
+  glog("shop", "$1,000 울트라 팩 (" + t + ")");
   var u = ultraUsedSet(); if (u.indexOf(t) < 0) u.push(t);
   localStorage.setItem("kel_ultra_wk", isoWeek() + "|" + u.join(","));
 }
-function bumpPrem() { localStorage.setItem("kel_p100", today() + "|" + (used100Today() + 1)); }
+function bumpPrem() { glog("shop", "$100 프리미엄 팩"); localStorage.setItem("kel_p100", today() + "|" + (used100Today() + 1)); }
 function openShop() {
   var box = document.getElementById("shopbox");
   if (!box) { box = document.createElement("div"); box.id = "shopbox"; document.body.appendChild(box); }
@@ -7545,6 +7584,8 @@ document.addEventListener("click", function (e) {
     if (gb) { if (gb.phase === "invite" && brawlPlayers(gb).indexOf(me) < 0) brawlJoin(gb); else openBrawl(gb); }
     return;
   }
+  var lg = e.target.closest && e.target.closest("[data-openlog]");
+  if (lg) { openLog("all"); return; }
   var spb = e.target.closest && e.target.closest("[data-spec]");
   if (spb) {
     var gg = store35.battles.find(function (b) { return String(b.id) === spb.dataset.spec; });
@@ -7672,6 +7713,7 @@ function migCompModal(deadId) {
     '<p class="muted" style="font-size:11.5px">쿠폰은 주간·일일 한도를 무시하고 상점에서 자동 소모돼</p>' +
     '<button class="btn" id="mig-take" style="width:100%;margin-top:10px">받고 새 마법사 뽑기</button></div>';
   $("#mig-take").onclick = async function () {
+    glog("mig", "비마법사 보상 150/150 수령");
     await svCoupon(150, 150);
     await svPatch({ __m35c: 1 });
     localStorage.setItem("kel_mig35_comp", "1");
@@ -7720,6 +7762,7 @@ async function migWipe() {
       await sb.from("inventory").delete().eq("member", me).neq("weapon_id", keep);
       await sb.from("inventory").update({ qty: 1 }).eq("member", me).eq("weapon_id", keep);
       await equipWeapon(keep);
+      glog("mig", "대격변 — " + ((weaponById[keep] || {}).ko || keep) + " 선택, 나머지 소각");
       await svPatch({ __m35w: 1 });
       localStorage.setItem("kel_mig35_wipe", "1");
       FX2.flash("#E0562C", 260); FX2.shake(0.6);

@@ -1976,3 +1976,13 @@ details.arch > .card, details.arch > h2 { margin-left: 4px; margin-right: 4px; }
   background: linear-gradient(0deg, rgba(200,60,20,.85), transparent); animation: cnlava3d 1.6s ease-out; }
 .cc-dark .cn-dim { background: rgba(4,10,5,.88); }
 .cc-tier .cn-dim { background: radial-gradient(120% 100% at 50% 45%, transparent 25%, rgba(6,5,3,.68) 100%); }
+
+/* ---- v58 기록 보관소 ---- */
+#logbox { position: fixed; inset: 0; z-index: 612; background: rgba(10,9,7,.84);
+  display: flex; align-items: center; justify-content: center; padding: 14px; overflow-y: auto; }
+.log-list { max-height: 62vh; overflow-y: auto; }
+.log-row { display: flex; align-items: baseline; gap: 8px; padding: 7px 2px; border-top: 1px dashed rgba(38,36,30,.18); font-size: 12.5px; }
+.log-row:first-child { border-top: 0; }
+.log-em { flex: 0 0 auto; }
+.log-tx { min-width: 0; }
+.log-t { margin-left: auto; flex: 0 0 auto; font-size: 10.5px; opacity: .55; }
