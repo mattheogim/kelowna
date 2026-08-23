@@ -1882,3 +1882,75 @@ details.arch > .card, details.arch > h2 { margin-left: 4px; margin-right: 4px; }
 .pin-char .pk-spr { animation: none; }
 .pin-char .pk-em { font-size: 19px; filter: none; }
 .pin-char .pk-img { max-width: 30px; max-height: 30px; filter: none; }
+
+/* ==== v54: 난투장 ==== */
+#brawlbox { position: fixed; inset: 0; z-index: 615; background: rgba(10,9,7,.84);
+  display: flex; align-items: center; justify-content: center; padding: 14px; overflow-y: auto; }
+.br-wrap { max-width: 480px; }
+.br-title { font-weight: 900; font-size: 15px; margin-bottom: 8px; }
+.br-arena { position: relative; border: 2px solid #26241E; border-radius: 12px; padding: 12px 8px 8px;
+  background: linear-gradient(180deg, #EFE6D0, #D6C6A0); margin-bottom: 8px; perspective: 700px; }
+.br-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.br-merow { display: flex; justify-content: center; margin-top: 10px; transform: translateZ(30px); }
+.br-seat { position: relative; width: 88px; padding: 8px 4px 6px; border: 2px solid #26241E; border-radius: 12px;
+  background: #F6F0DF; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  box-shadow: 3px 3px 0 rgba(38,36,30,.2); transition: transform .15s; }
+.br-seat:active { transform: scale(.94); }
+.br-seat.meself { border-color: #7C2E3E; }
+.br-seat.out { opacity: .45; filter: grayscale(1); }
+.br-seat .pk-spr.brseat .pk-em { font-size: 40px; }
+.br-seat .pk-spr.brseat .pk-img { max-width: 52px; max-height: 52px; }
+.br-nm { font-size: 11px; font-weight: 800; }
+.br-hp { width: 90%; height: 7px; }
+.br-out { position: absolute; top: 4px; right: 6px; font-size: 16px; }
+.livebd-mk { margin-left: auto; font-size: 11px; font-weight: 800; color: #1B1712; background: #C7A96A;
+  border: 0; border-radius: 8px; padding: 3px 8px; }
+.livebd-top { display: flex; align-items: center; }
+.sp-item.picked { outline: 3px solid var(--gold, #C79A3E); outline-offset: -3px; }
+
+/* ==== 아바다 텔레그래프: 초록 연기 (전원 공개) ==== */
+.ak-smoke { position: absolute; inset: -6px; pointer-events: none; z-index: 6; overflow: visible; }
+.ak-smoke i { position: absolute; bottom: 10%; left: 50%; width: 26px; height: 26px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(87,232,107,.85), rgba(30,120,50,.35) 60%, transparent 75%);
+  filter: blur(5px); animation: aksmoke 2.1s ease-in infinite; }
+.ak-smoke i:nth-child(2) { animation-delay: .7s; left: 34%; width: 20px; height: 20px; }
+.ak-smoke i:nth-child(3) { animation-delay: 1.4s; left: 62%; width: 22px; height: 22px; }
+@keyframes aksmoke {
+  0% { transform: translate(-50%, 0) scale(.6); opacity: 0; }
+  25% { opacity: .95; }
+  100% { transform: translate(-50%, -76px) scale(1.7) rotate(14deg); opacity: 0; }
+}
+.ak-smoke.stage-mine { inset: auto; left: 6%; bottom: 10px; width: 150px; height: 130px; }
+.ak-smoke.stage-foe { inset: auto; right: 6%; top: 40px; width: 128px; height: 110px; }
+.br-seat .ak-smoke i { width: 34px; height: 34px; }
+
+/* ==== v54: 3D 레이어 (기존 이펙트 위에 추가) ==== */
+#spellcine .cn { perspective: 900px; transform-style: preserve-3d; }
+.cn-name { transform-origin: 50% 100%; animation: cnname3d .55s cubic-bezier(.2,1.5,.3,1); }
+@keyframes cnname3d {
+  0% { transform: rotateX(70deg) translateZ(-500px) scale(2.4); opacity: 0; filter: blur(8px); }
+  100% { transform: rotateX(0) translateZ(0) scale(1); opacity: 1; filter: none; }
+}
+.cn-big { animation: cnbig3d 1.15s cubic-bezier(.2,.9,.3,1); }
+@keyframes cnbig3d {
+  0% { transform: translate(-50%,-50%) translateZ(-900px) rotateY(50deg) scale(.4); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translate(-50%,-50%) translateZ(120px) rotateY(0) scale(1.3); }
+}
+.cn-wave { transform-origin: 50% 100%; }
+@keyframes cnwave {
+  0% { transform: translateY(0) rotateX(38deg) scale(1); }
+  55% { transform: translateY(-70vh) rotateX(16deg) scale(1.25); }
+  100% { transform: translateY(-120vh) rotateX(0) scale(1.45); }
+}
+.cn-lava { transform-origin: 50% 100%; animation: cnlava3d 1.25s ease-out; }
+@keyframes cnlava3d {
+  0% { transform: translateY(100%) rotateX(30deg); }
+  40% { transform: translateY(0) rotateX(12deg) scaleY(1.15); }
+  100% { transform: translateY(6%) rotateX(0); }
+}
+.pk-stage { perspective: 650px; }
+.pk-side.lunge-m { animation: lungeM3 .6s cubic-bezier(.3,1.3,.4,1); }
+.pk-side.lunge-f { animation: lungeF3 .6s cubic-bezier(.3,1.3,.4,1); }
+@keyframes lungeM3 { 0%,100% { transform: none; } 40% { transform: translate(56px,-34px) translateZ(90px) rotateY(-8deg) scale(1.1); } }
+@keyframes lungeF3 { 0%,100% { transform: none; } 40% { transform: translate(-56px,34px) translateZ(90px) rotateY(8deg) scale(1.1); } }

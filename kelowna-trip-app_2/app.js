@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v53";
-const BUILD_NO = 53;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v54";
+const BUILD_NO = 54;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -5555,7 +5555,8 @@ var FX2 = (function () {
     var cx = o.x != null ? o.x : innerWidth / 2, cy = o.y != null ? o.y : innerHeight * 0.42;
     var from = o.from || [innerWidth / 2, innerHeight - 90];
     var lv = Math.max(1, o.lv || (typeof spLv === "function" ? spLv(spellId) : 1) || 1);
-    var LM = (1 + 0.18 * (lv - 1)) * 2.4;   // v44: 전역 물량 2.4배          // Lv당 +18% — Lv5면 파티클·반동 1.72배
+    var LM = (1 + 0.18 * (lv - 1)) * 2.4;   // v44: 전역 물량 2.4배
+    var SZ = 1.6;                             // v54: 파티클 크기 1.6배          // Lv당 +18% — Lv5면 파티클·반동 1.72배
     var big = sp.t >= 4 || spellId === "avada" || lv >= 4;
     // ① 예열
     ring(from[0], from[1], { c: c, sp: -3, n: 20, sz: 6, life: 0.4 });
@@ -5947,8 +5948,10 @@ function dedupeBattles(arr) {
   });
   return out;
 }
+function isBrawl(b) { return b && b.mode === "brawl"; }
+function brawlPlayers(b) { return (b && b.players) || []; }
 function myBattles() {
-  return dedupeBattles(store35.battles).filter(function (b) {
+  return dedupeBattles(store35.battles.filter(function (b) { return !isBrawl(b); })).filter(function (b) {
     if (b.a !== me && b.b !== me) return false;
     if (b.phase === "invite") return true;                       // 10분 스윕이 정리
     if (b.phase === "sched") return Date.now() < new Date(b.sched_at || b.created_at).getTime() + 7200000;
@@ -6061,6 +6064,7 @@ function battleWatch() {
       !btSeenHas(b.id) &&
       Date.now() - new Date(b.created_at).getTime() < 21600000;
   });
+  brawlWatch();
   // 양쪽 픽 완료 → 판정 (a폰 담당, a폰이 죽어 있으면 12초 뒤 b폰이 인수)
   if (play && play.pick_a && play.pick_b && play.phase === "play") {
     var rk = play.id + ":" + play.turn;
@@ -6097,6 +6101,70 @@ function battleWatch() {
     if (changed) openBattle();
   } else btG = null;
   renderBattleBanners(list.filter(function (b) { return !g || b.id !== g.id; }));
+}
+function brawlWatch() {
+  var g = myBrawl();
+  var boxOpen = document.getElementById("brawlbox") && !document.getElementById("brawlbox").hidden;
+  if (!g) { if (boxOpen && window.__brDone !== 1) {} window.__brId = null; return; }
+  if (g.phase === "invite") {
+    // 개설 10분 경과 or 호스트 시작 → play (2인 이상)
+    if (brawlPlayers(g)[0] === me && Date.now() - new Date(g.created_at).getTime() > 600000 && brawlPlayers(g).length >= 2)
+      sb.from("battles").update({ phase: "play" }).eq("id", g.id).eq("phase", "invite").then(kelLoad35);
+  }
+  if (g.phase === "play") {
+    var picks = g.picks || {}, alive = brAlive(g);
+    var allIn = alive.every(function (p) { return !!picks[p]; });
+    var rk = "br" + g.id + ":" + g.turn;
+    window.__bpAt = window.__bpAt || {};
+    if (allIn) {
+      if (!window.__bpAt[rk]) window.__bpAt[rk] = Date.now();
+      var canH = alive[0] === me;
+      var canT = alive.indexOf(me) > 0 && Date.now() - window.__bpAt[rk] > 12000;
+      if ((canH || canT) && window.__rtLock !== rk) {
+        window.__rtLock = rk;
+        resolveBrawl(g, canT).finally(function () { if (window.__rtLock === rk) window.__rtLock = null; });
+      }
+    } else if (picks[me]) {
+      var wk = "brw" + g.id + ":" + g.turn;
+      if (!window.__bpAt[wk]) window.__bpAt[wk] = Date.now();
+      else if (Date.now() - window.__bpAt[wk] > 45000 && alive[0] === me) {
+        window.__bpAt[wk] = Date.now() + 9e12;
+        var pk = Object.assign({}, picks);
+        alive.forEach(function (p) { if (!pk[p]) pk[p] = "__afk"; });
+        sb.from("battles").update({ picks: pk }).eq("id", g.id).eq("phase", "play").eq("turn", g.turn).then(kelLoad35);
+      }
+    }
+  }
+  var changed = window.__brSig !== (g.id + "|" + g.phase + "|" + g.turn + "|" + JSON.stringify(g.picks || {}) + "|" + ((g.state || {}).log || []).length + "|" + JSON.stringify((g.state || {}).tele || {}));
+  if (changed) {
+    window.__brSig = g.id + "|" + g.phase + "|" + g.turn + "|" + JSON.stringify(g.picks || {}) + "|" + ((g.state || {}).log || []).length + "|" + JSON.stringify((g.state || {}).tele || {});
+    openBrawl(g);
+  }
+}
+async function brawlCreate() {
+  if (needSb()) return;
+  if (!charOf(me)) return toast("캐릭터부터 뽑아");
+  if (myBrawl()) return toast("이미 난투에 참가 중이야");
+  await sb.from("battles").insert({ a: me, b: me, mode: "brawl", players: [me], phase: "invite", turn: 1, state: { hp: {} }, picks: {} });
+  sendPush("🔥 " + nameOf(me), "난투장 개설 — 전원 참전하라!", "duel");
+  toast("🔥 난투 개설 — 참가자 기다리는 중"); kelLoad35();
+}
+async function brawlJoin(g) {
+  if (!charOf(me)) return toast("캐릭터부터 뽑아");
+  if (brawlPlayers(g).indexOf(me) >= 0) return openBrawl(g);
+  if (brawlPlayers(g).length >= 6) return toast("만석 (6명)");
+  if (myBrawl()) return toast("이미 다른 난투 참가 중");
+  var pl = brawlPlayers(g).concat([me]);
+  await sb.from("battles").update({ players: pl }).eq("id", g.id).eq("phase", "invite");
+  toast("⚔️ 참전!"); kelLoad35();
+}
+async function brawlStart(g) {
+  if (brawlPlayers(g).length < 2) return toast("2명은 있어야지");
+  var st = { hp: {} };
+  brawlPlayers(g).forEach(function (p) { st.hp[p] = maxHp(p); });
+  await sb.from("battles").update({ phase: "play", state: st, turn: 1, picks: {} }).eq("id", g.id).eq("phase", "invite");
+  sendPush("🔥 난투 개시", brawlPlayers(g).map(nameOf).join(" vs "), "duel");
+  kelLoad35();
 }
 async function earlyGo(g) {
   // 예약전 조기 시작 — 내가 play 중이면 불가
@@ -6260,7 +6328,13 @@ function pkStageHtml(g, ns) {
     '<div class="pk-side foe" id="' + ns + '-foe"><span class="pk-plat"></span>' + spriteHtml(cR, "battle") + '</div>' +
     '<div class="pk-side mine" id="' + ns + '-mine"><span class="pk-plat"></span>' + spriteHtml(cL, "battle big") + '</div>' +
     pkHpBox(L, (st.hp || {})[L] || 0, "mine") +
-    '<span class="pk-turn">' + (g.phase === "done" ? "🏁" : "T" + g.turn) + '</span></div>';
+    '<span class="pk-turn">' + (g.phase === "done" ? "🏁" : "T" + g.turn) + '</span>' +
+    (function () {
+      var tl = st.tele || {}, out = "";
+      if ((tl[R] || {}).tgt === L || (tl[R] && !tl[R].tgt)) out += '<span class="ak-smoke stage-mine"><i></i><i></i><i></i></span>';
+      if ((tl[L] || {}).tgt === R || (tl[L] && !tl[L].tgt)) out += '<span class="ak-smoke stage-foe"><i></i><i></i><i></i></span>';
+      return out;
+    })() + '</div>';
 }
 function sprCenter(id) {
   var el = document.querySelector("#" + id + " .pk-spr");
@@ -6418,10 +6492,13 @@ function openBattle() {
     if (hm2) hm2.outerHTML = pkHpBox(me, (st.hp || {})[me] || 0, "mine");
     var tn = stg2.querySelector(".pk-turn"); if (tn) tn.textContent = "T" + g.turn;
     var pm2 = box.querySelector(".bt-pickmsg");
-    if (pm2) pm2.innerHTML = myPicked ? "⏳ <b>" + esc(nameOf(en)) + "</b>의 주문 대기 중… <span class=\"muted2\">(45초 무응답 시 자동 패스)</span>"
+    if (pm2) pm2.innerHTML = myPicked ? "✅ 픽 완료 — <b>다시 골라 변경 가능</b> · ⏳ " + esc(nameOf(en)) + " 대기"
       : "이번 턴 주문을 골라 — <b id=\"bt-cd\">25</b>초";
+    // 픽 후에도 변경 가능 — 그리드 유지, 현재 픽 표시
     var grid = box.querySelector(".pk-moves");
-    if (myPicked && grid) grid.remove();
+    if (myPicked && grid) {
+      $$(".sp-item", grid).forEach(function (el) { el.classList.toggle("picked", el.dataset.cast === g[myPickCol()]); });
+    }
     if (!myPicked && !grid && pm2) { pm2.insertAdjacentHTML("afterend", movesHtml(mine)); bindMoves(box); }
     startPickTimer(myPicked);
     playTheatre(g, "bt");
@@ -6451,13 +6528,17 @@ async function submitPick(spellId) {
   var g = btG; if (!g || g.phase !== "play") return;
   clearInterval(btTimer);
   var patch = {}; patch[myPickCol()] = spellId;
-  var q = sb.from("battles").update(patch).eq("id", g.id).eq("phase", "play").eq("turn", g.turn);
-  q = myPickCol() === "pick_a" ? q.is("pick_a", null) : q.is("pick_b", null);
-  await q;
-  // 화면은 그대로 두고 주문판만 접는다 — 통재생성 금지
-  var mv = document.querySelector("#btbox .pk-moves"); if (mv) mv.remove();
+  await sb.from("battles").update(patch).eq("id", g.id).eq("phase", "play").eq("turn", g.turn);
+  // 텔레그래프: 아바다 최근성
+  if (spellId !== "__pass" && spellId !== "__afk") {
+    var stT = JSON.parse(JSON.stringify(g.state || {})); stT.tele = stT.tele || {};
+    if (spellId === "avada") stT.tele[me] = { tgt: foe(), n: 0 };
+    else if (stT.tele[me]) { stT.tele[me].n = (stT.tele[me].n || 0) + 1; if (stT.tele[me].n >= 2) delete stT.tele[me]; }
+    await sb.from("battles").update({ state: stT }).eq("id", g.id).eq("turn", g.turn);
+  }
   var pm = document.querySelector("#btbox .bt-pickmsg");
-  if (pm) pm.innerHTML = "⏳ <b>" + esc(nameOf(foe())) + "</b>의 주문 대기 중… <span class='muted2'>(45초 무응답 시 자동 패스)</span>";
+  if (pm) pm.innerHTML = "✅ 픽 완료 — <b>다시 골라 변경 가능</b>";
+  $$("#btbox .sp-item").forEach(function (el) { el.classList.toggle("picked", el.dataset.cast === spellId); });
   var fresh = await sb.from("battles").select("*").eq("id", g.id).single();
   if (fresh.data) { btG = fresh.data; if (fresh.data.pick_a && fresh.data.pick_b) return resolveTurn(fresh.data); openBattle(); }
 }
@@ -6478,6 +6559,160 @@ function effPow(s, caster, target, st) {
   p *= dodgeMul(caster);
   if (c && c.id === "snape" && s.id === "sectumsempra") p *= 1.5;
   return Math.round(p);
+}
+function myBrawl() {
+  return store35.battles.find(function (b) {
+    return isBrawl(b) && brawlPlayers(b).indexOf(me) >= 0 && ["invite", "play"].indexOf(b.phase) >= 0 &&
+      Date.now() - new Date(b.created_at).getTime() < 21600000;
+  });
+}
+function liveBrawls() {
+  return store35.battles.filter(function (b) {
+    return isBrawl(b) && ["invite", "play"].indexOf(b.phase) >= 0 &&
+      Date.now() - new Date(b.created_at).getTime() < 21600000;
+  });
+}
+function brAlive(g) {
+  var st = g.state || {};
+  return brawlPlayers(g).filter(function (p) { return ((st.hp || {})[p] || 0) > 0 && (st.out || []).indexOf(p) < 0; });
+}
+function parsePick(v) {
+  if (!v) return null;
+  var i = String(v).indexOf("@");
+  return i < 0 ? { sp: v, tgt: null } : { sp: v.slice(0, i), tgt: v.slice(i + 1) };
+}
+async function brawlSubmit(spellId, tgt) {
+  var g = myBrawl(); if (!g || g.phase !== "play") return;
+  clearInterval(btTimer);
+  var val = tgt ? spellId + "@" + tgt : spellId;
+  var pk = Object.assign({}, g.picks || {}); pk[me] = val;
+  await sb.from("battles").update({ picks: pk }).eq("id", g.id).eq("phase", "play").eq("turn", g.turn);
+  // 아바다 텔레그래프: 최근성 카운터 (골랐다→연기 / 1회 변경→유지 / 2회째 변경→소멸)
+  var st = JSON.parse(JSON.stringify(g.state || {})); st.tele = st.tele || {};
+  if (spellId === "avada") st.tele[me] = { tgt: tgt, n: 0 };
+  else if (st.tele[me]) { st.tele[me].n = (st.tele[me].n || 0) + 1; if (st.tele[me].n >= 2) delete st.tele[me]; }
+  await sb.from("battles").update({ state: st }).eq("id", g.id).eq("turn", g.turn);
+  kelLoad35();
+}
+async function resolveBrawl(g, force) {
+  var alive0 = brAlive(g);
+  var host = alive0[0];
+  if (host !== me && !force) return;
+  var st = JSON.parse(JSON.stringify(g.state || {}));
+  ["log","dot","shield","stun","weak","buff","forget","sleep","wimm","afk","out","rank","tele"].forEach(function (k) {
+    st[k] = st[k] || (["log","out","rank"].indexOf(k) >= 0 ? [] : {});
+  });
+  var picks = g.picks || {};
+  function line(txt, fx, who, tg) { st.log.push({ txt: txt, fx: fx || null, who: who || null, tg: tg || null, t: g.turn }); }
+  function wake(mm, why) { if (st.sleep[mm]) { delete st.sleep[mm]; line("⏰ " + nameOf(mm) + " 기상!" + (why ? " (" + why + ")" : "")); } }
+  var alive = brAlive(g);
+  alive.forEach(function (mm) { if (st.sleep[mm]) { st.sleep[mm]--; if (st.sleep[mm] <= 0) wake(mm, "저절로"); } });
+  alive.forEach(function (mm) {
+    var d = st.dot[mm];
+    if (d) { st.hp[mm] -= d.p; line(d.em + " " + nameOf(mm) + " 지속 피해 " + d.p); d.n--; if (d.n <= 0) delete st.dot[mm]; }
+  });
+  for (var ai = 0; ai < alive.length; ai++) {
+    var caster = alive[ai];
+    if (st.hp[caster] <= 0) continue;
+    var pp = parsePick(picks[caster]);
+    var pick = pp && pp.sp, target = pp && pp.tgt;
+    if (target && (st.hp[target] || 0) <= 0) target = null;
+    if (!target) {
+      var pool = alive.filter(function (x) { return x !== caster && st.hp[x] > 0; });
+      target = pool[Math.floor(Math.random() * pool.length)];
+    }
+    var s = spellById[pick];
+    if (st.stun[caster]) {
+      if (pick === "rennervate") { delete st.stun[caster]; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 리네베이트 — 기절 해제 +8", "rennervate", caster); continue; }
+      delete st.stun[caster]; line("😵 " + nameOf(caster) + " 기절 — 턴 스킵"); continue;
+    }
+    if (st.sleep[caster]) {
+      if (pick === "rennervate") { delete st.sleep[caster]; st.wimm[caster] = 1; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 벌떡 기상 +8", "rennervate", caster); continue; }
+      if (Math.random() < 0.7) { line("😴 " + nameOf(caster) + " 잠꼬대…"); continue; }
+    }
+    if (st.ctrl && st.ctrl[caster] && pick && pick !== "__pass" && pick !== "__afk") {
+      delete st.ctrl[caster];
+      var bk = store35.spellbook.filter(function (r) { return r.member === caster; });
+      if (bk.length) { pick = bk[Math.floor(Math.random() * bk.length)].spell_id; s = spellById[pick] || s; line("🌀 " + nameOf(caster) + " 조종당해 " + ((spellById[pick] || {}).ko || "?") + "!"); }
+    }
+    if (pick === "__afk") { st.afk[caster] = (st.afk[caster] || 0) + 1; line("⌛ " + nameOf(caster) + " 무응답 (" + st.afk[caster] + "/3)"); continue; }
+    st.afk[caster] = 0;
+    if (!pick || pick === "__pass" || !s) { line("💨 " + nameOf(caster) + " 허둥지둥"); continue; }
+    if (pick === "avada") {
+      var stt = statsOf(caster);
+      sb.from("wiz_stats").update({ ak_used: (stt.ak_used || 0) + 1 }).eq("member", caster);
+      var tp = parsePick(picks[target]);
+      var blocked = tp && tp.sp === "expelliarmus" && expelLeft(target) > 0 && (!tp.tgt || tp.tgt === caster);
+      if (blocked) {
+        var ts2 = statsOf(target), em2 = ts2.exp_map || {}; em2[equippedOf(target)] = (em2[equippedOf(target)] || 0) + 1;
+        sb.from("wiz_stats").update({ exp_map: em2 }).eq("member", target);
+        line("🪄 " + nameOf(target) + "가 ☠️를 튕겨냈다!", "expelliarmus", target, caster);
+      } else {
+        st.hp[target] = 0;
+        line("☠️ " + nameOf(caster) + " → " + nameOf(target) + " 아바다 케다브라 — 즉사", "avada", caster, target);
+        sb.from("wiz_stats").update({ ak_bonus: (statsOf(caster).ak_bonus || 0) + 1 }).eq("member", caster);
+      }
+      continue;
+    }
+    if (pick === "expelliarmus") {
+      var thp = parsePick(picks[target]);
+      if (thp && thp.sp === "avada" && thp.tgt === caster) { line("🪄 " + nameOf(caster) + " 카운터 준비!"); continue; }
+      st.hp[target] -= 8; line("🪄 " + nameOf(caster) + " → " + nameOf(target) + " 견제 8", "expelliarmus", caster, target); continue;
+    }
+    if (s.kind === "shield") { st.shield[caster] = { v: 0.7 }; line("🛡️ " + nameOf(caster) + " 프로테고", "protego", caster); continue; }
+    if (s.id === "patronum") { st.shield[caster] = { v: 1, pat: 1 }; st.hp[caster] = Math.min(maxHp(caster), st.hp[caster] + 12); line("🦌 " + nameOf(caster) + " 패트로누스 +12", "patronum", caster); continue; }
+    if (s.kind === "buff") {
+      st.buff[caster] = 1; line("💡 " + nameOf(caster) + " 루모스 +30%", "lumos", caster); continue;
+    }
+    if (s.kind === "wake") { st.wimm[caster] = 1; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 리네베이트 +8", "rennervate", caster); continue; }
+    if (s.kind === "ctrl") { st.ctrl = st.ctrl || {}; st.hp[target] -= 6; st.ctrl[target] = 1; line("🌀 " + nameOf(caster) + " → " + nameOf(target) + " 임페리오", s.id, caster, target); continue; }
+    if (s.id === "obliviate") {
+      var tb = store35.spellbook.filter(function (r) { return r.member === target && ((st.forget[target] || []).indexOf(r.spell_id) < 0); });
+      if (tb.length) { var vic = tb[Math.floor(Math.random() * tb.length)].spell_id; st.forget[target] = (st.forget[target] || []).concat([vic]); line("💫 " + nameOf(target) + "의 " + (spellById[vic] || {}).ko + " 삭제!", "obliviate", caster, target); }
+      continue;
+    }
+    var dmg = effPow(s, caster, target, st);
+    if (s.fam === "fire" && st.sleep[target]) dmg = Math.round(dmg * 1.5);
+    var tp2 = parsePick(picks[target]);
+    if (s.fam === "fire" && tp2 && tp2.sp === "aguamenti") { dmg = Math.round(dmg * 0.4); line("💦 " + nameOf(target) + " 물줄기 상쇄!"); }
+    if (s.id === "aguamenti") {
+      if (st.dot[caster] && st.dot[caster].em === "🔥") { delete st.dot[caster]; line("💧 화상 소화"); }
+      st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 6);
+    }
+    var sh = st.shield[target];
+    if (sh) { dmg = sh.pat ? 0 : Math.round(dmg * (1 - sh.v)); delete st.shield[target]; line(sh.pat ? "🦌 완전 무효!" : "🛡️ 70% 경감"); }
+    var tcb = comboOf(target); if (tcb) dmg = Math.round(dmg * tcb.tk);
+    if (dmg > 0) {
+      st.hp[target] -= dmg;
+      line(s.em + " " + nameOf(caster) + " → " + nameOf(target) + " " + s.ko + " — " + dmg, s.id, caster, target);
+      if (st.sleep[target]) wake(target, s.fam === "fire" ? "뜨거워서" : "얻어맞고");
+      if (s.fam === "fire" && !st.dot[target] && Math.random() < 0.25) { st.dot[target] = { p: 5, n: 2, em: "🔥" }; line("🔥 " + nameOf(target) + " 화상!"); }
+    }
+    if (s.kind === "dot" || s.kind === "dot2") { st.dot[target] = { p: s.id === "crucio" ? 7 : 6, n: 3, em: s.em }; line(s.em + " 도트 3턴"); }
+    if (s.kind === "stun" && Math.random() < 0.3) { st.stun[target] = 1; line("💫 " + nameOf(target) + " 기절!"); }
+    if (s.kind === "weak") { st.weak[target] = 1; line("🙃 " + nameOf(target) + " 위력 절반"); }
+    if (s.kind === "sleep") {
+      if (st.wimm[target]) { delete st.wimm[target]; line("🛡 수면 면역"); }
+      else if (!st.sleep[target]) { st.sleep[target] = 2; line("💤 " + nameOf(target) + " 잠들었다", "somnium", caster, target); }
+    }
+  }
+  // 탈락·몰수·순위
+  brawlPlayers(g).forEach(function (mm) {
+    if (st.out.indexOf(mm) >= 0) return;
+    if ((st.afk[mm] || 0) >= 3) { st.hp[mm] = 0; line("🏳️ " + nameOf(mm) + " 3턴 무응답 — 탈락"); }
+    if (st.hp[mm] <= 0) { st.out.push(mm); st.rank.unshift(mm); line("💀 " + nameOf(mm) + " 탈락 (" + (brawlPlayers(g).length - st.rank.length + 1) + "위)"); }
+  });
+  st.tele = {};
+  var left = brawlPlayers(g).filter(function (mm) { return st.out.indexOf(mm) < 0; });
+  var patch = { state: st, turn: g.turn + 1, picks: {} };
+  if (left.length <= 1) {
+    patch.phase = "done"; patch.winner = left[0] || null;
+    if (left[0]) st.rank.unshift(left[0]);
+    line("🏆 " + (left[0] ? nameOf(left[0]) + " 최후의 1인!" : "전멸…"));
+    sendPush("🏆 난투 종료", (left[0] ? nameOf(left[0]) + " 우승!" : "전멸"), "duel");
+  }
+  await sb.from("battles").update(patch).eq("id", g.id).eq("turn", g.turn);
+  kelLoad35();
 }
 async function resolveTurn(g, force) {
   // a 쪽 폰이 판정 — a폰 부재 시 b폰이 force로 인수 (turn 조건부 update라 이중 판정 불가)
@@ -6725,6 +6960,123 @@ function kelMyCardHtml() {
         : '<span class="muted" style="font-size:11px">배운 주문 없음 — 탭해서 뽑기</span>') + '</button>' +
     '</div></div>';
 }
+function brawlSeatHtml(g, p, st) {
+  var c = charOf(p) || { id: "x", em: "🎩" };
+  var hp = (st.hp || {})[p] || 0, mx = maxHpReal(p);
+  var out = hp <= 0 && g.phase === "play";
+  var pct = Math.max(0, Math.min(100, Math.round(hp / mx * 100)));
+  var teleOn = Object.keys(st.tele || {}).some(function (k) { return (st.tele[k] || {}).tgt === p; });
+  var picked = !!(g.picks || {})[p];
+  return '<button class="br-seat' + (out ? " out" : "") + (p === me ? " meself" : "") + '" data-seat="' + p + '">' +
+    (teleOn ? '<span class="ak-smoke"><i></i><i></i><i></i></span>' : "") +
+    spriteHtml(c, "brseat") +
+    '<span class="br-nm">' + esc(nameOf(p)) + (picked && g.phase === "play" ? " ●" : "") + '</span>' +
+    '<span class="bt-hp br-hp"><i style="width:' + pct + '%;background:' + (pct > 50 ? "#5E8C5A" : pct > 25 ? "#C79A3E" : "#C8503C") + '"></i></span>' +
+    (out ? '<span class="br-out">💀</span>' : "") + "</button>";
+}
+var __brArm = null;   // 표적 대기 중인 주문
+function openBrawl(g) {
+  var box = document.getElementById("brawlbox");
+  if (!box) { box = document.createElement("div"); box.id = "brawlbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  var st = g.state || {}, pl = brawlPlayers(g);
+  var spec = pl.indexOf(me) < 0;
+  var lastLog = (st.log || []).slice(-1).map(function (l) { return '<div class="bt-line">' + l.txt + "</div>"; }).join("") ||
+    '<div class="bt-line muted2">' + (g.phase === "invite" ? "참가자 모집 중…" : "첫 주문 대기") + "</div>";
+  var others = pl.filter(function (p) { return p !== me; });
+  var seats = spec ? pl : others;
+  var html = '<div class="armory bt-wrap pk-wrap br-wrap"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="br-title">🔥 난투장 <span class="muted" style="font-size:11px">' + pl.length + "/6 · " + (g.phase === "invite" ? "모집 중" : g.phase === "done" ? "종료" : "T" + g.turn) + "</span></div>" +
+    '<div class="br-arena' + (spec ? " br-spec" : "") + '">' +
+    '<div class="br-row">' + seats.map(function (p) { return brawlSeatHtml(g, p, st); }).join("") + "</div>" +
+    (spec ? "" : '<div class="br-merow">' + brawlSeatHtml(g, me, st) + "</div>") +
+    "</div>" +
+    '<div class="pk-box" id="br-box">' + lastLog + "</div>";
+  if (g.phase === "invite") {
+    html += '<div class="bt-pickmsg">' + pl.map(nameOf).join(" · ") + "</div>" +
+      (pl.indexOf(me) < 0 ? '<button class="btn" id="br-join" style="width:100%">⚔️ 참전한다</button>'
+        : pl[0] === me ? '<button class="btn" id="br-start" style="width:100%"' + (pl.length < 2 ? " disabled" : "") + '>🔥 개시 (' + pl.length + '명)</button>'
+        : '<p class="liar-sub">개시 대기 중…</p>');
+  } else if (g.phase === "done") {
+    var rk = (st.rank || []);
+    html += '<div class="liar-banner ' + (g.winner === me ? "cit" : "") + '">🏆 ' + (g.winner ? esc(nameOf(g.winner)) + " 우승!" : "전멸") + "</div>" +
+      '<p class="liar-sub">' + rk.map(function (p, i) { return (i + 1) + "위 " + esc(nameOf(p)); }).join(" · ") + "</p>" +
+      '<p class="liar-sub" id="br-xp"></p>' +
+      '<button class="btn" id="br-x" style="width:100%">닫기</button>';
+  } else if (!spec) {
+    var myAlive = (st.hp || {})[me] > 0;
+    var picked = !!(g.picks || {})[me];
+    var pp = parsePick((g.picks || {})[me]);
+    if (!myAlive) html += '<div class="bt-pickmsg">💀 탈락 — 유령 관전 중</div>';
+    else {
+      html += '<div class="bt-pickmsg" id="br-msg">' + (__brArm ? "🎯 <b>표적을 탭해</b> — " + (spellById[__brArm] || {}).ko :
+        picked ? "✅ <b>" + ((spellById[pp.sp] || {}).ko || pp.sp) + "</b>" + (pp.tgt ? " → " + nameOf(pp.tgt) : "") + ' <span class="muted2">(다시 골라 변경 가능)</span>' :
+        "주문 선택 — <b id=\"bt-cd\">25</b>초") + "</div>";
+      var forgot = (st.forget || {})[me] || [];
+      html += movesHtml(myBook().filter(function (r) { return forgot.indexOf(r.spell_id) < 0; }));
+    }
+  } else {
+    html += '<div class="bt-pickmsg">🍿 관전 — 픽: ' + pl.map(function (p) { return ((g.picks || {})[p] ? "●" : "○"); }).join(" ") + "</div>";
+  }
+  html += "</div>";
+  var keep = box.scrollTop || 0;
+  box.innerHTML = html; box.scrollTop = keep;
+  playTheatre(g, "br");
+  var jb = box.querySelector("#br-join"); if (jb) jb.onclick = function () { brawlJoin(g); };
+  var sb2 = box.querySelector("#br-start"); if (sb2) sb2.onclick = function () { brawlStart(g); };
+  var xb = box.querySelector("#br-x"); if (xb) xb.onclick = function () { box.hidden = true; btSeenAdd("br" + g.id); };
+  if (g.phase === "done" && brawlPlayers(g).indexOf(me) >= 0) brawlReward(g);
+  bindMoves(box);
+  $$("[data-cast]", box).forEach(function (b) {
+    b.onclick = function () {
+      if (b.classList.contains("lock")) return toast("차지가 없어");
+      var s = spellById[b.dataset.cast];
+      var selfCast = ["shield","guard","buff","wake"].indexOf(s.kind) >= 0 || s.id === "patronum" || s.id === "aguamenti";
+      if (selfCast || brAlive(g).filter(function (x) { return x !== me; }).length === 1) {
+        var only = brAlive(g).filter(function (x) { return x !== me; })[0];
+        brawlSubmit(b.dataset.cast, selfCast ? null : only); __brArm = null;
+      } else {
+        __brArm = b.dataset.cast;
+        var msg = box.querySelector("#br-msg"); if (msg) msg.innerHTML = "🎯 <b>표적을 탭해</b> — " + esc(s.ko);
+        toast("🎯 때릴 사람을 골라");
+      }
+    };
+  });
+  $$("[data-seat]", box).forEach(function (bs) {
+    bs.onclick = function () {
+      if (!__brArm) return;
+      var tgt = bs.dataset.seat;
+      if (tgt === me) return toast("자해 금지");
+      if (((g.state || {}).hp || {})[tgt] <= 0) return toast("이미 쓰러졌어");
+      brawlSubmit(__brArm, tgt); __brArm = null;
+    };
+  });
+  if (g.phase === "play" && (st.hp || {})[me] > 0) startPickTimerBr(g);
+}
+var brTimer = null;
+function startPickTimerBr(g) {
+  clearInterval(brTimer);
+  if ((g.picks || {})[me]) return;
+  var left = 25;
+  brTimer = setInterval(function () {
+    left--;
+    var c = document.getElementById("bt-cd");
+    if (c) c.textContent = left;
+    if (left <= 0) { clearInterval(brTimer); brawlSubmit("__pass", null); }
+  }, 1000);
+}
+async function brawlReward(g) {
+  var key = "kel_br_paid_" + g.id;
+  if (localStorage.getItem(key)) { var e0 = document.getElementById("br-xp"); if (e0) e0.textContent = "보상 지급 완료"; return; }
+  localStorage.setItem(key, "1");
+  var rk = (g.state || {}).rank || [], n = rk.length, pos = rk.indexOf(me);
+  var gain = pos < 0 ? 10 : 15 + (pos) * 12;   // 낮은 순위(늦게 죽음=앞쪽)일수록... rank는 늦게 죽을수록 앞 → 우승=0
+  gain = pos === 0 ? 30 : 15 + pos * 10;        // 우승 30, 뒤로 갈수록 위로금 증가
+  var s = statsOf(me);
+  await statPatch({ xp: (s.xp || 0) + gain, wins: (s.wins || 0) + (g.winner === me ? 1 : 0), losses: (s.losses || 0) + (g.winner === me ? 0 : 1) });
+  var el = document.getElementById("br-xp");
+  if (el) el.textContent = "XP +" + gain + (g.winner === me ? " (우승 보너스)" : " (위로금)");
+}
 var specId = null, __specCore = "";
 function specPicksHtml(g) {
   return "🍿 관전 중 — 몰래 픽: " + (g.pick_a ? "●" : "○") + " " + esc(nameOf(g.a)) + " vs " + esc(nameOf(g.b)) + " " + (g.pick_b ? "●" : "○");
@@ -6781,7 +7133,14 @@ function kelLiveHtml() {
   }).sort(function (x, y) { return new Date(x.sched_at) - new Date(y.sched_at); }).slice(0, 3);
   if (!live.length && !recent.length && !upcoming.length) return "";
   function vs(b) { return esc(nameOf(b.a)) + ' <span class="lv-vs">vs</span> ' + esc(nameOf(b.b)); }
-  var h = '<div class="livebd"><div class="livebd-top">⚔️ 결투장</div>';
+  var h = '<div class="livebd"><div class="livebd-top">⚔️ 결투장 <button class="livebd-mk" data-brawl-new>🔥 난투 개설</button></div>';
+  liveBrawls().forEach(function (b) {
+    var pl = brawlPlayers(b);
+    h += '<button class="livebd-row live" data-brawl="' + b.id + '">' +
+      (b.phase === "play" ? '<span class="live-dot"></span>' : "🔥") + " 난투 " + pl.length + "/6 · " +
+      pl.slice(0, 4).map(nameOf).join("·") + (pl.length > 4 ? "…" : "") +
+      '<span class="livebd-go">' + (b.phase === "invite" ? (pl.indexOf(me) >= 0 ? "대기 중" : "⚔️ 참전") : (pl.indexOf(me) >= 0 ? "입장" : "🍿 관전")) + "</span></button>";
+  });
   live.forEach(function (b) {
     h += '<button class="livebd-row live" data-spec="' + b.id + '"><span class="live-dot"></span>' + vs(b) +
       ' <span class="muted2">T' + b.turn + '</span><span class="livebd-go">🍿 관전</span></button>';
@@ -7148,6 +7507,14 @@ document.addEventListener("click", function (e) {
       e.target.querySelector && e.target.querySelector(".armory,.quiz-card,.multi-wrap")) {
     e.target.hidden = true;
     if (e.target.id === "specbox") specId = null;
+  }
+  var brn = e.target.closest && e.target.closest("[data-brawl-new]");
+  if (brn) { brawlCreate(); return; }
+  var brb = e.target.closest && e.target.closest("[data-brawl]");
+  if (brb) {
+    var gb = store35.battles.find(function (b) { return String(b.id) === brb.dataset.brawl; });
+    if (gb) { if (gb.phase === "invite" && brawlPlayers(gb).indexOf(me) < 0) brawlJoin(gb); else openBrawl(gb); }
+    return;
   }
   var spb = e.target.closest && e.target.closest("[data-spec]");
   if (spb) {
