@@ -1986,3 +1986,16 @@ details.arch > .card, details.arch > h2 { margin-left: 4px; margin-right: 4px; }
 .log-em { flex: 0 0 auto; }
 .log-tx { min-width: 0; }
 .log-t { margin-left: auto; flex: 0 0 auto; font-size: 10.5px; opacity: .55; }
+
+/* ---- v61 끊긴 뽑기 복구 ---- */
+#txnbox { position: fixed; inset: 0; z-index: 618; background: rgba(10,9,7,.86);
+  display: flex; align-items: center; justify-content: center; padding: 14px; overflow-y: auto; }
+
+/* ---- v62 밸런스 패치 UI ---- */
+.sp-item.lock2 { opacity: .45; filter: grayscale(.85); }
+.wdots::after { content: ""; animation: wdots 1.4s steps(4) infinite; }
+@keyframes wdots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+.br-strip { font-size: 11.5px; font-weight: 700; padding: 5px 8px; margin-bottom: 6px;
+  border: 1.5px dashed rgba(38,36,30,.35); border-radius: 9px; background: rgba(199,169,106,.14); }
+#obbox { position: fixed; inset: 0; z-index: 617; background: rgba(10,9,7,.86);
+  display: flex; align-items: center; justify-content: center; padding: 14px; overflow-y: auto; }

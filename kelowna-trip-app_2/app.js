@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v60";
-const BUILD_NO = 60;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v62";
+const BUILD_NO = 62;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -4051,6 +4051,7 @@ function openMulti(kind) {
   const n = kind === 1000 ? 3 : 5;
   const boost = kind === 1000 ? 100 : 3;
   const cards = drawMulti(n, boost);
+  if (typeof txnBegin === "function") try { txnBegin({ t: "mchar", ids: cards.map(c => c.id) }); } catch (e) {}
   if (!cards.length) return toast("남은 캐릭터가 없어");
   if (kind === 100) {
     if (used100Today() >= P100_PER_DAY && extraPrem() > 0)
@@ -4097,6 +4098,7 @@ async function grantWeapon(w) {
   const cur = wQty(w.id);
   await sb.from("inventory").upsert({ member: me, weapon_id: w.id, qty: cur + 1 }, { onConflict: "member,weapon_id" });
   if (typeof glog === "function") glog("weapon", w.em + " " + w.ko + " 획득" + (w.t >= 5 ? " ★" : ""));
+  if (typeof txnEnd === "function") txnEnd();
   await loadAll();
 }
 function openWeapon(mode) {
@@ -4417,6 +4419,7 @@ async function confirmRoll() {
   }
   const { error } = await sb.from("characters").upsert({ member: me, char_id: c.id, tier: c.t, rolls: myRolls() }, { onConflict: "member" });
   if (!error && typeof glog === "function") glog("char", c.em + " " + c.ko + " (" + (tierById[c.t] || {}).en + ")");
+  if (!error && typeof txnEnd === "function") txnEnd();
   if (error) {
     toast("누가 방금 그 캐릭터를 가져갔어 — 다시 뽑을게");
     await loadAll(); rollResult = drawCharacter(); drawRoll(); return;
@@ -5816,6 +5819,65 @@ function drawSpell(boost) {
   if (!pool.length) pool = SPELLS.filter(function (s) { return s.id !== "avada"; });
   return pool[Math.floor(Math.random() * pool.length)];
 }
+/* ---------------- v61 뽑기 보호: 재시작 유예 + 끊긴 뽑기 복구 ---------------- */
+function txnBegin(p) {
+  try {
+    p.ts = Date.now();
+    localStorage.setItem("kel_pending", JSON.stringify(p));
+    window.__txnUntil = Date.now() + 120000;   // 최대 2분 재시작 유예
+  } catch (e) {}
+}
+function txnEnd() {
+  try { localStorage.removeItem("kel_pending"); window.__txnUntil = 0; } catch (e) {}
+}
+// 모든 뽑기 경로 자동 기록 (어디서 뽑든 누락 불가)
+setTimeout(function () {
+  try {
+    var d0 = drawCharacter; drawCharacter = function () { var c = d0.apply(null, arguments); try { txnBegin({ t: "char", ids: [c.id] }); } catch (e) {} return c; };
+    var w0 = drawWeapon; drawWeapon = function (b) { var w = w0(b); try { txnBegin({ t: "weapon", ids: [w.id] }); } catch (e) {} return w; };
+    var s0 = drawSpell; drawSpell = function (b) { var s = s0(b); try { txnBegin({ t: "spell", ids: [s.id] }); } catch (e) {} return s; };
+  } catch (e) {}
+}, 0);
+async function charGrantDirect(c) {
+  await sb.from("characters").upsert({ member: me, char_id: c.id, tier: c.t }, { onConflict: "member" });
+  glog("char", c.em + " " + c.ko + " (복구 수령)");
+  txnEnd(); toast("🧙 " + c.ko + " 획득 (복구)");
+  kelLoad35(); if (typeof loadAll === "function") loadAll();
+}
+function pendingRestore() {
+  var raw = localStorage.getItem("kel_pending");
+  if (!raw) return;
+  var p; try { p = JSON.parse(raw); } catch (e) { return txnEnd(); }
+  if (!p || !p.ids || !p.ids.length || Date.now() - (p.ts || 0) > 3600000) return txnEnd();
+  var byT = { char: charById, mchar: charById, weapon: weaponById, mwand: weaponById, spell: spellById, mspell: spellById };
+  var map = byT[p.t]; if (!map) return txnEnd();
+  var items = p.ids.map(function (id) { return map[id]; }).filter(Boolean);
+  if (!items.length) return txnEnd();
+  var box = document.getElementById("txnbox");
+  if (!box) { box = document.createElement("div"); box.id = "txnbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  var multi = items.length > 1;
+  box.innerHTML = '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="arm-top">⚠️ 끊긴 뽑기 복구</div>' +
+    '<p class="liar-sub">업데이트 재시작으로 끊긴 뽑기가 있어 — ' + (multi ? "1장을 골라 받아" : "탭해서 받아") + '</p>' +
+    '<div class="arm-grid book-grid">' + items.map(function (it, i) {
+      var t = tierById[it.t] || {};
+      return '<button class="arm-item" data-txn="' + i + '" style="--rc:' + (t.color || "#C7A96A") + '">' +
+        '<span class="ai-em">' + it.em + '</span><span class="ai-ko">' + esc(it.ko) + '</span>' +
+        '<span class="ai-t" style="background:' + (t.color || "#C7A96A") + '">' + (t.en || "") + "</span></button>";
+    }).join("") + "</div></div>";
+  $$("[data-txn]", box).forEach(function (b) {
+    b.onclick = async function () {
+      var it = items[Number(b.dataset.txn)];
+      box.hidden = true;
+      if (p.t === "char" || p.t === "mchar") return charGrantDirect(it);
+      if (p.t === "weapon" || p.t === "mwand") { await grantWeapon(it); txnEnd(); toast("🪄 " + it.ko + " (복구)"); return; }
+      var note = await grantSpell(it); txnEnd(); toast("📜 " + it.ko + " (복구)" + (note ? " — " + note : ""));
+    };
+  });
+}
+setTimeout(function () { try { pendingRestore(); } catch (e) {} }, 2600);
+
 /* 영구 기록: 서버 game_log — 패치·재설치와 무관하게 남는다 */
 function glog(kind, detail) {
   try { if (sb && me) sb.from("game_log").insert({ member: me, kind: kind, detail: detail }).then(function () {}); } catch (e) {}
@@ -5853,12 +5915,12 @@ async function grantSpell(s) {
     var nl = Math.min(5, (cur.lv || 1) + 1);
     if (nl === cur.lv) { return "이미 Lv.5 — 마력이 허공으로"; }
     await sb.from("spellbook").update({ lv: nl }).eq("member", me).eq("spell_id", s.id);
-    glog("spell", s.ko + " Lv" + nl + " 강화");
+    glog("spell", s.ko + " Lv" + nl + " 강화"); txnEnd();
     kelLoad35();
     return "중복! → Lv." + nl + " 자동 강화";
   }
   await sb.from("spellbook").upsert({ member: me, spell_id: s.id, lv: 1 }, { onConflict: "member,spell_id" });
-  glog("spell", s.em + " " + s.ko + " 습득" + (s.t >= 5 ? " ★" : ""));
+  glog("spell", s.em + " " + s.ko + " 습득" + (s.t >= 5 ? " ★" : "")); txnEnd();
   kelLoad35();
   return "";
 }
@@ -6474,26 +6536,52 @@ function playBattleFx(st) { /* 호환용 — 종료 화면 잔향 */
   });
 }
 var __btUi = { sig: "" };
-function movesHtml(mine) {
+function movesHtml(mine, locked) {
   return '<div class="arm-grid book-grid pk-moves">' + mine.slice().sort(function (x, y) {
     var sx = spellById[x.spell_id], sy = spellById[y.spell_id];
     return (sy ? sy.t : 0) - (sx ? sx.t : 0) || (y.lv || 1) - (x.lv || 1);
   }).map(function (r) {
     var s = spellById[r.spell_id]; if (!s) return "";
     var dis = (s.id === "avada" && akLeft(me) <= 0) || (s.id === "expelliarmus" && expelLeft(me) <= 0);
+    var lk = locked && locked.indexOf(s.id) >= 0;
     var t = tierById[s.t];
     var dp = dmgPreview(s);
-    return '<button class="arm-item sp-item' + (dis ? " lock" : "") + '" data-cast="' + s.id + '" style="--rc:' + t.color + '">' +
+    return '<button class="arm-item sp-item' + (dis ? " lock" : "") + (lk ? " lock2" : "") + '" data-cast="' + s.id + '" style="--rc:' + t.color + '">' +
       '<span class="ai-em">' + s.em + '</span><span class="ai-ko">' + esc(s.ko) + "</span>" +
       '<span class="mv-meta">' + kindEm(s) + (dp ? " " + dp : "") + "</span>" +
       '<span class="ai-t" style="background:' + t.color + '">' +
-      (s.id === "avada" ? "☠️" + akLeft(me) : s.id === "expelliarmus" ? "🪄" + expelLeft(me) : "Lv" + r.lv) + "</span></button>";
+      (lk ? "🔒" : s.id === "avada" ? "☠️" + akLeft(me) : s.id === "expelliarmus" ? "🪄" + expelLeft(me) : "Lv" + r.lv) + "</span></button>";
   }).join("") + "</div>";
+}
+function openObPick(tgt, cb) {
+  var known = store35.spellbook.filter(function (r) { return r.member === tgt; });
+  if (!known.length) { toast("상대가 아는 주문이 없어"); return; }
+  var box = document.getElementById("obbox");
+  if (!box) { box = document.createElement("div"); box.id = "obbox"; document.body.appendChild(box); }
+  box.hidden = false;
+  box.innerHTML = '<div class="armory"><button class="ovx" data-ovx>✕</button>' +
+    '<div class="arm-top">💫 무엇을 봉인할까 — ' + esc(nameOf(tgt)) + '</div>' +
+    '<p class="liar-sub">Lv3+ 오블리비아테는 판 전체 삭제, 이하는 3턴 봉인</p>' +
+    '<div class="arm-grid book-grid">' + known.map(function (r) {
+      var s = spellById[r.spell_id]; if (!s) return "";
+      var t = tierById[s.t];
+      return '<button class="arm-item" data-ob="' + s.id + '" style="--rc:' + t.color + '">' +
+        '<span class="ai-em">' + s.em + '</span><span class="ai-ko">' + esc(s.ko) + '</span>' +
+        '<span class="ai-t" style="background:' + t.color + '">Lv' + (r.lv || 1) + "</span></button>";
+    }).join("") + "</div></div>";
+  $$("[data-ob]", box).forEach(function (b) {
+    b.onclick = function () { box.hidden = true; cb(b.dataset.ob); };
+  });
 }
 function bindMoves(box) {
   $$("[data-cast]", box).forEach(function (b) {
     b.onclick = function () {
+      if (b.classList.contains("lock2")) return toast("🔒 봉인된 주문이야");
       if (b.classList.contains("lock")) return toast("차지가 없어");
+      if (b.dataset.cast === "obliviate") {
+        openObPick(foe(), function (sid) { submitPick("obliviate:" + sid); });
+        return;
+      }
       submitPick(b.dataset.cast);
     };
   });
@@ -6553,7 +6641,9 @@ function openBattle() {
   }
 
   var forgot = (st.forget || {})[me] || [];
-  var mine = myBook().filter(function (r) { return forgot.indexOf(r.spell_id) < 0; });
+  var seal62 = ((st.seal || {})[me] || {}).id;
+  var locked62 = forgot.concat(seal62 ? [seal62] : []);
+  var mine = myBook();
   if (window.__btDomId === g.id && document.getElementById("bt-stage")) {
     var stg2 = document.getElementById("bt-stage");
     var hf = stg2.querySelector(".pk-hpbox.foe"), hm2 = stg2.querySelector(".pk-hpbox.mine");
@@ -6561,14 +6651,14 @@ function openBattle() {
     if (hm2) hm2.outerHTML = pkHpBox(me, (st.hp || {})[me] || 0, "mine");
     var tn = stg2.querySelector(".pk-turn"); if (tn) tn.textContent = "T" + g.turn;
     var pm2 = box.querySelector(".bt-pickmsg");
-    if (pm2) pm2.innerHTML = myPicked ? "✅ 픽 완료 — <b>다시 골라 변경 가능</b> · ⏳ " + esc(nameOf(en)) + " 대기"
-      : "이번 턴 주문을 골라 — <b id=\"bt-cd\">25</b>초";
+    if (pm2) pm2.innerHTML = myPicked ? "✅ 픽 완료 · ⏳ <b>" + esc(nameOf(en)) + "</b> 고르는 중<span class=\"wdots\"></span> <span class=\"muted2\">변경 가능 · 판정: " + esc(nameOf(g.a)) + "폰</span>"
+      : "이번 턴 주문을 골라 — <b id=\"bt-cd\">25</b>초 <span class=\"muted2\">· 판정: " + esc(nameOf(g.a)) + "폰</span>";
     // 픽 후에도 변경 가능 — 그리드 유지, 현재 픽 표시
     var grid = box.querySelector(".pk-moves");
     if (myPicked && grid) {
-      $$(".sp-item", grid).forEach(function (el) { el.classList.toggle("picked", el.dataset.cast === g[myPickCol()]); });
+      $$(".sp-item", grid).forEach(function (el) { el.classList.toggle("picked", el.dataset.cast === String(g[myPickCol()] || "").split(":")[0]); });
     }
-    if (!myPicked && !grid && pm2) { pm2.insertAdjacentHTML("afterend", movesHtml(mine)); bindMoves(box); }
+    if (!myPicked && !grid && pm2) { pm2.insertAdjacentHTML("afterend", movesHtml(mine, locked62)); bindMoves(box); }
     startPickTimer(myPicked);
     playTheatre(g, "bt");
     return;
@@ -6576,10 +6666,10 @@ function openBattle() {
   window.__btDomId = g.id;
   box.innerHTML = '<div class="armory bt-wrap pk-wrap">' + pkStageHtml(g, "bt") +
     '<div class="pk-box" id="bt-box">' + lastLog + '</div>' +
-    '<div class="bt-pickmsg">' + (myPicked ? "⏳ <b>" + esc(nameOf(en)) + "</b>의 주문 대기 중… <span class=\'muted2\'>(45초 무응답 시 자동 패스 · 3연속이면 몰수패)</span>" :
+    '<div class="bt-pickmsg">' + (myPicked ? "✅ 픽 완료 · ⏳ <b>" + esc(nameOf(en)) + "</b> 고르는 중<span class=\'wdots\'></span> <span class=\'muted2\'>변경 가능 · 판정: " + esc(nameOf(g.a)) + "폰 · 45초 무응답 자동 패스</span>" :
       "이번 턴 주문을 골라 — <b id=\'bt-cd\'>25</b>초") + "</div>" +
     (myPicked ? "" :
-      movesHtml(mine)) +
+      movesHtml(mine, locked62)) +
     '<div class="btn-row" style="margin-top:10px"><button class="btn ghost" id="bt-help" style="flex:1">❓ 이기는 법</button>' +
     '<button class="btn ghost" id="bt-run" style="flex:1">🏳️ 기권</button></div></div>';
   box.scrollTop = keepScroll;
@@ -6606,10 +6696,40 @@ async function submitPick(spellId) {
     await sb.from("battles").update({ state: stT }).eq("id", g.id).eq("turn", g.turn);
   }
   var pm = document.querySelector("#btbox .bt-pickmsg");
-  if (pm) pm.innerHTML = "✅ 픽 완료 — <b>다시 골라 변경 가능</b>";
+  if (pm) pm.innerHTML = "✅ 픽 완료 · ⏳ <b>" + esc(nameOf(foe())) + "</b> 고르는 중<span class='wdots'></span> <span class='muted2'>변경 가능</span>";
   $$("#btbox .sp-item").forEach(function (el) { el.classList.toggle("picked", el.dataset.cast === spellId); });
   var fresh = await sb.from("battles").select("*").eq("id", g.id).single();
   if (fresh.data) { btG = fresh.data; if (fresh.data.pick_a && fresh.data.pick_b) return resolveTurn(fresh.data); openBattle(); }
+}
+var DARK62 = ["voldemort", "riddle", "sauron", "witchking", "bellatrix", "grindelwald"];
+function isDark(mem) { var c = charOf(mem); return !!(c && DARK62.indexOf(c.id) >= 0); }
+function wantMatch(mem) { var c = charOf(mem), w = weaponById[equippedOf(mem)]; return !!(c && w && (w.want || []).indexOf(c.id) >= 0); }
+function avadaHit(st, caster, target, line) {
+  var tc = charOf(target);
+  if (tc && tc.id === "potter") {
+    st.hp[target] = 1;
+    line("⚡ 살아남은 아이 — " + nameOf(target) + "가 죽음을 이겨냈다! (HP 1)", "avada", caster, target);
+    eggMark("boy"); return false;
+  }
+  if (isDark(caster)) {
+    st.hp[target] = 0;
+    line("☠️ 어둠의 진짜 저주 — " + nameOf(caster) + "가 " + nameOf(target) + "를 삼켰다 (즉사)", "avada", caster, target);
+    return true;
+  }
+  var d62 = Math.ceil(maxHpReal(target) * 0.65);
+  st.hp[target] -= d62;
+  line("☠️ " + nameOf(caster) + " → " + nameOf(target) + " 아바다 케다브라 — " + d62 + " (어둠이 아닌 자의 저주는 완전하지 않다)", "avada", caster, target);
+  return st.hp[target] <= 0;
+}
+function expelWin(st, blocker, caster, line) {
+  sb.rpc("exp_add", { p_member: blocker, p_key: "__blk", p_delta: 1 });
+  (st.disarm = st.disarm || {})[caster] = 2;
+  line("🪄 " + nameOf(caster) + "의 지팡이가 날아갔다 — 2턴 무장해제 (위력 -30%)");
+  if (equippedOf(blocker) === "elderwand" && !(st.elder || {})[blocker]) {
+    (st.elder = st.elder || {})[blocker] = 1;
+    line("👑 딱총나무 지팡이가 진정한 주인을 알아본다 — 이 판 위력 ×1.5"); eggMark("elder");
+  }
+  return Math.random() < (wantMatch(blocker) ? 0.5 : 0.25);
 }
 function effPow(s, caster, target, st) {
   var c = charOf(caster), lv = spLv.call ? 1 : 1;
@@ -6625,6 +6745,8 @@ function effPow(s, caster, target, st) {
   if (isAwakened(caster)) p *= 1.35;
   var cb35 = comboOf(caster);
   if (cb35) { p *= cb35.a; eggMark("cb_" + cb35.c); }
+  if ((st.disarm || {})[caster]) p *= 0.7;
+  if ((st.elder || {})[caster]) p *= 1.5;
   p *= dodgeMul(caster);
   if (c && c.id === "snape" && s.id === "sectumsempra") p *= 1.5;
   return Math.round(p);
@@ -6677,7 +6799,11 @@ async function resolveBrawl(g, force) {
   function line(txt, fx, who, tg) { st.log.push({ txt: txt, fx: fx || null, who: who || null, tg: tg || null, t: g.turn }); }
   function wake(mm, why) { if (st.sleep[mm]) { delete st.sleep[mm]; line("⏰ " + nameOf(mm) + " 기상!" + (why ? " (" + why + ")" : "")); } }
   var alive = brAlive(g);
-  alive.forEach(function (mm) { if (st.sleep[mm]) { st.sleep[mm]--; if (st.sleep[mm] <= 0) wake(mm, "저절로"); } });
+  alive.forEach(function (mm) {
+    if (st.sleep[mm]) { st.sleep[mm]--; if (st.sleep[mm] <= 0) wake(mm, "저절로"); }
+    var dzB = st.disarm || {}; if (dzB[mm]) { dzB[mm]--; if (dzB[mm] <= 0) delete dzB[mm]; }
+    var slB = (st.seal || {})[mm]; if (slB) { slB.n--; if (slB.n <= 0) delete st.seal[mm]; }
+  });
   alive.forEach(function (mm) {
     var d = st.dot[mm];
     if (d) { st.hp[mm] -= d.p; line(d.em + " " + nameOf(mm) + " 지속 피해 " + d.p); d.n--; if (d.n <= 0) delete st.dot[mm]; }
@@ -6692,6 +6818,7 @@ async function resolveBrawl(g, force) {
       var pool = alive.filter(function (x) { return x !== caster && st.hp[x] > 0; });
       target = pool[Math.floor(Math.random() * pool.length)];
     }
+    var __pa62 = String(pick || "").split(":"); var pickArg = __pa62[1] || null; if (pickArg) pick = __pa62[0];
     var s = spellById[pick];
     if (st.stun[caster]) {
       if (pick === "rennervate") { delete st.stun[caster]; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 리네베이트 — 기절 해제 +8", "rennervate", caster); continue; }
@@ -6718,10 +6845,13 @@ async function resolveBrawl(g, force) {
       if (blocked) {
         sb.rpc("exp_add", { p_member: target, p_key: equippedOf(target), p_delta: 1 });
         line("🪄 " + nameOf(target) + "가 ☠️를 튕겨냈다!", "expelliarmus", target, caster);
+        if (expelWin(st, target, caster, line)) {
+          line("↩️ 프리오리 인칸타템! 저주가 되돌아간다", "avada", target, caster);
+          avadaHit(st, target, caster, line);
+        }
       } else {
-        st.hp[target] = 0;
-        line("☠️ " + nameOf(caster) + " → " + nameOf(target) + " 아바다 케다브라 — 즉사", "avada", caster, target);
-        sb.from("wiz_stats").update({ ak_bonus: (statsOf(caster).ak_bonus || 0) + 1 }).eq("member", caster);
+        if (avadaHit(st, caster, target, line))
+          sb.from("wiz_stats").update({ ak_bonus: (statsOf(caster).ak_bonus || 0) + 1 }).eq("member", caster);
       }
       continue;
     }
@@ -6738,8 +6868,22 @@ async function resolveBrawl(g, force) {
     if (s.kind === "wake") { st.wimm[caster] = 1; st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 8); line("⚡ " + nameOf(caster) + " 리네베이트 +8", "rennervate", caster); continue; }
     if (s.kind === "ctrl") { st.ctrl = st.ctrl || {}; st.hp[target] -= 6; st.ctrl[target] = 1; line("🌀 " + nameOf(caster) + " → " + nameOf(target) + " 임페리오", s.id, caster, target); continue; }
     if (s.id === "obliviate") {
-      var tb = store35.spellbook.filter(function (r) { return r.member === target && ((st.forget[target] || []).indexOf(r.spell_id) < 0); });
-      if (tb.length) { var vic = tb[Math.floor(Math.random() * tb.length)].spell_id; st.forget[target] = (st.forget[target] || []).concat([vic]); line("💫 " + nameOf(target) + "의 " + (spellById[vic] || {}).ko + " 삭제!", "obliviate", caster, target); }
+      st.obCnt = st.obCnt || {}; var obk = caster + ">" + target;
+      if ((st.obCnt[obk] || 0) >= 2) { line("💫 " + nameOf(target) + "의 정신 방벽 — 더는 안 통한다"); continue; }
+      var known62 = store35.spellbook.filter(function (r) { return r.member === target && ((st.forget[target] || []).indexOf(r.spell_id) < 0); });
+      var vic = (pickArg && known62.some(function (r) { return r.spell_id === pickArg; })) ? pickArg
+        : (known62.length ? known62[Math.floor(Math.random() * known62.length)].spell_id : null);
+      if (vic) {
+        st.obCnt[obk] = (st.obCnt[obk] || 0) + 1;
+        var olv = spellLvOf(caster, "obliviate");
+        if (olv >= 3) { st.forget[target] = (st.forget[target] || []).concat([vic]); line("💫 " + nameOf(caster) + " 오블리비아테 — " + nameOf(target) + "의 " + (spellById[vic] || {}).ko + " 판 전체 삭제!", "obliviate", caster, target); }
+        else { (st.seal = st.seal || {})[target] = { id: vic, n: 3 }; line("💫 " + nameOf(caster) + " 오블리비아테 — " + nameOf(target) + "의 " + (spellById[vic] || {}).ko + " 3턴 봉인 🔒", "obliviate", caster, target); }
+      }
+      continue;
+    }
+    if ((st.daze || {})[caster]) {
+      delete st.daze[caster];
+      line("💫 " + nameOf(caster) + " 비틀거려 공격 불발");
       continue;
     }
     var dmg = effPow(s, caster, target, st);
@@ -6747,20 +6891,28 @@ async function resolveBrawl(g, force) {
     var tp2 = parsePick(picks[target]);
     if (s.fam === "fire" && tp2 && tp2.sp === "aguamenti") { dmg = Math.round(dmg * 0.4); line("💦 " + nameOf(target) + " 물줄기 상쇄!"); }
     if (s.id === "aguamenti") {
-      if (st.dot[caster] && st.dot[caster].em === "🔥") { delete st.dot[caster]; line("💧 화상 소화"); }
+      if (st.dot[caster] && st.dot[caster].em === "🔥") { if (st.dot[caster].cur) line("🗡 모르굴의 상처는 지워지지 않는다"); else { delete st.dot[caster]; line("💧 화상 소화"); } }
       st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 6);
     }
     var sh = st.shield[target];
     if (sh) { dmg = sh.pat ? 0 : Math.round(dmg * (1 - sh.v)); delete st.shield[target]; line(sh.pat ? "🦌 완전 무효!" : "🛡️ 70% 경감"); }
     var tcb = comboOf(target); if (tcb) dmg = Math.round(dmg * tcb.tk);
     if (dmg > 0) {
+      var tch62 = charOf(target);
+      if (tch62 && tch62.id === "galadriel" && !(st.galU = st.galU || {})[target]) {
+        st.galU[target] = 1; dmg = Math.round(dmg * 0.5); line("🌟 빛의 가호 — 첫 피격 절반");
+      }
       st.hp[target] -= dmg;
       line(s.em + " " + nameOf(caster) + " → " + nameOf(target) + " " + s.ko + " — " + dmg, s.id, caster, target);
       if (st.sleep[target]) wake(target, s.fam === "fire" ? "뜨거워서" : "얻어맞고");
       if (s.fam === "fire" && !st.dot[target] && Math.random() < 0.25) { st.dot[target] = { p: 5, n: 2, em: "🔥" }; line("🔥 " + nameOf(target) + " 화상!"); }
     }
-    if (s.kind === "dot" || s.kind === "dot2") { st.dot[target] = { p: s.id === "crucio" ? 7 : 6, n: 3, em: s.em }; line(s.em + " 도트 3턴"); }
-    if (s.kind === "stun" && Math.random() < 0.3) { st.stun[target] = 1; line("💫 " + nameOf(target) + " 기절!"); }
+    if (s.kind === "dot" || s.kind === "dot2") {
+      var cch = charOf(caster), wb = cch && cch.id === "witchking", sb2x = cch && cch.id === "sauron";
+      st.dot[target] = { p: (s.id === "crucio" ? 7 : 6) + (wb || sb2x ? 2 : 0), n: wb ? 4 : 3, em: s.em, cur: wb ? 1 : 0 };
+      line(s.em + " 도트 " + (wb ? "4턴" : "3턴") + (wb ? " — 🗡 모르굴의 상처" : sb2x ? " — 👁 불의 눈" : ""));
+    }
+    if (s.kind === "stun" && (s.id === "stupefy" || Math.random() < 0.4)) { (st.daze = st.daze || {})[target] = 1; line("💫 " + nameOf(target) + " 비틀 — 다음 턴 공격 봉인"); }
     if (s.kind === "weak") { st.weak[target] = 1; line("🙃 " + nameOf(target) + " 위력 절반"); }
     if (s.kind === "sleep") {
       if (st.wimm[target]) { delete st.wimm[target]; line("🛡 수면 면역"); }
@@ -6815,6 +6967,8 @@ async function resolveTurn(g, force) {
   // 수면 카운트다운
   [g.a, g.b].forEach(function (mm) {
     if (st.sleep[mm]) { st.sleep[mm]--; if (st.sleep[mm] <= 0) wake(mm, "저절로"); }
+    var dz62 = st.disarm || {}; if (dz62[mm]) { dz62[mm]--; if (dz62[mm] <= 0) delete dz62[mm]; }
+    var sl62 = (st.seal || {})[mm]; if (sl62) { sl62.n--; if (sl62.n <= 0) delete st.seal[mm]; }
   });
   // 도트 선처리
   [g.a, g.b].forEach(function (m) {
@@ -6848,6 +7002,7 @@ async function resolveTurn(g, force) {
     if (pick === "__afk") { st.afk[caster] = (st.afk[caster] || 0) + 1; line("⌛ " + nameOf(caster) + " 응답 없음 — 자동 패스 (" + st.afk[caster] + "/3)"); continue; }
     st.afk[caster] = 0;
     if (!pick || pick === "__pass") { line("💨 " + nameOf(caster) + " 허둥지둥 (패스)"); continue; }
+    var __pa62 = String(pick || "").split(":"); var pickArg = __pa62[1] || null; if (pickArg) pick = __pa62[0];
     var s = spellById[pick]; if (!s) continue;
     var enemyPick = caster === g.a ? pb : pa;
 
@@ -6861,14 +7016,19 @@ async function resolveTurn(g, force) {
         var tc = charOf(target), cc = charOf(caster);
         if (tc && tc.id === "potter" && equippedOf(target) === "potterwand" && cc && (cc.id === "voldemort" || cc.id === "riddle")) {
           st.hp[caster] = 0; line("✨ 프리오리 인칸타템! ☠️가 " + nameOf(caster) + "에게 반사됐다", "avada", target); eggMark("priori");
-        } else line("🪄 " + nameOf(target) + "의 익스펠리아르무스가 ☠️를 튕겨냈다!", "expelliarmus", target);
+        } else {
+          line("🪄 " + nameOf(target) + "의 익스펠리아르무스가 ☠️를 튕겨냈다!", "expelliarmus", target);
+          if (expelWin(st, target, caster, line)) {
+            line("↩️ 프리오리 인칸타템! 저주가 되돌아간다", "avada", target);
+            avadaHit(st, target, caster, line);
+          }
+        }
       } else {
-        st.hp[target] = 0;
-        line("☠️ " + nameOf(caster) + "의 아바다 케다브라 — 즉사", "avada", caster);
+        var killed62 = avadaHit(st, caster, target, line);
         var cc2 = charOf(caster);
         var refundBlock = charOf(target) && charOf(target).id !== undefined &&
           cc2 && cc2.id === "riddle" && eggActiveNeville(target);
-        if (!refundBlock) await sb.from("wiz_stats").update({ ak_bonus: (statsOf(caster).ak_bonus || 0) + 1 }).eq("member", caster);
+        if (!refundBlock && killed62) await sb.from("wiz_stats").update({ ak_bonus: (statsOf(caster).ak_bonus || 0) + 1 }).eq("member", caster);
         else line("🗡️ 그리핀도르의 검 — 리들의 환급이 봉인됐다");
       }
       continue;
@@ -6894,22 +7054,30 @@ async function resolveTurn(g, force) {
       continue;
     }
     if (s.id === "obliviate") {
-      var tbook = store35.spellbook.filter(function (r) { return r.member === target && ((st.forget[target] || []).indexOf(r.spell_id) < 0); });
-      if (tbook.length) {
-        var vic = tbook[Math.floor(Math.random() * tbook.length)].spell_id;
-        st.forget[target] = (st.forget[target] || []).concat([vic]);
-        line("💫 " + nameOf(caster) + " 오블리비아테 — " + nameOf(target) + "의 " + (spellById[vic] || {}).ko + " 삭제!", "obliviate", caster);
-        var cc3 = charOf(caster);
-        if (cc3 && cc3.id === "lockhart") { eggMark("lockhart"); if (Math.random() < 0.5) { st.stun[caster] = 1; line("💥 지팡이 역효과 — 록하트 본인이 기절"); } }
-      } else line("💫 오블리비아테 — 지울 게 없다");
+      st.obCnt = st.obCnt || {}; var obk = caster + ">" + target;
+      if ((st.obCnt[obk] || 0) >= 2) { line("💫 " + nameOf(target) + "의 정신 방벽 — 더는 안 통한다"); continue; }
+      var known62 = store35.spellbook.filter(function (r) { return r.member === target && ((st.forget[target] || []).indexOf(r.spell_id) < 0); });
+      var vic = (pickArg && known62.some(function (r) { return r.spell_id === pickArg; })) ? pickArg
+        : (known62.length ? known62[Math.floor(Math.random() * known62.length)].spell_id : null);
+      if (vic) {
+        st.obCnt[obk] = (st.obCnt[obk] || 0) + 1;
+        var olv = spellLvOf(caster, "obliviate");
+        if (olv >= 3) { st.forget[target] = (st.forget[target] || []).concat([vic]); line("💫 " + nameOf(caster) + " 오블리비아테 — " + nameOf(target) + "의 " + (spellById[vic] || {}).ko + " 판 전체 삭제!", "obliviate", caster, target); }
+        else { (st.seal = st.seal || {})[target] = { id: vic, n: 3 }; line("💫 " + nameOf(caster) + " 오블리비아테 — " + nameOf(target) + "의 " + (spellById[vic] || {}).ko + " 3턴 봉인 🔒", "obliviate", caster, target); }
+      }
       continue;
     }
     // 일반 공격/도트/기절/약화/수면/화염/물
+    if ((st.daze || {})[caster]) {
+      delete st.daze[caster];
+      line("💫 " + nameOf(caster) + " 비틀거려 공격 불발");
+      continue;
+    }
     var dmg = effPow(s, caster, target, st);
     if (s.fam === "fire" && st.sleep[target]) { dmg = Math.round(dmg * 1.5); }
     if (s.fam === "fire" && enemyPick === "aguamenti") { dmg = Math.round(dmg * 0.4); line("💦 " + nameOf(target) + "의 물줄기가 불길을 상쇄!"); }
     if (s.id === "aguamenti") {
-      if (st.dot[caster] && st.dot[caster].em === "🔥") { delete st.dot[caster]; line("💧 " + nameOf(caster) + " 화상 소화"); }
+      if (st.dot[caster] && st.dot[caster].em === "🔥") { if (st.dot[caster].cur) line("🗡 모르굴의 상처는 지워지지 않는다"); else { delete st.dot[caster]; line("💧 " + nameOf(caster) + " 화상 소화"); } }
       st.hp[caster] = Math.min(maxHpReal(caster), st.hp[caster] + 6);
     }
     st.buff[caster] && delete st.buff[caster];
@@ -6917,6 +7085,10 @@ async function resolveTurn(g, force) {
     var sh = st.shield[target];
     if (sh) { if (sh.pat) { dmg = 0; line("🦌 패트로누스가 " + s.ko + "를 삼켰다"); } else dmg = Math.round(dmg * (1 - sh.v)); delete st.shield[target]; }
     if (dmg > 0) {
+      var tch62 = charOf(target);
+      if (tch62 && tch62.id === "galadriel" && !(st.galU = st.galU || {})[target]) {
+        st.galU[target] = 1; dmg = Math.round(dmg * 0.5); line("🌟 빛의 가호 — 첫 피격 절반");
+      }
       var tcb = comboOf(target);
       if (tcb) dmg = Math.round(dmg * tcb.tk);
       st.hp[target] -= dmg;
@@ -6924,9 +7096,12 @@ async function resolveTurn(g, force) {
       if (st.sleep[target]) wake(target, s.fam === "fire" ? "뜨거워서" : "얻어맞고");
       if (s.fam === "fire" && !st.dot[target] && Math.random() < 0.25) { st.dot[target] = { p: 5, n: 2, em: "🔥" }; line("🔥 " + nameOf(target) + " 화상!"); }
     }
-    if (s.kind === "dot") st.dot[target] = { p: Math.round(s.pow), n: 3, em: s.em };
-    if (s.kind === "dot2") st.dot[target] = { p: Math.round(s.pow), n: 3, em: s.em };
-    if (s.kind === "stun" && Math.random() < (s.id === "stupefy" ? 0.3 : 0.2)) { st.stun[target] = 1; line("😵 " + nameOf(target) + " 기절!"); }
+    if (s.kind === "dot" || s.kind === "dot2") {
+      var cch = charOf(caster), wb = cch && cch.id === "witchking", sx = cch && cch.id === "sauron";
+      st.dot[target] = { p: Math.round(s.pow) + (wb || sx ? 2 : 0), n: wb ? 4 : 3, em: s.em, cur: wb ? 1 : 0 };
+      if (wb) line("🗡 모르굴의 상처 — 지워지지 않는다"); else if (sx) line("👁 불의 눈이 상처를 태운다");
+    }
+    if (s.kind === "stun" && (s.id === "stupefy" || Math.random() < 0.4)) { (st.daze = st.daze || {})[target] = 1; line("💫 " + nameOf(target) + " 비틀 — 다음 턴 공격 봉인"); }
     if (s.kind === "weak") { st.weak[target] = 1; line("🙃 " + nameOf(target) + " 다음 주문 위력 절반"); }
     if (s.kind === "sleep") {
       if (st.wimm[target]) { delete st.wimm[target]; line("🛡 " + nameOf(target) + " 수면 면역으로 버팀"); }
@@ -7032,6 +7207,15 @@ function kelMyCardHtml() {
         : '<span class="muted" style="font-size:11px">배운 주문 없음 — 탭해서 뽑기</span>') + '</button>' +
     '</div></div>';
 }
+function brStrip62(g, st, pl) {
+  if (g.phase === "invite") return '<div class="br-strip">🕐 개시 대기 — 호스트 <b>' + esc(nameOf(pl[0])) + '</b>가 시작해야 함 <span class="muted2">(10분 뒤 자동 개시)</span></div>';
+  if (g.phase !== "play") return "";
+  var alive = brAlive(g), picks = g.picks || {};
+  var wait = alive.filter(function (p) { return !picks[p]; });
+  return '<div class="br-strip">🎯 픽 ' + (alive.length - wait.length) + "/" + alive.length +
+    (wait.length ? " · ⏳ " + wait.map(nameOf).join("·") + '<span class="wdots"></span>' : " · ⚖️ 판정 중…") +
+    ' <span class="muted2">· 판정: ' + esc(nameOf(alive[0])) + "폰</span></div>";
+}
 function brawlSeatHtml(g, p, st) {
   var c = charOf(p) || { id: "x", em: "🎩" };
   var hp = (st.hp || {})[p] || 0, mx = maxHpReal(p);
@@ -7058,7 +7242,7 @@ function openBrawl(g) {
   var others = pl.filter(function (p) { return p !== me; });
   var seats = spec ? pl : others;
   var html = '<div class="armory bt-wrap pk-wrap br-wrap"><button class="ovx" data-ovx>✕</button>' +
-    '<div class="br-title">🔥 난투장 <span class="muted" style="font-size:11px">' + pl.length + "/6 · " + (g.phase === "invite" ? "모집 중" : g.phase === "done" ? "종료" : "T" + g.turn) + "</span></div>" +
+    '<div class="br-title">🔥 난투장 <span class="muted" style="font-size:11px">' + pl.length + "/6 · " + (g.phase === "invite" ? "모집 중" : g.phase === "done" ? "종료" : "T" + g.turn) + "</span></div>" + brStrip62(g, st, pl) +
     '<div class="br-arena' + (spec ? " br-spec" : "") + '">' +
     '<div class="br-row">' + seats.map(function (p) { return brawlSeatHtml(g, p, st); }).join("") + "</div>" +
     (spec ? "" : '<div class="br-merow">' + brawlSeatHtml(g, me, st) + "</div>") +
@@ -7085,10 +7269,12 @@ function openBrawl(g) {
     if (!myAlive) html += '<div class="bt-pickmsg">💀 탈락 — 유령 관전 중</div>';
     else {
       html += '<div class="bt-pickmsg" id="br-msg">' + (__brArm ? "🎯 <b>표적을 탭해</b> — " + (spellById[__brArm] || {}).ko :
-        picked ? "✅ <b>" + ((spellById[pp.sp] || {}).ko || pp.sp) + "</b>" + (pp.tgt ? " → " + nameOf(pp.tgt) : "") + ' <span class="muted2">(다시 골라 변경 가능)</span>' :
+        picked ? "✅ <b>" + ((spellById[String(pp.sp || "").split(":")[0]] || {}).ko || pp.sp) + "</b>" + (pp.tgt ? " → " + nameOf(pp.tgt) : "") + ' <span class="muted2">(다시 골라 변경 가능)</span>' :
         "주문 선택 — <b id=\"bt-cd\">25</b>초") + "</div>";
       var forgot = (st.forget || {})[me] || [];
-      html += movesHtml(myBook().filter(function (r) { return forgot.indexOf(r.spell_id) < 0; }));
+      var sealB = ((st.seal || {})[me] || {}).id;
+      var lockedB = forgot.concat(sealB ? [sealB] : []);
+      html += movesHtml(myBook(), lockedB);
       html += '<button class="btn ghost" id="br-ff" style="width:100%;margin-top:8px">🏳️ 기권 (탈락)</button>';
     }
   } else {
@@ -7118,11 +7304,13 @@ function openBrawl(g) {
   bindMoves(box);
   $$("[data-cast]", box).forEach(function (b) {
     b.onclick = function () {
+      if (b.classList.contains("lock2")) return toast("🔒 봉인된 주문이야");
       if (b.classList.contains("lock")) return toast("차지가 없어");
       var s = spellById[b.dataset.cast];
       var selfCast = ["shield","guard","buff","wake"].indexOf(s.kind) >= 0 || s.id === "patronum" || s.id === "aguamenti";
       if (selfCast || brAlive(g).filter(function (x) { return x !== me; }).length === 1) {
         var only = brAlive(g).filter(function (x) { return x !== me; })[0];
+        if (b.dataset.cast === "obliviate") { openObPick(only, function (sid) { brawlSubmit("obliviate:" + sid, only); }); __brArm = null; return; }
         brawlSubmit(b.dataset.cast, selfCast ? null : only); __brArm = null;
       } else {
         __brArm = b.dataset.cast;
@@ -7137,6 +7325,11 @@ function openBrawl(g) {
       var tgt = bs.dataset.seat;
       if (tgt === me) return toast("자해 금지");
       if (((g.state || {}).hp || {})[tgt] <= 0) return toast("이미 쓰러졌어");
+      if (__brArm === "obliviate") {
+        __brArm = null;
+        openObPick(tgt, function (sid) { brawlSubmit("obliviate:" + sid, tgt); });
+        return;
+      }
       brawlSubmit(__brArm, tgt); __brArm = null;
     };
   });
@@ -7264,6 +7457,11 @@ function liveWatch() {
     if (typeof currentTab !== "undefined" && currentTab === "home") try { renderHome(); } catch (e) {}
   }
 }
+function blkBadge62(mid) {
+  var n = Number((statsOf(mid).exp_map || {}).__blk || 0);
+  if (!n) return "";
+  return ' <span title="아바다 격퇴">🛡' + n + (n >= 3 ? "👑" : "") + "</span>";
+}
 function openRank() {
   var box = document.getElementById("rankbox");
   if (!box) { box = document.createElement("div"); box.id = "rankbox"; document.body.appendChild(box); }
@@ -7276,7 +7474,7 @@ function openRank() {
       return '<div class="rowline"><span class="rk-no">' + (i + 1) + "</span>" + av(r.m.id) +
         '<div><div style="font-weight:700;font-size:14px">' + esc(r.m.name) + ' <span class="bt-lv">Lv.' + r.lv + "</span></div>" +
         '<div class="muted" style="font-size:12px">' + (r.s.wins || 0) + "승 " + (r.s.losses || 0) + "패 · XP " + (r.s.xp || 0) + "</div></div>" +
-        '<span style="margin-left:auto">☠️' + akLeft(r.m.id) + dodgeBadge(r.m.id) + "</span></div>";
+        '<span style="margin-left:auto">☠️' + akLeft(r.m.id) + dodgeBadge(r.m.id) + blkBadge62(r.m.id) + "</span></div>";
     }).join("") + "</div>";
 }
 
@@ -7370,6 +7568,7 @@ function openMultiWS(kind, type) {
   var n = kind === 1000 ? 3 : 5, boost = kind === 1000 ? 100 : 3;
   var cards = [];
   for (var i = 0; i < n; i++) cards.push(type === "wand" ? drawWeapon(boost) : drawSpell(boost));
+  txnBegin({ t: type === "wand" ? "mwand" : "mspell", ids: cards.map(function (c) { return c.id; }) });
   var box = document.getElementById("multibox");
   if (!box) { box = document.createElement("div"); box.id = "multibox"; document.body.appendChild(box); }
   box.className = kind === 1000 ? "ultra" : "";
