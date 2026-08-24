@@ -17,8 +17,8 @@ const TIERS = [
 ];
 const MAX_ROLLS = 20;
 const RESET_PW = "0909";   // 초기화 비밀번호
-const BUILD = "2026-08-24 v62";
-const BUILD_NO = 62;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
+const BUILD = "2026-08-24 v63";
+const BUILD_NO = 63;   // 숫자 버전 — 서버 min_version과 비교   // 폰이 최신인지 확인용
 const PITY_AT = 12;   // 12번 굴려도 영웅 이상 없으면 13번째 확정
 
 /* fx 프리셋: shape(도형) · motion(fall/rise/sweep/burst) · color */
@@ -7180,10 +7180,12 @@ function charPinName(mem) {
   var c = charOf(mem.id);
   return mem.avatar + " " + esc(mem.name) + (c ? ' · <span style="opacity:.8">' + c.em + " " + esc(c.ko) + "</span>" : "");
 }
-/* 스프라이트: repo에 chars/<캐릭터id>.png 를 넣으면 자동으로 이미지 사용, 없으면 이모지 */
+/* 스프라이트: repo에 chars/<캐릭터id>.png 를 넣으면 자동으로 이미지 사용, 없으면 이모지
+   CHARF63: 실제 업로드된 파일명이 id와 다를 때 여기에 매핑 (id: "파일명.확장자") */
+var CHARF63 = { potter: "harry.png", riddle: "tomriddle.jpeg", grindelwald: "images.jpeg" };
 function spriteHtml(c, cls) {
   return '<span class="pk-spr ' + (cls || "") + '" data-cid="' + c.id + '">' +
-    '<img src="chars/' + c.id + '.png" alt="" class="pk-img">' +
+    '<img src="chars/' + (CHARF63[c.id] || c.id + ".png") + '" alt="" class="pk-img">' +
     '<span class="pk-em">' + c.em + '</span></span>';
 }
 document.addEventListener("load", function (e) {

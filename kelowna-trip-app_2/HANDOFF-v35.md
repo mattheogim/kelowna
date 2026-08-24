@@ -17,7 +17,7 @@
 | Supabase | https://vprbjkqvytumfxbftofd.supabase.co (anon key는 config.js에 공개) |
 | 반복 사고 2패턴 | ① Pages 캐시/구SW → 시크릿창 ② **SQL 미실행** → 신기능 전부 침묵 |
 
-현재 버전: **v62** (`BUILD="2026-08-24 v62"`, `BUILD_NO=62`, `CACHE="kel-v62"`). v35 배포 후 v36에서 포켓몬 무대·트레이너 카드·관전 모드 추가.
+현재 버전: **v63** (`BUILD="2026-08-24 v63"`, `BUILD_NO=63`, `CACHE="kel-v63"`). v35 배포 후 v36에서 포켓몬 무대·트레이너 카드·관전 모드 추가.
 
 ## 2. DB 스키마 (v35 기준 전체)
 
